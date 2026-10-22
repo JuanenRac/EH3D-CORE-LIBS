@@ -1,0 +1,9 @@
+/target
+Cargo.lock.bak
+*.eh3dproj.tmp
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc

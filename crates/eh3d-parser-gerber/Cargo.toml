@@ -1,0 +1,12 @@
+[package]
+name = "eh3d-parser-gerber"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Tolerant parser for gerber files of the EH3D Fabrication Suite: it never panics, and reports what it could not understand as diagnostics with line numbers."
+readme = "../../README.md"
+
+[dependencies]
