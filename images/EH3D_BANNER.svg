@@ -223,72 +223,49 @@
 
   <!-- MAIN TYPOGRAPHY / TITLE BLOCK -->
   <g transform="translate(380, 0)">
-    <!-- Ecosystem Tag Header con sutil brillo -->
     <g transform="translate(0, 82)">
-      <rect x="0" y="-18" width="220" height="24" rx="4" fill="#00E5FF" fill-opacity="0.1" stroke="#00E5FF" stroke-opacity="0.4" stroke-width="1">
-        <animate attributeName="stroke-opacity" values="0.3;0.8;0.3" dur="4s" repeatCount="indefinite" />
+      <rect x="0" y="-18" width="162" height="24" rx="4" fill="#00E5FF" fill-opacity="0.1" stroke="#00E5FF" stroke-opacity="0.4" stroke-width="1">
+        <animate attributeName="stroke-opacity" values="0.3;0.8;0.3" dur="4s" repeatCount="indefinite"/>
       </rect>
-      <text x="12" y="-2" font-family="&#39;Inter&#39;, &#39;Segoe UI&#39;, &#39;Roboto&#39;, sans-serif" font-weight="700" font-size="11" fill="#00E5FF" letter-spacing="2.5">ELECTRO HOBBY 3D</text>
+      <text x="12" y="-2" font-family="'Inter', 'Segoe UI', 'Roboto', sans-serif" font-weight="700" font-size="11" fill="#00E5FF" letter-spacing="2.5">EH3D · LIBRARY</text>
     </g>
 
-    <!-- Main Title: EH3D -->
-    <text x="0" y="142" font-family="&#39;Inter&#39;, &#39;Segoe UI&#39;, &#39;Roboto&#39;, sans-serif" font-weight="900" font-size="56" fill="#FFFFFF" letter-spacing="4">
-      EH3D
-    </text>
+    <text x="0" y="142" font-family="'Inter', 'Segoe UI', 'Roboto', sans-serif" font-weight="900" font-size="56" fill="#FFFFFF" letter-spacing="5">EH3D-CORE-LIBS</text>
 
-    <!-- Main Title: FABRICATION SUITE con brillo dinámico en oro -->
-    <text x="175" y="142" font-family="&#39;Inter&#39;, &#39;Segoe UI&#39;, &#39;Roboto&#39;, sans-serif" font-weight="800" font-size="38" fill="url(#goldGlow)" letter-spacing="3" filter="url(#glowGold)">
-      FABRICATION
-      <animate attributeName="opacity" values="0.85;1;0.85" dur="3s" repeatCount="indefinite" />
-    </text>
+    <text x="0" y="182" font-family="'Inter', 'Segoe UI', 'Roboto', sans-serif" font-weight="700" font-size="22" fill="url(#goldGlow)" letter-spacing="4" filter="url(#glowGold)">PLATFORM FOUNDATION</text>
 
-    <text x="0" y="182" font-family="&#39;Inter&#39;, &#39;Segoe UI&#39;, &#39;Roboto&#39;, sans-serif" font-weight="700" font-size="28" fill="#00E5FF" letter-spacing="6" filter="url(#glowCyan)">
-      SUITE
-    </text>
+    <text x="0" y="212" font-family="'Inter', 'Segoe UI', 'Roboto', sans-serif" font-weight="500" font-size="12" fill="#8B949E" letter-spacing="1.5">RUST · GERBER RS-274X · EXCELLON · G-CODE</text>
 
-    <!-- Subtitle / Capabilities Line -->
-    <text x="155" y="180" font-family="&#39;Inter&#39;, &#39;Segoe UI&#39;, &#39;Roboto&#39;, sans-serif" font-weight="500" font-size="13" fill="#8B949E" letter-spacing="1.5">
-      PCB CAM · CNC MILLING · LASER · PICK Y PLACE · VISION
-    </text>
-
-    <!-- Tech Badges Bar -->
-    <g transform="translate(0, 212)">
-      <!-- Badge 1: Gerber / CAM -->
-      <rect x="0" y="0" width="110" height="22" rx="11" fill="#161B22" stroke="#30363D" stroke-width="1" />
+    <g transform="translate(0, 232)">
+      <rect x="0" y="0" width="60" height="22" rx="11" fill="#161B22" stroke="#30363D" stroke-width="1"/>
       <circle cx="11" cy="11" r="4" fill="#00E5FF">
-        <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.0s" repeatCount="indefinite"/>
       </circle>
-      <text x="22" y="15" font-family="sans-serif" font-weight="600" font-size="10" fill="#C9D1D9" letter-spacing="0.5">RS-274X CAM</text>
-
-      <!-- Badge 2: Motion Control -->
-      <rect x="120" y="0" width="115" height="22" rx="11" fill="#161B22" stroke="#30363D" stroke-width="1" />
-      <circle cx="131" cy="11" r="4" fill="#FFB300">
-        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.5s" repeatCount="indefinite" />
+      <text x="22" y="15" font-family="sans-serif" font-weight="600" font-size="10" fill="#C9D1D9" letter-spacing="0.5">RUST</text>
+      <rect x="70" y="0" width="126" height="22" rx="11" fill="#161B22" stroke="#30363D" stroke-width="1"/>
+      <circle cx="81" cy="11" r="4" fill="#FFB300">
+        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.2s" repeatCount="indefinite"/>
       </circle>
-      <text x="142" y="15" font-family="sans-serif" font-weight="600" font-size="10" fill="#C9D1D9" letter-spacing="0.5">G-CODE / HP-GL</text>
-
-      <!-- Badge 3: Hailo AI Vision -->
-      <rect x="245" y="0" width="125" height="22" rx="11" fill="#161B22" stroke="#30363D" stroke-width="1" />
-      <circle cx="256" cy="11" r="4" fill="#00FF88">
-        <animate attributeName="opacity" values="0.5;1;0.5" dur="1.8s" repeatCount="indefinite" />
+      <text x="92" y="15" font-family="sans-serif" font-weight="600" font-size="10" fill="#C9D1D9" letter-spacing="0.5">GERBER RS-274X</text>
+      <rect x="206" y="0" width="86" height="22" rx="11" fill="#161B22" stroke="#30363D" stroke-width="1"/>
+      <circle cx="217" cy="11" r="4" fill="#00FF88">
+        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.4s" repeatCount="indefinite"/>
       </circle>
-      <text x="267" y="15" font-family="sans-serif" font-weight="600" font-size="10" fill="#C9D1D9" letter-spacing="0.5">HAILO AI VISION</text>
-
-      <!-- Badge 4: HYDRA-UMC Sync -->
-      <rect x="380" y="0" width="135" height="22" rx="11" fill="#161B22" stroke="#30363D" stroke-width="1" />
-      <circle cx="391" cy="11" r="4" fill="#FF0055">
-        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.2s" repeatCount="indefinite" />
+      <text x="228" y="15" font-family="sans-serif" font-weight="600" font-size="10" fill="#C9D1D9" letter-spacing="0.5">EXCELLON</text>
+      <rect x="302" y="0" width="73" height="22" rx="11" fill="#161B22" stroke="#30363D" stroke-width="1"/>
+      <circle cx="313" cy="11" r="4" fill="#FF0055">
+        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.6s" repeatCount="indefinite"/>
       </circle>
-      <text x="402" y="15" font-family="sans-serif" font-weight="600" font-size="10" fill="#C9D1D9" letter-spacing="0.5">HYDRA-UMC LINK</text>
+      <text x="324" y="15" font-family="sans-serif" font-weight="600" font-size="10" fill="#C9D1D9" letter-spacing="0.5">G-CODE</text>
     </g>
   </g>
 
   <!-- Top Right Status / Version Indicator -->
   <g transform="translate(1060, 42)">
-    <rect x="-10" y="-14" width="105" height="24" rx="12" fill="#0D1117" stroke="#00E5FF" stroke-opacity="0.3" stroke-width="1" />
-    <circle cx="2" cy="-2" r="4" fill="#00FF88" filter="url(#glowCyan)">
-      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" />
+    <rect x="-10" y="-14" width="105" height="24" rx="12" fill="#0D1117" stroke="#00E5FF" stroke-opacity="0.3" stroke-width="1"/>
+    <circle cx="2" cy="-2" r="4" fill="#00E5FF" filter="url(#glowGold)">
+      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
     </circle>
-    <text x="14" y="2" font-family="monospace" font-weight="700" font-size="11" fill="#00E5FF" letter-spacing="1">v0.0.1</text>
+    <text x="14" y="2" font-family="monospace" font-weight="700" font-size="11" fill="#00E5FF" letter-spacing="1">LIBRARY</text>
   </g>
 </svg>

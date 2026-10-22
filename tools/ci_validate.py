@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # =============================================================================
-# EH3D-COMMON - tools/ci_validate.py
+# EH3D-CORE-LIBS - tools/ci_validate.py
 # Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 # GPL-3.0-or-later - see LICENSE
 # =============================================================================
