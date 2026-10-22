@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to this project are documented here. The version number follows this ecosystem's "odometer" scheme: PATCH +1 on every real build, rolling into MINOR past 9 (`0.0.9` -> `0.1.0`).
+All notable changes to this project are documented here.
 
 ## [0.0.1] - Readers for Gerber, Excellon and G-code
 
