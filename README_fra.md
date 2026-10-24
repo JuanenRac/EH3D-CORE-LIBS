@@ -34,6 +34,24 @@
 | Pile technique | Rust |
 | Sur matériel réel | Sans objet : des lecteurs de fichiers, rien ici ne parle à une machine |
 
+## 🚦 État du projet
+
+Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'hui. Elle est écrite d'après ce que le dépôt peut montrer (tests, compilations, exécutions), pas d'après ce qui est prévu.
+
+🟢 Fait et vérifié · 🟡 Fonctionne, avec des limites connues · 🟠 À moitié fait ou pas encore vérifié · 🔴 Pas fait ou ne fonctionne pas
+
+| Domaine | État | Ce que cela veut dire ici |
+|---|---|---|
+| Logiciel | 🟡 | Trois lecteurs (Gerber, Excellon, G-code) fonctionnent comme bibliothèques Rust et continuent à lire les fichiers abîmés ; aucun programme de la suite ne les utilise encore. |
+| Tests | 🟢 | 42 tests réussissent (`cargo test`), dont des entrées abîmées et hostiles. |
+| Lecteur Gerber | 🟡 | RS-274X : unités, format des coordonnées, ouvertures, macros, régions et commandes de tracé sont lus ; seulement des fichiers de test à ce jour, pas une collection de vrais fichiers de production. |
+| Lecteur Excellon | 🟡 | Outils, perçages, rainures et parcours simples en métrique ou en pouces sont lus ; seulement des fichiers de test à ce jour. |
+| Lecteur G-code | 🟡 | Un interpréteur modal des dialectes GRBL, Marlin et PlanetCNC donne des millimètres absolus, arcs compris ; la compensation d'outil et les cycles fixes sont signalés comme non pris en charge. |
+| Géométrie et HP-GL | 🔴 | La géométrie 2D (décalages, opérations booléennes) et les lecteurs HP-GL et Bungard sont prévus et pas construits. |
+| Sécurité | 🟡 | Conçu pour des fichiers envoyés par d'autres : rien ne plante et les problèmes reviennent sous forme de diagnostics avec numéro de ligne ; pas de revue indépendante, et rien ici ne juge si un G-code peut être exécuté sans danger. |
+| Matériel réel | 🟢 | Sans objet : ce sont des lecteurs de fichiers, rien ici ne parle à une machine. |
+| Documentation | 🟢 | README en huit langues et `docs/READERS.md`, qui dit ce que promet chaque lecteur et ce qu'il ne fait pas. |
+
 ## 🎯 Vue d'ensemble
 
 * Le **lecteur Gerber** (`eh3d-parser-gerber`, RS-274X) : unités, format des coordonnées avec sa suppression des zéros, ouvertures et macros, régions et commandes de tracé. Une coordonnée plus large que son format est refusée plutôt que devinée.

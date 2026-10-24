@@ -34,6 +34,24 @@
 | Stack | Rust |
 | On real hardware | Not applicable: file readers, nothing here talks to a machine |
 
+## 🚦 Project status
+
+Each line is one part of this repository and the light says how far it is today. It is written from what the repository can show (tests, builds, runs), not from what is planned.
+
+🟢 Done and verified · 🟡 Works, with known limits · 🟠 Partly done or not verified yet · 🔴 Not done or not working
+
+| Area | State | What it means here |
+|---|---|---|
+| Software | 🟡 | Three readers (Gerber, Excellon, G-code) work as Rust libraries and go on reading damaged files; no program of the suite uses them yet. |
+| Tests | 🟢 | 42 tests pass (`cargo test`), including damaged and hostile input. |
+| Gerber reader | 🟡 | RS-274X: units, coordinate format, apertures, macros, regions and drawing commands are read; only test files so far, not a collection of real production files. |
+| Excellon reader | 🟡 | Tools, drill hits, slots and simple routes in metric or inches are read; only test files so far. |
+| G-code reader | 🟡 | A modal interpreter for the GRBL, Marlin and PlanetCNC dialects gives absolute millimetres, arcs included; cutter compensation and canned cycles are reported as unsupported. |
+| Geometry and HP-GL | 🔴 | The 2D geometry (offsets, booleans) and the HP-GL and Bungard readers are planned and not built. |
+| Security | 🟡 | Built for files that other people send: nothing panics and problems come back as diagnostics with line numbers; no independent review, and nothing here judges whether a G-code is safe to run. |
+| Real hardware | 🟢 | Not applicable: file readers, nothing here talks to a machine. |
+| Documentation | 🟢 | README in eight languages and `docs/READERS.md`, which says what each reader promises and what it does not do. |
+
 ## 🎯 Overview
 
 * The **Gerber reader** (`eh3d-parser-gerber`, RS-274X): units, the coordinate format with its zero suppression, apertures and macros, regions and the drawing commands. A coordinate wider than its format is refused instead of guessed.

@@ -34,6 +34,24 @@
 | Stack tecnologico | Rust |
 | Su hardware reale | Non applicabile: sono lettori di file, nulla qui parla con una macchina |
 
+## 🚦 Stato del progetto
+
+Ogni riga è una parte di questo repository e il semaforo dice a che punto è oggi. È scritta in base a ciò che il repository può mostrare (test, compilazioni, esecuzioni), non a ciò che è previsto.
+
+🟢 Fatto e verificato · 🟡 Funziona, con limiti noti · 🟠 Fatto a metà o non ancora verificato · 🔴 Non fatto o non funzionante
+
+| Area | Stato | Cosa significa qui |
+|---|---|---|
+| Software | 🟡 | Tre lettori (Gerber, Excellon, G-code) funzionano come librerie Rust e continuano a leggere file danneggiati; nessun programma della suite li usa ancora. |
+| Test | 🟢 | 42 test passano (`cargo test`), compresi input danneggiati e ostili. |
+| Lettore Gerber | 🟡 | RS-274X: si leggono unità, formato delle coordinate, aperture, macro, regioni e comandi di disegno; finora solo file di prova, non una raccolta di file di produzione reali. |
+| Lettore Excellon | 🟡 | Si leggono utensili, fori, asole e percorsi semplici in metrico o in pollici; finora solo file di prova. |
+| Lettore G-code | 🟡 | Un interprete modale dei dialetti GRBL, Marlin e PlanetCNC restituisce millimetri assoluti, archi inclusi; la compensazione utensile e i cicli fissi sono segnalati come non supportati. |
+| Geometria e HP-GL | 🔴 | La geometria 2D (offset, operazioni booleane) e i lettori HP-GL e Bungard sono previsti e non costruiti. |
+| Sicurezza | 🟡 | Pensato per file inviati da altri: niente va in panico e i problemi tornano come diagnostiche con numero di riga; nessuna revisione indipendente, e nulla qui giudica se un G-code sia sicuro da eseguire. |
+| Hardware reale | 🟢 | Non applicabile: sono lettori di file, nulla qui parla con una macchina. |
+| Documentazione | 🟢 | README in otto lingue e `docs/READERS.md`, che dice cosa promette ogni lettore e cosa non fa. |
+
 ## 🎯 Panoramica
 
 * Il **lettore Gerber** (`eh3d-parser-gerber`, RS-274X): unità, formato delle coordinate con la soppressione degli zeri, aperture e macro, regioni e comandi di disegno. Una coordinata più larga del suo formato viene rifiutata invece di essere indovinata.

@@ -34,6 +34,24 @@
 | Pilha tecnológica | Rust |
 | Em hardware real | Não aplicável: são leitores de ficheiros, nada aqui fala com uma máquina |
 
+## 🚦 Estado do projeto
+
+Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É escrita com o que o repositório consegue demonstrar (testes, compilações, execuções), não com o que está previsto.
+
+🟢 Feito e verificado · 🟡 Funciona, com limites conhecidos · 🟠 Feito a meio ou ainda por verificar · 🔴 Por fazer ou a não funcionar
+
+| Área | Estado | O que significa aqui |
+|---|---|---|
+| Software | 🟡 | Três leitores (Gerber, Excellon, G-code) funcionam como bibliotecas Rust e continuam a ler ficheiros danificados; nenhum programa da suite os usa ainda. |
+| Testes | 🟢 | Passam 42 testes (`cargo test`), incluindo entradas danificadas e hostis. |
+| Leitor de Gerber | 🟡 | RS-274X: leem-se unidades, formato de coordenadas, aberturas, macros, regiões e comandos de desenho; até agora só ficheiros de teste, não uma coleção de ficheiros reais de produção. |
+| Leitor de Excellon | 🟡 | Leem-se ferramentas, furos, ranhuras e percursos simples em métrico ou polegadas; até agora só ficheiros de teste. |
+| Leitor de G-code | 🟡 | Um intérprete modal dos dialetos GRBL, Marlin e PlanetCNC devolve milímetros absolutos, arcos incluídos; a compensação de ferramenta e os ciclos fixos são indicados como não suportados. |
+| Geometria e HP-GL | 🔴 | A geometria 2D (deslocamentos, operações booleanas) e os leitores de HP-GL e Bungard estão previstos e por construir. |
+| Segurança | 🟡 | Pensado para ficheiros enviados por outras pessoas: nada entra em pânico e os problemas voltam como diagnósticos com número de linha; sem revisão independente, e nada aqui avalia se um G-code é seguro de executar. |
+| Hardware real | 🟢 | Não se aplica: são leitores de ficheiros, nada aqui fala com uma máquina. |
+| Documentação | 🟢 | README em oito idiomas e `docs/READERS.md`, que diz o que cada leitor promete e o que não faz. |
+
 ## 🎯 Visão geral
 
 * O **leitor Gerber** (`eh3d-parser-gerber`, RS-274X): unidades, o formato das coordenadas com a sua supressão de zeros, aberturas e macros, regiões e os comandos de desenho. Uma coordenada mais larga do que o seu formato é recusada em vez de adivinhada.

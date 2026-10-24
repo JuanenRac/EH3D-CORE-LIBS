@@ -34,6 +34,24 @@
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht zutreffend: Dateileser, nichts hier spricht mit einer Maschine |
 
+## 🚦 Projektstatus
+
+Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heute ist. Sie beruht auf dem, was das Repository zeigen kann (Tests, Builds, Läufe), nicht auf dem, was geplant ist.
+
+🟢 Fertig und überprüft · 🟡 Funktioniert, mit bekannten Grenzen · 🟠 Teilweise fertig oder noch nicht überprüft · 🔴 Nicht gemacht oder funktioniert nicht
+
+| Bereich | Stand | Was das hier bedeutet |
+|---|---|---|
+| Software | 🟡 | Drei Leser (Gerber, Excellon, G-Code) funktionieren als Rust-Bibliotheken und lesen beschädigte Dateien weiter; noch kein Programm der Suite verwendet sie. |
+| Tests | 🟢 | 42 Tests bestehen (`cargo test`), darunter beschädigte und feindliche Eingaben. |
+| Gerber-Leser | 🟡 | RS-274X: Einheiten, Koordinatenformat, Blenden, Makros, Regionen und Zeichenbefehle werden gelesen; bisher nur Testdateien, keine Sammlung echter Produktionsdateien. |
+| Excellon-Leser | 🟡 | Werkzeuge, Bohrungen, Langlöcher und einfache Fräsbahnen in metrisch oder Zoll werden gelesen; bisher nur Testdateien. |
+| G-Code-Leser | 🟡 | Ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC liefert absolute Millimeter, Bögen eingeschlossen; Werkzeugkorrektur und Bearbeitungszyklen werden als nicht unterstützt gemeldet. |
+| Geometrie und HP-GL | 🔴 | Die 2D-Geometrie (Offsets, boolesche Operationen) sowie die HP-GL- und Bungard-Leser sind geplant und nicht gebaut. |
+| Sicherheit | 🟡 | Für Dateien gebaut, die andere schicken: nichts bricht ab, und Probleme kommen als Diagnosen mit Zeilennummer zurück; keine unabhängige Prüfung, und nichts hier beurteilt, ob ein G-Code sicher ausgeführt werden kann. |
+| Echte Hardware | 🟢 | Nicht zutreffend: Dateileser, nichts hier spricht mit einer Maschine. |
+| Dokumentation | 🟢 | README in acht Sprachen und `docs/READERS.md`, das sagt, was jeder Leser verspricht und was er nicht tut. |
+
 ## 🎯 Überblick
 
 * Der **Gerber-Leser** (`eh3d-parser-gerber`, RS-274X): Einheiten, das Koordinatenformat mit seiner Nullenunterdrückung, Aperturen und Makros, Regionen und die Zeichenbefehle. Eine Koordinate, die breiter ist als ihr Format, wird abgelehnt statt geraten.
