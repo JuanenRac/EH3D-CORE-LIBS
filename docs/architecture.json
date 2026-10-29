@@ -1,0 +1,153 @@
+{
+  "repo": "EH3D-CORE-LIBS",
+  "ecosystem": "eh3d",
+  "tagline": "Tolerant readers of Gerber, Excellon and G-code for the programs of the suite.",
+  "description": "EH3D-CORE-LIBS is a Rust workspace with three readers that have no dependencies: Gerber RS-274X, Excellon drill files and G-code with a modal interpreter. Each takes text from a person who may be careless or hostile and returns the data plus diagnostics with line numbers; none of them panics. No program of the suite uses them yet. They draw nothing and move nothing.",
+  "columns": [
+    "WHO USES IT",
+    "THIS REPOSITORY",
+    "WHAT IT DEPENDS ON"
+  ],
+  "nodes": [
+    {
+      "id": "files",
+      "column": 0,
+      "level": "external",
+      "title": "Files from people",
+      "lines": [
+        "layers, drill files and G-code:",
+        "damaged or hostile text is",
+        "expected"
+      ]
+    },
+    {
+      "id": "cam",
+      "column": 0,
+      "level": "external",
+      "title": "Suite programs",
+      "lines": [
+        "planned: the CAM programs and",
+        "the viewers; none uses the",
+        "readers yet"
+      ]
+    },
+    {
+      "id": "drill",
+      "column": 0,
+      "level": "external",
+      "title": "EH3D-DRILLPRO",
+      "lines": [
+        "has its own Excellon reader;",
+        "may switch to this one later"
+      ]
+    },
+    {
+      "id": "gerber",
+      "column": 1,
+      "level": "tested",
+      "title": "eh3d-parser-gerber",
+      "lines": [
+        "RS-274X: units, format,",
+        "apertures, macros, regions",
+        "and drawing commands"
+      ],
+      "code": [
+        "crates/eh3d-parser-gerber/src/lib.rs::pub fn parse"
+      ]
+    },
+    {
+      "id": "excellon",
+      "column": 1,
+      "level": "tested",
+      "title": "eh3d-parser-excellon",
+      "lines": [
+        "tools, hits, slots (G85)",
+        "and simple routes, metric",
+        "or inches"
+      ],
+      "code": [
+        "crates/eh3d-parser-excellon/src/lib.rs::pub fn parse"
+      ]
+    },
+    {
+      "id": "gcode",
+      "column": 1,
+      "level": "tested",
+      "title": "eh3d-parser-gcode",
+      "lines": [
+        "GRBL, Marlin and PlanetCNC;",
+        "modal interpreter in absolute",
+        "millimetres"
+      ],
+      "code": [
+        "crates/eh3d-parser-gcode/src/lib.rs::pub fn interpret",
+        "crates/eh3d-parser-gcode/src/lib.rs::MAX_LINE_CHARS"
+      ]
+    },
+    {
+      "id": "std",
+      "column": 2,
+      "level": "external",
+      "title": "Rust standard library",
+      "lines": [
+        "no other dependency in any",
+        "of the three crates"
+      ],
+      "code": [
+        "crates/eh3d-parser-gerber/Cargo.toml::[dependencies]"
+      ]
+    },
+    {
+      "id": "common",
+      "column": 2,
+      "level": "config",
+      "title": "EH3D-COMMON",
+      "lines": [
+        "planned: the shared project",
+        "and machine types; not used",
+        "today"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "files",
+      "to": "gerber",
+      "label": "text",
+      "level": "tested"
+    },
+    {
+      "from": "files",
+      "to": "gcode",
+      "level": "tested"
+    },
+    {
+      "from": "cam",
+      "to": "gerber",
+      "label": "planned",
+      "level": "config"
+    },
+    {
+      "from": "drill",
+      "to": "excellon",
+      "label": "later",
+      "level": "config"
+    },
+    {
+      "from": "gerber",
+      "to": "std",
+      "level": "tested"
+    },
+    {
+      "from": "gcode",
+      "to": "common",
+      "level": "config"
+    }
+  ],
+  "legend": {
+    "tested": "covered by tests on a computer",
+    "config": "planned, not used today",
+    "external": "a person, a file or another repository"
+  },
+  "footer": "Readers only: nothing here draws, plans a toolpath or moves a machine."
+}
