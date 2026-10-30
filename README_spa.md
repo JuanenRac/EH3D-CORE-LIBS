@@ -47,12 +47,12 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 | Lector Gerber | 🟡 | RS-274X: se leen unidades, formato de coordenadas, aperturas, macros, regiones y comandos de dibujo; solo con ficheros de prueba hasta ahora, no con una colección de ficheros de producción reales. |
 | Lector Excellon | 🟡 | Se leen herramientas, taladros, ranuras y rutas simples en métrico o pulgadas; solo con ficheros de prueba hasta ahora. |
 | Lector de G-code | 🟡 | Un intérprete modal de los dialectos GRBL, Marlin y PlanetCNC da milímetros absolutos, arcos incluidos; la compensación de radio y los ciclos fijos se avisan como no soportados. |
-| Pruebas | 🟢 | Pasan 42 pruebas (`cargo test`): 12 de Gerber más 1 en el módulo, 11 de Excellon y 18 de G-code, con entradas dañadas y hostiles. |
+| Pruebas | 🟡 | Pasan 42 pruebas (`cargo test`): 12 de Gerber más 1 en el módulo, 11 de Excellon y 18 de G-code, con entradas dañadas y hostiles. |
 | Seguridad | 🟡 | Hecho para ficheros que envían otras personas: nada entra en pánico, ningún valor se adivina y los problemas vuelven como diagnósticos con número de línea; sin revisión independiente, y nada aquí juzga si un G-code es seguro de ejecutar. |
 | Geometría y HP-GL | 🔴 | La geometría 2D (offsets, booleanas) y los lectores de HP-GL y de Bungard están previstos y sin construir. |
 | Uso por otros programas | 🔴 | Ningún programa de la suite depende todavía de los lectores. |
-| Hardware real | 🟢 | No aplica: lectores de ficheros, nada aquí habla con una máquina. |
-| Documentación | 🟢 | README en ocho idiomas y `docs/READERS.md`, que dice qué promete cada lector y qué no hace. |
+| Hardware real | 🟡 | No aplica: lectores de ficheros, nada aquí habla con una máquina. |
+| Documentación | 🟡 | README en ocho idiomas y `docs/READERS.md`, que dice qué promete cada lector y qué no hace. |
 
 ## 🎯 Resumen
 

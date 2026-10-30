@@ -47,12 +47,12 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Lecteur Gerber | 🟡 | RS-274X : unités, format des coordonnées, outils d'ouverture, macros, régions et commandes de dessin sont lus ; seulement des fichiers de test pour l'instant, pas une collection de vrais fichiers de production. |
 | Lecteur Excellon | 🟡 | Outils, trous, rainures et parcours simples en métrique ou en pouces sont lus ; seulement des fichiers de test pour l'instant. |
 | Lecteur G-code | 🟡 | Un interpréteur modal des dialectes GRBL, Marlin et PlanetCNC donne des millimètres absolus, arcs compris ; la compensation de rayon et les cycles fixes sont signalés comme non pris en charge. |
-| Tests | 🟢 | 42 tests réussissent (`cargo test`) : 12 pour Gerber plus 1 dans le module, 11 pour Excellon et 18 pour G-code, avec des entrées endommagées et hostiles. |
+| Tests | 🟡 | 42 tests réussissent (`cargo test`) : 12 pour Gerber plus 1 dans le module, 11 pour Excellon et 18 pour G-code, avec des entrées endommagées et hostiles. |
 | Sécurité | 🟡 | Conçus pour des fichiers envoyés par d'autres personnes : rien ne panique, aucune valeur n'est devinée et les problèmes reviennent sous forme de diagnostics avec numéro de ligne ; pas de revue indépendante, et rien ici ne juge si un G-code peut être exécuté sans danger. |
 | Géométrie et HP-GL | 🔴 | La géométrie 2D (décalages, booléennes) et les lecteurs HP-GL et Bungard sont prévus et non construits. |
 | Utilisation par d'autres programmes | 🔴 | Aucun programme de la suite ne dépend encore des lecteurs. |
-| Matériel réel | 🟢 | Sans objet : des lecteurs de fichiers, rien ici ne parle à une machine. |
-| Documentation | 🟢 | README en huit langues et `docs/READERS.md`, qui dit ce que chaque lecteur promet et ce qu'il ne fait pas. |
+| Matériel réel | 🟡 | Sans objet : des lecteurs de fichiers, rien ici ne parle à une machine. |
+| Documentation | 🟡 | README en huit langues et `docs/READERS.md`, qui dit ce que chaque lecteur promet et ce qu'il ne fait pas. |
 
 ## 🎯 Présentation
 

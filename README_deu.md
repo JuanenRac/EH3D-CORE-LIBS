@@ -47,12 +47,12 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Gerber-Leser | 🟡 | RS-274X: Einheiten, Koordinatenformat, Blenden, Makros, Regionen und Zeichenbefehle werden gelesen; bisher nur Testdateien, keine Sammlung echter Produktionsdateien. |
 | Excellon-Leser | 🟡 | Werkzeuge, Bohrungen, Langlöcher und einfache Fräswege in metrisch oder Zoll werden gelesen; bisher nur Testdateien. |
 | G-Code-Leser | 🟡 | Ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC liefert absolute Millimeter, Bögen eingeschlossen; Fräserradiuskorrektur und Bearbeitungszyklen werden als nicht unterstützt gemeldet. |
-| Tests | 🟢 | 42 Tests bestehen (`cargo test`): 12 für Gerber plus 1 im Modul, 11 für Excellon und 18 für G-Code, mit beschädigten und feindlichen Eingaben. |
+| Tests | 🟡 | 42 Tests bestehen (`cargo test`): 12 für Gerber plus 1 im Modul, 11 für Excellon und 18 für G-Code, mit beschädigten und feindlichen Eingaben. |
 | Sicherheit | 🟡 | Gebaut für Dateien, die andere Personen schicken: nichts stürzt ab, kein Wert wird geraten, und Probleme kommen als Diagnosen mit Zeilennummern zurück; keine unabhängige Prüfung, und nichts hier beurteilt, ob ein G-Code sicher ausführbar ist. |
 | Geometrie und HP-GL | 🔴 | Die 2D-Geometrie (Offsets, Boolesche Operationen) und die Leser für HP-GL und Bungard sind geplant und nicht gebaut. |
 | Nutzung durch andere Programme | 🔴 | Noch kein Programm der Suite hängt von den Lesern ab. |
-| Echte Hardware | 🟢 | Nicht zutreffend: Dateileser, nichts hier spricht mit einer Maschine. |
-| Dokumentation | 🟢 | README in acht Sprachen und `docs/READERS.md`, das sagt, was jeder Leser verspricht und was er nicht tut. |
+| Echte Hardware | 🟡 | Nicht zutreffend: Dateileser, nichts hier spricht mit einer Maschine. |
+| Dokumentation | 🟡 | README in acht Sprachen und `docs/READERS.md`, das sagt, was jeder Leser verspricht und was er nicht tut. |
 
 ## 🎯 Überblick
 
