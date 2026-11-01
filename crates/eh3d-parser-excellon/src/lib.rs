@@ -15,6 +15,7 @@
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(clippy::string_slice)]
 
 use std::collections::BTreeMap;
 
@@ -326,10 +327,8 @@ fn header_line(st: &mut State, upper: &str, line: usize) {
 }
 
 fn tool_definition(st: &mut State, upper: &str, line: usize) {
-    let digits: String = upper[1..]
-        .chars()
-        .take_while(char::is_ascii_digit)
-        .collect();
+    let after_t = upper.strip_prefix('T').unwrap_or(upper);
+    let digits: String = after_t.chars().take_while(char::is_ascii_digit).collect();
     let Ok(number) = digits.parse::<u32>() else {
         st.diag(
             line,
@@ -338,7 +337,7 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
         );
         return;
     };
-    let mut rest = &upper[1 + digits.len()..];
+    let mut rest = after_t.get(digits.len()..).unwrap_or("");
     let mut tool = Tool {
         number,
         diameter: 0.0,
@@ -347,11 +346,11 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
     };
     let mut have_diameter = false;
     while let Some(letter) = rest.chars().next() {
-        let number_text: String = rest[letter.len_utf8()..]
+        let after_letter = rest.get(letter.len_utf8()..).unwrap_or("");
+        let number_text: String = after_letter
             .chars()
             .take_while(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '+'))
             .collect();
-        let advance = letter.len_utf8() + number_text.len();
         match (letter, parse_f64(&number_text)) {
             ('C', Some(v)) if v > 0.0 => {
                 tool.diameter = v;
@@ -376,7 +375,7 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
                 );
             }
         }
-        rest = &rest[advance..];
+        rest = after_letter.get(number_text.len()..).unwrap_or("");
     }
     if !have_diameter {
         st.diag(
@@ -396,8 +395,8 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
 }
 
 fn body_line(st: &mut State, upper: &str, line: usize) {
-    if let Some(index) = upper.find("G85") {
-        slot(st, &upper[..index], &upper[index + 3..], line);
+    if let Some((before, after)) = upper.split_once("G85") {
+        slot(st, before, after, line);
         return;
     }
     // A line is a series of words such as T01, G05, X1.5Y2, M30.

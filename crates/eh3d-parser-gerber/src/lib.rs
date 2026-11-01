@@ -13,6 +13,7 @@
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(clippy::string_slice)]
 
 use std::collections::BTreeMap;
 
@@ -474,7 +475,10 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
-            format!("{} is not supported and was ignored", &cmd[..2]),
+            format!(
+                "{} is not supported and was ignored",
+                cmd.get(..2).unwrap_or(cmd)
+            ),
         );
     } else if ["IP", "OF", "SF", "AS", "IN", "LN", "MI", "IR", "KO", "PF"]
         .iter()
@@ -487,7 +491,7 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
         ) || ["AS", "IN", "LN", "KO", "PF"]
             .iter()
             .any(|k| cmd.starts_with(k))
-            || (cmd.starts_with("IP") && cmd.len() > 2 && &cmd[2..] == "POS");
+            || cmd.strip_prefix("IP") == Some("POS");
         st.diag(
             line,
             if harmless {
@@ -496,7 +500,10 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
                 Severity::Error
             },
             if harmless {
-                format!("the deprecated command {} was ignored", &cmd[..2])
+                format!(
+                    "the deprecated command {} was ignored",
+                    cmd.get(..2).unwrap_or(cmd)
+                )
             } else {
                 format!("the deprecated command {cmd} changes the geometry and is not supported")
             },
@@ -549,7 +556,7 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
     }
     let tail: String = bytes.iter().skip(2).collect();
     let (xs, ys) = match tail.split_once('Y') {
-        Some((x, y)) if x.starts_with('X') => (&x[1..], y),
+        Some((x, y)) if x.starts_with('X') => (x.strip_prefix('X').unwrap_or(x), y),
         _ => {
             st.diag(line, Severity::Error, "FS: expected X<digits>Y<digits>");
             return;
@@ -559,7 +566,8 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
         if s.len() != 2 || !s.chars().all(|c| c.is_ascii_digit()) {
             return None;
         }
-        let (i, d) = (s[..1].parse().ok()?, s[1..].parse().ok()?);
+        let mut digits = s.chars().map(|c| c.to_digit(10));
+        let (i, d) = (digits.next()??, digits.next()??);
         (1..=6).contains(&i).then_some(())?;
         (d <= 6).then_some((i, d))
     };
@@ -608,7 +616,7 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
         );
         return;
     }
-    let spec = &rest[digits.len()..];
+    let spec = rest.get(digits.len()..).unwrap_or("");
     let (template, params_text) = spec.split_once(',').unwrap_or((spec, ""));
     let mut params = Vec::new();
     for p in params_text.split('X').filter(|p| !p.is_empty()) {

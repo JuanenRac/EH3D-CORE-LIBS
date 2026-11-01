@@ -16,6 +16,7 @@
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![warn(clippy::string_slice)]
 
 /// How serious a [`Diagnostic`] is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -118,7 +119,7 @@ pub fn parse(text: &str, dialect: Dialect) -> Program {
                 .nth(MAX_LINE_CHARS)
                 .map(|(i, _)| i)
                 .unwrap_or(raw.len());
-            raw = &raw[..cut];
+            raw = raw.get(..cut).unwrap_or(raw);
             diagnostics.push(Diagnostic {
                 line,
                 severity: Severity::Warning,
@@ -143,13 +144,13 @@ fn parse_line(
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<Block> {
     let mut body = raw.trim();
-    if body.starts_with('/') {
+    if let Some(after) = body.strip_prefix('/') {
         diagnostics.push(Diagnostic {
             line,
             severity: Severity::Info,
             message: "a block-delete line was read as if the switch were off".to_string(),
         });
-        body = body[1..].trim_start();
+        body = after.trim_start();
     }
     if body.starts_with('$') && dialect == Dialect::Grbl {
         diagnostics.push(Diagnostic {
