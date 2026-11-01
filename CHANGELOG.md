@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The README says what is true:** the number of tests is the one that runs (48: 15 on Gerber, 12 on Excellon and 21 on G-code) and it names the four programs of the suite that already use the readers.
+
 ## [0.0.2] - The README in the universal layout and its check in the CI
 
 - **README in the universal layout, in eight languages:** the README has the same sections in the same order as the other repositories of the family (status, overview, architecture, features, security, interfaces, configuration, quick start, testing, structure, roadmap and known limits), with figures taken from the code and from the tests that were run. The Architecture and Repository Structure pictures are drawn from `docs/architecture.json` and `docs/structure.json` by `tools/make_architecture.py` and `tools/make_structure.py`, and the CI checks that they match.

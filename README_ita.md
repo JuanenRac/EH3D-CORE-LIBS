@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** tre librerie Rust senza dipendenze che leggono livelli Gerber (RS-274X), file di foratura Excellon e G-code (un interprete modale dei dialetti GRBL, Marlin e PlanetCNC). 42 test girano su un computer, compresi input danneggiati e ostili. I lettori non vanno mai in panico e segnalano ciò che non hanno capito come diagnostiche con numero di riga. Non disegnano nulla, non calcolano alcun percorso utensile e non sono stati provati su una raccolta di file di produzione reali; nessun programma della suite li usa ancora e nulla qui è stato eseguito su una macchina.
+**Verifica di onestà - cosa funziona oggi:** tre librerie Rust senza dipendenze che leggono livelli Gerber (RS-274X), file di foratura Excellon e G-code (un interprete modale dei dialetti GRBL, Marlin e PlanetCNC). 48 test girano su un computer, compresi input danneggiati e ostili. I lettori non vanno mai in panico e segnalano ciò che non hanno capito come diagnostiche con numero di riga. Non disegnano nulla, non calcolano alcun percorso utensile e non sono stati provati su una raccolta di file di produzione reali; quattro programmi della suite li usano (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) e nulla qui è stato eseguito su una macchina.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.0.2` |
 | Maturità | Impalcatura |
-| Test | 42 |
+| Test | 48 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non applicabile: lettori di file, nulla qui parla con una macchina |
 
@@ -47,10 +47,10 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 | Lettore Gerber | 🟡 | RS-274X: unità, formato delle coordinate, aperture, macro, regioni e comandi di disegno vengono letti; finora solo file di prova, non una raccolta di file di produzione reali. |
 | Lettore Excellon | 🟡 | Vengono letti utensili, fori, asole e percorsi semplici in metrico o pollici; finora solo file di prova. |
 | Lettore G-code | 🟡 | Un interprete modale dei dialetti GRBL, Marlin e PlanetCNC dà millimetri assoluti, archi inclusi; compensazione del raggio e cicli fissi sono segnalati come non supportati. |
-| Test | 🟡 | Passano 42 test (`cargo test`): 12 di Gerber più 1 nel modulo, 11 di Excellon e 18 di G-code, con input danneggiati e ostili. |
+| Test | 🟡 | Passano 48 test (`cargo test`): 14 di Gerber più 1 nel modulo, 12 di Excellon e 21 di G-code, con input danneggiati e ostili. |
 | Sicurezza | 🟡 | Pensati per file inviati da altre persone: nulla va in panico, nessun valore viene indovinato e i problemi tornano come diagnostiche con numero di riga; nessuna revisione indipendente e nulla qui giudica se un G-code sia sicuro da eseguire. |
 | Geometria e HP-GL | 🔴 | La geometria 2D (offset, booleane) e i lettori HP-GL e Bungard sono previsti e non costruiti. |
-| Uso da altri programmi | 🔴 | Nessun programma della suite dipende ancora dai lettori. |
+| Uso da altri programmi | 🟡 | Quattro programmi della suite dipendono dai lettori (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); nessuno è stato eseguito su una macchina. |
 | Hardware reale | 🟡 | Non applicabile: lettori di file, nulla qui parla con una macchina. |
 | Documentazione | 🟡 | README in otto lingue e `docs/READERS.md`, che dice cosa promette ogni lettore e cosa non fa. |
 
@@ -145,7 +145,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Test
 
-La suite ha 42 test (`cargo test`, eseguiti su Windows e Linux nella CI): 12 su Gerber (più 1 nel modulo), 11 su Excellon e 18 su G-code. Verificano che un tipico livello di rame e un tipico file metrico siano letti per intero, le coordinate omesse, entrambe le soppressioni degli zeri, asole, percorsi, pollici in millimetri, ogni comando che conosce la sua riga, archi per centro e per raggio, cerchi completi, avanzamento e movimento modali, checksum Marlin, funzioni non supportate segnalate invece che indovinate, e input danneggiati: spazzatura, prefissi tagliati e righe lunghissime non vanno mai in panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 48 test (`cargo test`, eseguiti su Windows e Linux nella CI): 14 su Gerber (più 1 nel modulo), 12 su Excellon e 21 su G-code. Verificano che un tipico livello di rame e un tipico file metrico siano letti per intero, le coordinate omesse, entrambe le soppressioni degli zeri, asole, percorsi, pollici in millimetri, ogni comando che conosce la sua riga, archi per centro e per raggio, cerchi completi, avanzamento e movimento modali, checksum Marlin, funzioni non supportate segnalate invece che indovinate, e input danneggiati: spazzatura, prefissi tagliati e righe lunghissime non vanno mai in panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -186,7 +186,7 @@ EH3D-CORE-LIBS/
 * I lettori sono stati provati solo con file di prova, non con una raccolta di file di produzione reali.
 * La compensazione del raggio utensile (`G41`/`G42`) e i cicli fissi (`G81`..`G89`) sono errori; le correzioni di lunghezza utensile, i cicli di tastatura, `G28`/`G30` e i sistemi di coordinate di lavoro vengono letti ma il loro effetto sulla posizione non è seguito; archi solo nel piano XY.
 * HP-GL, il formato Bungard e la geometria 2D (offset e booleane) non sono costruiti.
-* Nessun programma della suite usa ancora i lettori, e i lettori non hanno avuto una revisione indipendente.
+* Quattro programmi della suite usano i lettori, nessuno è stato eseguito su una macchina, e i lettori non hanno avuto una revisione indipendente.
 
 **Prossimi passi**
 

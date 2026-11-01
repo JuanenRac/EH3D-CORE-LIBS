@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui tourne aujourd'hui :** trois bibliothèques Rust sans dépendances qui lisent des couches Gerber (RS-274X), des fichiers de perçage Excellon et du G-code (un interpréteur modal des dialectes GRBL, Marlin et PlanetCNC). 42 tests tournent sur un ordinateur, y compris avec des entrées endommagées et hostiles. Les lecteurs ne paniquent jamais et signalent ce qu'ils n'ont pas pu comprendre sous forme de diagnostics avec numéro de ligne. Ils ne dessinent rien, ne calculent aucun parcours d'outil et n'ont pas été essayés sur une collection de vrais fichiers de production ; aucun programme de la suite ne les utilise encore et rien ici n'a tourné sur une machine.
+**Vérification d'honnêteté - ce qui tourne aujourd'hui :** trois bibliothèques Rust sans dépendances qui lisent des couches Gerber (RS-274X), des fichiers de perçage Excellon et du G-code (un interpréteur modal des dialectes GRBL, Marlin et PlanetCNC). 48 tests tournent sur un ordinateur, y compris avec des entrées endommagées et hostiles. Les lecteurs ne paniquent jamais et signalent ce qu'ils n'ont pas pu comprendre sous forme de diagnostics avec numéro de ligne. Ils ne dessinent rien, ne calculent aucun parcours d'outil et n'ont pas été essayés sur une collection de vrais fichiers de production ; quatre programmes de la suite les utilisent (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) et rien ici n'a tourné sur une machine.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.2` |
 | Maturité | Échafaudage |
-| Tests | 42 |
+| Tests | 48 |
 | Pile technique | Rust |
 | Sur du matériel réel | Sans objet : des lecteurs de fichiers, rien ici ne parle à une machine |
 
@@ -47,10 +47,10 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Lecteur Gerber | 🟡 | RS-274X : unités, format des coordonnées, outils d'ouverture, macros, régions et commandes de dessin sont lus ; seulement des fichiers de test pour l'instant, pas une collection de vrais fichiers de production. |
 | Lecteur Excellon | 🟡 | Outils, trous, rainures et parcours simples en métrique ou en pouces sont lus ; seulement des fichiers de test pour l'instant. |
 | Lecteur G-code | 🟡 | Un interpréteur modal des dialectes GRBL, Marlin et PlanetCNC donne des millimètres absolus, arcs compris ; la compensation de rayon et les cycles fixes sont signalés comme non pris en charge. |
-| Tests | 🟡 | 42 tests réussissent (`cargo test`) : 12 pour Gerber plus 1 dans le module, 11 pour Excellon et 18 pour G-code, avec des entrées endommagées et hostiles. |
+| Tests | 🟡 | 48 tests réussissent (`cargo test`) : 14 pour Gerber plus 1 dans le module, 12 pour Excellon et 21 pour G-code, avec des entrées endommagées et hostiles. |
 | Sécurité | 🟡 | Conçus pour des fichiers envoyés par d'autres personnes : rien ne panique, aucune valeur n'est devinée et les problèmes reviennent sous forme de diagnostics avec numéro de ligne ; pas de revue indépendante, et rien ici ne juge si un G-code peut être exécuté sans danger. |
 | Géométrie et HP-GL | 🔴 | La géométrie 2D (décalages, booléennes) et les lecteurs HP-GL et Bungard sont prévus et non construits. |
-| Utilisation par d'autres programmes | 🔴 | Aucun programme de la suite ne dépend encore des lecteurs. |
+| Utilisation par d'autres programmes | 🟡 | Quatre programmes de la suite dépendent des lecteurs (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) ; aucun n'a tourné sur une machine. |
 | Matériel réel | 🟡 | Sans objet : des lecteurs de fichiers, rien ici ne parle à une machine. |
 | Documentation | 🟡 | README en huit langues et `docs/READERS.md`, qui dit ce que chaque lecteur promet et ce qu'il ne fait pas. |
 
@@ -145,7 +145,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Tests
 
-La suite compte 42 tests (`cargo test`, exécutés sous Windows et Linux dans la CI) : 12 pour Gerber (plus 1 dans le module), 11 pour Excellon et 18 pour G-code. Ils vérifient qu'une couche de cuivre typique et un fichier métrique typique sont lus en entier, les coordonnées omises, les deux suppressions de zéros, les rainures, les parcours, les pouces en millimètres, chaque commande connaissant sa ligne, les arcs par centre et par rayon, les cercles complets, l'avance et le mouvement modaux, les sommes de contrôle Marlin, les fonctions non prises en charge signalées au lieu d'être devinées, et les entrées endommagées : charabia, préfixes coupés et lignes très longues ne provoquent jamais de panique. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
+La suite compte 48 tests (`cargo test`, exécutés sous Windows et Linux dans la CI) : 14 pour Gerber (plus 1 dans le module), 12 pour Excellon et 21 pour G-code. Ils vérifient qu'une couche de cuivre typique et un fichier métrique typique sont lus en entier, les coordonnées omises, les deux suppressions de zéros, les rainures, les parcours, les pouces en millimètres, chaque commande connaissant sa ligne, les arcs par centre et par rayon, les cercles complets, l'avance et le mouvement modaux, les sommes de contrôle Marlin, les fonctions non prises en charge signalées au lieu d'être devinées, et les entrées endommagées : charabia, préfixes coupés et lignes très longues ne provoquent jamais de panique. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -186,7 +186,7 @@ EH3D-CORE-LIBS/
 * Les lecteurs n'ont été essayés qu'avec des fichiers de test, pas avec une collection de vrais fichiers de production.
 * La compensation de rayon d'outil (`G41`/`G42`) et les cycles fixes (`G81`..`G89`) sont des erreurs ; les corrections de longueur d'outil, les cycles de palpage, `G28`/`G30` et les systèmes de coordonnées de travail sont lus mais leur effet sur la position n'est pas suivi ; arcs seulement dans le plan XY.
 * HP-GL, le format Bungard et la géométrie 2D (décalages et booléennes) ne sont pas construits.
-* Aucun programme de la suite n'utilise encore les lecteurs, et les lecteurs n'ont pas eu de revue indépendante.
+* Quatre programmes de la suite utilisent les lecteurs, aucun n'a tourné sur une machine, et les lecteurs n'ont pas eu de revue indépendante.
 
 **Ensuite**
 

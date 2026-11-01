@@ -2,7 +2,7 @@
   "repo": "EH3D-CORE-LIBS",
   "ecosystem": "eh3d",
   "tagline": "Tolerant readers of Gerber, Excellon and G-code for the programs of the suite.",
-  "description": "EH3D-CORE-LIBS is a Rust workspace with three readers that have no dependencies: Gerber RS-274X, Excellon drill files and G-code with a modal interpreter. Each takes text from a person who may be careless or hostile and returns the data plus diagnostics with line numbers; none of them panics. No program of the suite uses them yet. They draw nothing and move nothing.",
+  "description": "EH3D-CORE-LIBS is a Rust workspace with three readers that have no dependencies: Gerber RS-274X, Excellon drill files and G-code with a modal interpreter. Each takes text from a person who may be careless or hostile and returns the data plus diagnostics with line numbers; none of them panics. Four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER and EH3D-ISOCAM). They draw nothing and move nothing.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -26,9 +26,9 @@
       "level": "external",
       "title": "Suite programs",
       "lines": [
-        "planned: the CAM programs and",
-        "the viewers; none uses the",
-        "readers yet"
+        "used by CAM-DEBUGGER,",
+        "STENCILCAM, GERBERVIEWER",
+        "and ISOCAM"
       ]
     },
     {
