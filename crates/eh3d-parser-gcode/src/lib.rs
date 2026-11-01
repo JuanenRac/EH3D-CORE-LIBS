@@ -381,6 +381,16 @@ fn diag(trace: &mut Trace, line: usize, severity: Severity, message: impl Into<S
 
 fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect) {
     let scale = |st: &State, v: f64| if st.inches { v * MM_PER_INCH } else { v };
+    // the units of the block come first, wherever G20/G21 are written: the feed of `F10 G20` is in inches (as the controller reads it)
+    for word in &block.words {
+        if word.letter == 'G' {
+            match (word.value * 10.0).round() as i64 {
+                200 => st.inches = true,
+                210 => st.inches = false,
+                _ => {}
+            }
+        }
+    }
     let mut skip_motion = false; // a block with a feature that is not supported does not move anything
                                  // 1. the modal words, in the order of the block
     for word in &block.words {

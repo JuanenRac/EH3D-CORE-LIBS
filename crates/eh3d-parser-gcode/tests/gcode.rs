@@ -285,3 +285,9 @@ fn the_box_of_an_arc_holds_its_bulge() {
     let t = run("G21 G90\nG0 X-10 Y0\nG3 X10 Y0 I10 J0 F100\n");
     assert!(close(t.min.y, -10.0), "{}", t.min.y);
 }
+
+#[test]
+fn units_written_after_the_feed_in_the_same_block_still_apply_to_it() {
+    let t = run("F10 G20 G1 X1\n");
+    assert!(close(t.segments[0].feed, 254.0), "{}", t.segments[0].feed);
+}
