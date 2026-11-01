@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** three Rust libraries with no dependencies that read Gerber (RS-274X) layers, Excellon drill files and G-code (a modal interpreter for the GRBL, Marlin and PlanetCNC dialects). 48 tests run on a computer, including damaged and hostile input. The readers never panic and report what they could not understand as diagnostics with line numbers. They draw nothing, compute no toolpath and have not been tried on a collection of real production files; four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) and nothing here has run on a machine.
+**Honesty check - what actually runs today:** three Rust libraries with no dependencies that read Gerber (RS-274X) layers, Excellon drill files and G-code (a modal interpreter for the GRBL, Marlin and PlanetCNC dialects). 51 tests run on a computer, including damaged and hostile input. The readers never panic and report what they could not understand as diagnostics with line numbers. They draw nothing, compute no toolpath and have not been tried on a collection of real production files; four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) and nothing here has run on a machine.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.2` |
 | Maturity | Scaffolding |
-| Tests | 48 |
+| Tests | 51 |
 | Stack | Rust |
 | On real hardware | Not applicable: file readers, nothing here talks to a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 | Gerber reader | 🟡 | RS-274X: units, coordinate format, apertures, macros, regions and drawing commands are read; only test files so far, not a collection of real production files. |
 | Excellon reader | 🟡 | Tools, drill hits, slots and simple routes in metric or inches are read; only test files so far. |
 | G-code reader | 🟡 | A modal interpreter for the GRBL, Marlin and PlanetCNC dialects gives absolute millimetres, arcs included; cutter compensation and canned cycles are reported as unsupported. |
-| Tests | 🟡 | 48 tests pass (`cargo test`): 14 on Gerber plus 1 in the module, 12 on Excellon and 21 on G-code, with damaged and hostile input. |
+| Tests | 🟡 | 51 tests pass (`cargo test`): 15 on Gerber plus 1 in the module, 13 on Excellon and 22 on G-code, with damaged and hostile input. |
 | Security | 🟡 | Built for files that other people send: nothing panics, no value is guessed and problems come back as diagnostics with line numbers; no independent review, and nothing here judges whether a G-code is safe to run. |
 | Geometry and HP-GL | 🔴 | The 2D geometry (offsets, booleans) and the HP-GL and Bungard readers are planned and not built. |
 | Use by other programs | 🟡 | Four programs of the suite depend on the readers (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); none of them has run on a machine. |
@@ -145,7 +145,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Testing
 
-The suite has 48 tests (`cargo test`, run on Windows and Linux in the CI): 14 on Gerber (plus 1 inside the module), 12 on Excellon and 21 on G-code. They check a typical copper layer and a typical metric file read completely, omitted coordinates, both zero suppressions, slots, routes, inches to millimetres, every command knowing its line, arcs by centre and by radius, full circles, modal feed and motion, Marlin checksums, unsupported features reported instead of guessed, and damaged input: garbage, cut prefixes and very long lines never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 51 tests (`cargo test`, run on Windows and Linux in the CI): 15 on Gerber (plus 1 inside the module), 13 on Excellon and 22 on G-code. They check a typical copper layer and a typical metric file read completely, omitted coordinates, both zero suppressions, slots, routes, inches to millimetres, every command knowing its line, arcs by centre and by radius, full circles, modal feed and motion, Marlin checksums, unsupported features reported instead of guessed, and damaged input: garbage, cut prefixes and very long lines never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 

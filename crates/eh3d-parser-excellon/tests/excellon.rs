@@ -2,6 +2,8 @@
 
 use eh3d_parser_excellon::{decode_coordinate, parse, Severity, Units, ZeroSuppression};
 
+mod common;
+
 const KICAD: &str = "M48\n; FILE_FORMAT=4:3\nMETRIC,TZ\nT1C0.800\nT2C1.000\n%\nG90\nG05\nT1\nX10.5Y20.25\nX11.5Y21\nT2\nX0Y0\nM30\n";
 
 #[test]
@@ -143,4 +145,29 @@ fn m71_and_m72_set_the_units() {
     assert_eq!((f.drills[0].at.x, f.drills[0].at.y), (1.0, 2.0));
     let f = parse("M48\nT1C0.8\n%\nM71\nT1\nX010000Y020000\nM30\n");
     assert_eq!(f.units, Some(Units::Millimetres));
+}
+
+#[test]
+fn damaged_variants_of_real_files_never_break_the_reader() {
+    let inches = "M48
+INCH,LZ
+T1C0.0315F100S20
+T2C0.04
+%
+G90
+T1
+X010500Y020250
+T2
+X1.5Y-2.5G85X3.0Y-2.5
+T1
+G00X0Y0
+M15
+G01X1Y0
+X1Y1
+M16
+M30
+";
+    common::no_variant_breaks_the_reader(&[KICAD, inches], |text| {
+        let _ = parse(text);
+    });
 }

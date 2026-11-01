@@ -2,6 +2,8 @@ use eh3d_parser_gerber::{
     parse, Aperture, Operation, Point, Polarity, QuadrantMode, Severity, Units, ZeroOmission,
 };
 
+mod common;
+
 const BOARD: &str = "%TF.GenerationSoftware,KiCad,Pcbnew,7.0*%
 %TF.FileFunction,Copper,L1,Top*%
 %FSLAX46Y46*%
@@ -396,4 +398,11 @@ fn deprecated_commands_that_change_the_geometry_are_not_clean() {
         let f = parse(&format!("%FSLAX24Y24*%\n%MOMM*%\n%{cmd}*%\nM02*\n"));
         assert!(f.is_clean(), "{cmd}");
     }
+}
+
+#[test]
+fn damaged_variants_of_a_real_file_never_break_the_reader() {
+    common::no_variant_breaks_the_reader(&[BOARD], |text| {
+        let _ = parse(text);
+    });
 }

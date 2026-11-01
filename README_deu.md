@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute tatsächlich läuft:** drei Rust-Bibliotheken ohne Abhängigkeiten, die Gerber-Ebenen (RS-274X), Excellon-Bohrdateien und G-Code lesen (ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC). 48 Tests laufen auf einem Computer, einschließlich beschädigter und feindlicher Eingaben. Die Leser stürzen nie ab und melden, was sie nicht verstehen konnten, als Diagnosen mit Zeilennummern. Sie zeichnen nichts, berechnen keinen Werkzeugweg und wurden nicht mit einer Sammlung echter Produktionsdateien erprobt; vier Programme der Suite nutzen sie (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM), und nichts davon lief auf einer Maschine.
+**Ehrlichkeitscheck - was heute tatsächlich läuft:** drei Rust-Bibliotheken ohne Abhängigkeiten, die Gerber-Ebenen (RS-274X), Excellon-Bohrdateien und G-Code lesen (ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC). 51 Tests laufen auf einem Computer, einschließlich beschädigter und feindlicher Eingaben. Die Leser stürzen nie ab und melden, was sie nicht verstehen konnten, als Diagnosen mit Zeilennummern. Sie zeichnen nichts, berechnen keinen Werkzeugweg und wurden nicht mit einer Sammlung echter Produktionsdateien erprobt; vier Programme der Suite nutzen sie (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM), und nichts davon lief auf einer Maschine.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.2` |
 | Reifegrad | Gerüst |
-| Tests | 48 |
+| Tests | 51 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht zutreffend: Dateileser, nichts hier spricht mit einer Maschine |
 
@@ -47,7 +47,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Gerber-Leser | 🟡 | RS-274X: Einheiten, Koordinatenformat, Blenden, Makros, Regionen und Zeichenbefehle werden gelesen; bisher nur Testdateien, keine Sammlung echter Produktionsdateien. |
 | Excellon-Leser | 🟡 | Werkzeuge, Bohrungen, Langlöcher und einfache Fräswege in metrisch oder Zoll werden gelesen; bisher nur Testdateien. |
 | G-Code-Leser | 🟡 | Ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC liefert absolute Millimeter, Bögen eingeschlossen; Fräserradiuskorrektur und Bearbeitungszyklen werden als nicht unterstützt gemeldet. |
-| Tests | 🟡 | 48 Tests bestehen (`cargo test`): 14 für Gerber plus 1 im Modul, 12 für Excellon und 21 für G-Code, mit beschädigten und feindlichen Eingaben. |
+| Tests | 🟡 | 51 Tests bestehen (`cargo test`): 15 für Gerber plus 1 im Modul, 13 für Excellon und 22 für G-Code, mit beschädigten und feindlichen Eingaben. |
 | Sicherheit | 🟡 | Gebaut für Dateien, die andere Personen schicken: nichts stürzt ab, kein Wert wird geraten, und Probleme kommen als Diagnosen mit Zeilennummern zurück; keine unabhängige Prüfung, und nichts hier beurteilt, ob ein G-Code sicher ausführbar ist. |
 | Geometrie und HP-GL | 🔴 | Die 2D-Geometrie (Offsets, Boolesche Operationen) und die Leser für HP-GL und Bungard sind geplant und nicht gebaut. |
 | Nutzung durch andere Programme | 🟡 | Vier Programme der Suite hängen von den Lesern ab (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); keines lief auf einer Maschine. |
@@ -145,7 +145,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Tests
 
-Die Suite hat 48 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt): 14 für Gerber (plus 1 im Modul), 12 für Excellon und 21 für G-Code. Sie prüfen, dass eine typische Kupferebene und eine typische metrische Datei vollständig gelesen werden, ausgelassene Koordinaten, beide Nullunterdrückungen, Langlöcher, Fräswege, Zoll zu Millimeter, dass jeder Befehl seine Zeile kennt, Bögen nach Mittelpunkt und nach Radius, Vollkreise, modalen Vorschub und modale Bewegung, Marlin-Prüfsummen, nicht unterstützte Funktionen, die gemeldet statt geraten werden, und beschädigte Eingaben: Müll, abgeschnittene Präfixe und sehr lange Zeilen führen nie zum Absturz. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 51 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt): 15 für Gerber (plus 1 im Modul), 13 für Excellon und 22 für G-Code. Sie prüfen, dass eine typische Kupferebene und eine typische metrische Datei vollständig gelesen werden, ausgelassene Koordinaten, beide Nullunterdrückungen, Langlöcher, Fräswege, Zoll zu Millimeter, dass jeder Befehl seine Zeile kennt, Bögen nach Mittelpunkt und nach Radius, Vollkreise, modalen Vorschub und modale Bewegung, Marlin-Prüfsummen, nicht unterstützte Funktionen, die gemeldet statt geraten werden, und beschädigte Eingaben: Müll, abgeschnittene Präfixe und sehr lange Zeilen führen nie zum Absturz. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 

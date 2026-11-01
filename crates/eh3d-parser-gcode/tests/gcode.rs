@@ -2,6 +2,8 @@
 
 use eh3d_parser_gcode::{interpret, parse, Dialect, Motion, Severity};
 
+mod common;
+
 fn run(text: &str) -> eh3d_parser_gcode::Trace {
     interpret(&parse(text, Dialect::Grbl))
 }
@@ -290,4 +292,37 @@ fn the_box_of_an_arc_holds_its_bulge() {
 fn units_written_after_the_feed_in_the_same_block_still_apply_to_it() {
     let t = run("F10 G20 G1 X1\n");
     assert!(close(t.segments[0].feed, 254.0), "{}", t.segments[0].feed);
+}
+
+#[test]
+fn damaged_variants_of_a_real_program_never_break_the_reader() {
+    let program = "(job) G21 G90 G17
+G0 Z5 ; lift
+M3 S12000
+G0 X10 Y10
+G1 Z-0.1 F200
+G1 X20 Y10 F300
+G2 X30 Y20 I10 J0
+G3 X20 Y30 R10
+G91
+G1 X5 Y-2
+G90
+G20
+G1 X1 Y1
+G21
+G0 Z5
+T2 M6
+M5
+M30
+";
+    let marlin = "N1 G28*18
+N2 M104 S200*10
+N3 G1 X10.5 Y-3 E0.4 F1500
+M84
+";
+    common::no_variant_breaks_the_reader(&[program, marlin], |text| {
+        for dialect in [Dialect::Grbl, Dialect::Marlin, Dialect::PlanetCnc] {
+            let _ = interpret(&parse(text, dialect));
+        }
+    });
 }

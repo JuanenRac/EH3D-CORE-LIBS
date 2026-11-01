@@ -4,7 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-- **The README says what is true:** the number of tests is the one that runs (48: 15 on Gerber, 12 on Excellon and 21 on G-code) and it names the four programs of the suite that already use the readers.
+- **No more cuts in the middle of a character:** the three readers no longer slice text by byte index where a non-ASCII character could sit (tool definitions and slots in Excellon, format and aperture commands in Gerber, block-delete lines and long lines in G-code), and `clippy::string_slice` now warns in every crate, so the CI refuses a new one.
+- **Mutation tests for the three readers:** a helper without dependencies takes a valid file and builds damaged variants (é, € and an emoji inserted at every position, one character or byte removed, a line repeated, the file cut at every character, extra digits and enormous numbers) and checks that no variant makes a reader panic or loop. 3 new tests, 51 in total.
+- **The README says what is true:** the number of tests is the one that runs (51: 16 on Gerber, 13 on Excellon and 22 on G-code) and it names the four programs of the suite that already use the readers.
 
 ## [0.0.2] - The README in the universal layout and its check in the CI
 

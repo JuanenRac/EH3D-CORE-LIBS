@@ -18,7 +18,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** três bibliotecas Rust sem dependências que leem camadas Gerber (RS-274X), ficheiros de furação Excellon e G-code (um intérprete modal dos dialetos GRBL, Marlin e PlanetCNC). 48 testes correm num computador, incluindo entradas danificadas e hostis. Os leitores nunca entram em pânico e comunicam o que não conseguiram entender como diagnósticos com número de linha. Não desenham nada, não calculam nenhuma trajetória e não foram experimentados numa coleção de ficheiros de produção reais; quatro programas da suite usam-nos (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) e nada aqui foi executado numa máquina.
+**Verificação de honestidade - o que funciona hoje:** três bibliotecas Rust sem dependências que leem camadas Gerber (RS-274X), ficheiros de furação Excellon e G-code (um intérprete modal dos dialetos GRBL, Marlin e PlanetCNC). 51 testes correm num computador, incluindo entradas danificadas e hostis. Os leitores nunca entram em pânico e comunicam o que não conseguiram entender como diagnósticos com número de linha. Não desenham nada, não calculam nenhuma trajetória e não foram experimentados numa coleção de ficheiros de produção reais; quatro programas da suite usam-nos (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) e nada aqui foi executado numa máquina.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versão | `0.0.2` |
 | Maturidade | Estrutura inicial |
-| Testes | 48 |
+| Testes | 51 |
 | Tecnologias | Rust |
 | Em hardware real | Não se aplica: leitores de ficheiros, nada aqui fala com uma máquina |
 
@@ -47,7 +47,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 | Leitor Gerber | 🟡 | RS-274X: leem-se unidades, formato das coordenadas, aberturas, macros, regiões e comandos de desenho; até agora só ficheiros de teste, não uma coleção de ficheiros de produção reais. |
 | Leitor Excellon | 🟡 | Leem-se ferramentas, furos, ranhuras e percursos simples em métrico ou polegadas; até agora só ficheiros de teste. |
 | Leitor de G-code | 🟡 | Um intérprete modal dos dialetos GRBL, Marlin e PlanetCNC dá milímetros absolutos, arcos incluídos; a compensação do raio e os ciclos fixos são comunicados como não suportados. |
-| Testes | 🟡 | Passam 48 testes (`cargo test`): 14 de Gerber mais 1 no módulo, 12 de Excellon e 21 de G-code, com entradas danificadas e hostis. |
+| Testes | 🟡 | Passam 51 testes (`cargo test`): 15 de Gerber mais 1 no módulo, 13 de Excellon e 22 de G-code, com entradas danificadas e hostis. |
 | Segurança | 🟡 | Feitos para ficheiros enviados por outras pessoas: nada entra em pânico, nenhum valor é adivinhado e os problemas voltam como diagnósticos com número de linha; sem revisão independente, e nada aqui julga se um G-code é seguro de executar. |
 | Geometria e HP-GL | 🔴 | A geometria 2D (offsets, booleanas) e os leitores de HP-GL e Bungard estão previstos e por construir. |
 | Uso por outros programas | 🟡 | Quatro programas da suite dependem dos leitores (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); nenhum foi executado numa máquina. |
@@ -145,7 +145,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Testes
 
-A suite tem 48 testes (`cargo test`, executados em Windows e Linux na CI): 14 de Gerber (mais 1 dentro do módulo), 12 de Excellon e 21 de G-code. Verificam que uma camada de cobre típica e um ficheiro métrico típico são lidos por inteiro, as coordenadas omitidas, as duas supressões de zeros, ranhuras, percursos, polegadas para milímetros, cada comando a conhecer a sua linha, arcos por centro e por raio, círculos completos, avanço e movimento modais, somas de verificação Marlin, funções não suportadas comunicadas em vez de adivinhadas, e entradas danificadas: lixo, prefixos cortados e linhas muito longas nunca entram em pânico. A CI executa também `cargo fmt --check`, `cargo clippy` com avisos como erros e `python -I tools/ci_validate.py`.
+A suite tem 51 testes (`cargo test`, executados em Windows e Linux na CI): 15 de Gerber (mais 1 dentro do módulo), 13 de Excellon e 22 de G-code. Verificam que uma camada de cobre típica e um ficheiro métrico típico são lidos por inteiro, as coordenadas omitidas, as duas supressões de zeros, ranhuras, percursos, polegadas para milímetros, cada comando a conhecer a sua linha, arcos por centro e por raio, círculos completos, avanço e movimento modais, somas de verificação Marlin, funções não suportadas comunicadas em vez de adivinhadas, e entradas danificadas: lixo, prefixos cortados e linhas muito longas nunca entram em pânico. A CI executa também `cargo fmt --check`, `cargo clippy` com avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
