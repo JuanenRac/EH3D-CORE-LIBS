@@ -650,7 +650,12 @@ fn push(block: &Block, st: &State, trace: &mut Trace, motion: Motion, from: Poin
     }
     let mut reached = vec![from, to];
     if let Motion::ArcCw { center } | Motion::ArcCcw { center } = motion {
-        reached.extend(arc_extremes(from, to, center, matches!(motion, Motion::ArcCw { .. })));
+        reached.extend(arc_extremes(
+            from,
+            to,
+            center,
+            matches!(motion, Motion::ArcCw { .. }),
+        ));
     }
     for p in reached {
         trace.min = Point3 {

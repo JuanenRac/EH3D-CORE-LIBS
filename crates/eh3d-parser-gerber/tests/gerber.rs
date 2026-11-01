@@ -380,7 +380,10 @@ fn coordinates_without_a_d_code_repeat_the_last_one() {
         .filter(|c| matches!(c.op, Operation::Line { .. }))
         .count();
     assert_eq!(lines, 3, "{:?}", f.commands);
-    assert!(f.diagnostics.iter().any(|d| d.severity == Severity::Warning));
+    assert!(f
+        .diagnostics
+        .iter()
+        .any(|d| d.severity == Severity::Warning));
 }
 
 #[test]

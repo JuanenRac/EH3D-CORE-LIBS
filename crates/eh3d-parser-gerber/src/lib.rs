@@ -484,11 +484,17 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
         let harmless = matches!(
             cmd,
             "IPPOS" | "OFA0B0" | "OFA0.0B0.0" | "SFA1B1" | "SFA1.0B1.0" | "MIA0B0" | "IR0"
-        ) || ["AS", "IN", "LN", "KO", "PF"].iter().any(|k| cmd.starts_with(k))
+        ) || ["AS", "IN", "LN", "KO", "PF"]
+            .iter()
+            .any(|k| cmd.starts_with(k))
             || (cmd.starts_with("IP") && cmd.len() > 2 && &cmd[2..] == "POS");
         st.diag(
             line,
-            if harmless { Severity::Info } else { Severity::Error },
+            if harmless {
+                Severity::Info
+            } else {
+                Severity::Error
+            },
             if harmless {
                 format!("the deprecated command {} was ignored", &cmd[..2])
             } else {
@@ -822,16 +828,18 @@ fn function_block(st: &mut State, block: &str, line: usize) {
     }
     let d = match d {
         Some(d) => Some(d),
-        None if x.is_some() || y.is_some() => match st.last_d {
-            Some(last) => {
-                st.diag(line, Severity::Warning, format!("coordinates without D01, D02 or D03: the last one (D{last:02}) was used (the deprecated implied operation)"));
-                Some(last)
+        None if x.is_some() || y.is_some() => {
+            match st.last_d {
+                Some(last) => {
+                    st.diag(line, Severity::Warning, format!("coordinates without D01, D02 or D03: the last one (D{last:02}) was used (the deprecated implied operation)"));
+                    Some(last)
+                }
+                None => {
+                    st.diag(line, Severity::Error, "coordinates without D01, D02 or D03 and no operation before them to repeat");
+                    None
+                }
             }
-            None => {
-                st.diag(line, Severity::Error, "coordinates without D01, D02 or D03 and no operation before them to repeat");
-                None
-            }
-        },
+        }
         None => None,
     };
     let Some(d) = d else {
