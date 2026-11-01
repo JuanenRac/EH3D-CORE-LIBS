@@ -269,6 +269,14 @@ fn parse_f64(text: &str) -> Option<f64> {
 fn header_line(st: &mut State, upper: &str, line: usize) {
     let (word, rest) = upper.split_once(',').unwrap_or((upper, ""));
     match word {
+        // the old way of saying the units: M71 millimetres, M72 inches
+        "M71" | "M72" => {
+            st.file.units = Some(if word == "M71" {
+                Units::Millimetres
+            } else {
+                Units::Inches
+            });
+        }
         "METRIC" | "INCH" => {
             st.file.units = Some(if word == "METRIC" {
                 Units::Millimetres
@@ -468,6 +476,8 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                     st.finish_route();
                 }
                 Ok(0 | 1) => {}
+                Ok(71) => st.file.units = Some(Units::Millimetres),
+                Ok(72) => st.file.units = Some(Units::Inches),
                 _ => st.diag(line, Severity::Warning, format!("unknown M{digits}")),
             },
             'X' | 'Y' => match coordinate(st, digits) {

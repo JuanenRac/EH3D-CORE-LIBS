@@ -134,3 +134,12 @@ fn garbage_never_panics() {
         let _ = parse(text);
     }
 }
+
+#[test]
+fn m71_and_m72_set_the_units() {
+    let f = parse("M48\nM72\nT1C0.0315\n%\nT1\nX010000Y020000\nM30\n");
+    assert_eq!(f.units, Some(Units::Inches));
+    assert_eq!((f.drills[0].at.x, f.drills[0].at.y), (1.0, 2.0));
+    let f = parse("M48\nT1C0.8\n%\nM71\nT1\nX010000Y020000\nM30\n");
+    assert_eq!(f.units, Some(Units::Millimetres));
+}

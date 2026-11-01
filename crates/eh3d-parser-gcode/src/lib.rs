@@ -408,19 +408,21 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                             );
                         }
                     }
-                    40 | 400 | 280 | 300 | 540 | 550 | 560 | 570 | 580 | 590 | 530 | 920 | 921
-                    | 922 | 930 | 940 | 500 | 610 | 640 | 490 | 430 | 440 => {
-                        if matches!(code, 280 | 300 | 920 | 530) {
-                            diag(
-                                trace,
-                                block.line,
-                                Severity::Info,
-                                format!(
-                                    "G{} was read but its effect on the position is not tracked",
-                                    v
-                                ),
-                            );
-                        }
+                    40 | 400 | 540 | 550 | 560 | 570 | 580 | 590 | 921 | 922 | 930 | 940 | 500
+                    | 610 | 640 | 490 | 430 | 440 => {}
+                    // The words of these blocks are not a move of the modal motion: reading them as one would invent a cut.
+                    // Their effect on the position is not tracked, so what comes after may be offset.
+                    280 | 300 | 920 | 530 | 100 | 380..=395 => {
+                        skip_motion = true;
+                        diag(
+                            trace,
+                            block.line,
+                            Severity::Warning,
+                            format!(
+                                "G{} was read but its effect on the position is not tracked: the positions after it may be wrong",
+                                v
+                            ),
+                        );
                     }
                     410 | 420 => {
                         skip_motion = true;

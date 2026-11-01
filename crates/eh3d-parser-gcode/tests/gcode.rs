@@ -247,3 +247,30 @@ fn absolute_arc_centres_are_honoured() {
     };
     assert!(close(center.0, 5.0) && close(center.1, 0.0));
 }
+
+#[test]
+fn blocks_that_are_not_a_move_do_not_invent_one() {
+    for line in [
+        "G92 X0 Y0",
+        "G10 L20 P1 X0 Y0",
+        "G28 X0 Y0",
+        "G30 Z0",
+        "G53 G0 X0",
+        "G38.2 Z-10 F50",
+    ] {
+        let t = run(&format!("G1 X10 Y10 F100\n{line}\nG1 X5\n"));
+        // the first move and the last one only
+        let from_modal = t
+            .segments
+            .iter()
+            .filter(|s| s.motion == Motion::Linear)
+            .count();
+        assert_eq!(from_modal, 2, "{line}: {:?}", t.segments);
+        assert!(
+            t.diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Warning),
+            "{line}: the loss of the position is not said"
+        );
+    }
+}
