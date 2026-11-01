@@ -370,3 +370,27 @@ fn garbage_never_panics() {
         let _ = parse(&text);
     }
 }
+
+#[test]
+fn coordinates_without_a_d_code_repeat_the_last_one() {
+    let f = parse("%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0.1*%\nD10*\nX0Y0D02*\nX100000Y100000D01*\nX200000D01*\nX300000*\nM02*\n");
+    let lines = f
+        .commands
+        .iter()
+        .filter(|c| matches!(c.op, Operation::Line { .. }))
+        .count();
+    assert_eq!(lines, 3, "{:?}", f.commands);
+    assert!(f.diagnostics.iter().any(|d| d.severity == Severity::Warning));
+}
+
+#[test]
+fn deprecated_commands_that_change_the_geometry_are_not_clean() {
+    for cmd in ["IPNEG", "OFA5B5", "SFA2B2", "MIA1B0", "IR90"] {
+        let f = parse(&format!("%FSLAX24Y24*%\n%MOMM*%\n%{cmd}*%\nM02*\n"));
+        assert!(!f.is_clean(), "{cmd}");
+    }
+    for cmd in ["IPPOS", "OFA0B0", "SFA1B1", "MIA0B0", "IR0"] {
+        let f = parse(&format!("%FSLAX24Y24*%\n%MOMM*%\n%{cmd}*%\nM02*\n"));
+        assert!(f.is_clean(), "{cmd}");
+    }
+}

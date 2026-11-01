@@ -638,7 +638,11 @@ fn push(block: &Block, st: &State, trace: &mut Trace, motion: Motion, from: Poin
         trace.min = from;
         trace.max = from;
     }
-    for p in [from, to] {
+    let mut reached = vec![from, to];
+    if let Motion::ArcCw { center } | Motion::ArcCcw { center } = motion {
+        reached.extend(arc_extremes(from, to, center, matches!(motion, Motion::ArcCw { .. })));
+    }
+    for p in reached {
         trace.min = Point3 {
             x: trace.min.x.min(p.x),
             y: trace.min.y.min(p.y),
@@ -651,6 +655,43 @@ fn push(block: &Block, st: &State, trace: &mut Trace, motion: Motion, from: Poin
         };
     }
     trace.segments.push(segment);
+}
+
+/// The points of an arc where it reaches the most extreme X or Y (the four points of its circle that lie within its sweep): the arc bulges out
+/// past its two ends, and the box of the motion has to hold that.
+fn arc_extremes(from: Point3, to: Point3, center: (f64, f64), clockwise: bool) -> Vec<Point3> {
+    let r = (from.x - center.0).hypot(from.y - center.1);
+    if r == 0.0 {
+        return Vec::new();
+    }
+    let tau = std::f64::consts::TAU;
+    let a0 = (from.y - center.1).atan2(from.x - center.0);
+    let a1 = (to.y - center.1).atan2(to.x - center.0);
+    // the angle covered, counter-clockwise positive; a start that is also the end is a whole circle
+    let mut sweep = (a1 - a0).rem_euclid(tau);
+    if clockwise {
+        sweep = if sweep == 0.0 { -tau } else { sweep - tau };
+    } else if sweep == 0.0 {
+        sweep = tau;
+    }
+    let mut out = Vec::new();
+    for k in 0..4 {
+        let cardinal = f64::from(k) * std::f64::consts::FRAC_PI_2;
+        // how far from the start, going the way of the arc, this point of the circle is
+        let away = if sweep >= 0.0 {
+            (cardinal - a0).rem_euclid(tau)
+        } else {
+            -((a0 - cardinal).rem_euclid(tau))
+        };
+        if away.abs() <= sweep.abs() {
+            out.push(Point3 {
+                x: center.0 + r * cardinal.cos(),
+                y: center.1 + r * cardinal.sin(),
+                z: from.z,
+            });
+        }
+    }
+    out
 }
 
 /// The centre of the arc that goes from `from` to `to` with radius `r` (positive: the smaller arc, negative: the larger one), or None when the points are

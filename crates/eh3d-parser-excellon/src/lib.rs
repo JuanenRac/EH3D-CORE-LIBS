@@ -347,11 +347,11 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
     };
     let mut have_diameter = false;
     while let Some(letter) = rest.chars().next() {
-        let number_text: String = rest[1..]
+        let number_text: String = rest[letter.len_utf8()..]
             .chars()
             .take_while(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '+'))
             .collect();
-        let advance = 1 + number_text.len();
+        let advance = letter.len_utf8() + number_text.len();
         match (letter, parse_f64(&number_text)) {
             ('C', Some(v)) if v > 0.0 => {
                 tool.diameter = v;

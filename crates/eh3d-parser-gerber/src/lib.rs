@@ -282,6 +282,8 @@ struct State {
     quadrant: QuadrantMode,
     in_region: bool,
     aperture: Option<u32>,
+    /// The last D01, D02 or D03: coordinates without a D code of their own (old files) repeat it.
+    last_d: Option<u32>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -323,6 +325,7 @@ pub fn parse(text: &str) -> GerberFile {
         mode: Mode::Linear,
         quadrant: QuadrantMode::Multi,
         in_region: false,
+        last_d: None,
         aperture: None,
     };
     let chars: Vec<char> = text.chars().collect();
@@ -477,10 +480,20 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
         .iter()
         .any(|k| cmd.starts_with(k))
     {
+        // the ones that change the geometry are not harmless when ignored: a negative image, an offset, a scale, a mirror or a turn
+        let harmless = matches!(
+            cmd,
+            "IPPOS" | "OFA0B0" | "OFA0.0B0.0" | "SFA1B1" | "SFA1.0B1.0" | "MIA0B0" | "IR0"
+        ) || ["AS", "IN", "LN", "KO", "PF"].iter().any(|k| cmd.starts_with(k))
+            || (cmd.starts_with("IP") && cmd.len() > 2 && &cmd[2..] == "POS");
         st.diag(
             line,
-            Severity::Info,
-            format!("the deprecated command {} was ignored", &cmd[..2]),
+            if harmless { Severity::Info } else { Severity::Error },
+            if harmless {
+                format!("the deprecated command {} was ignored", &cmd[..2])
+            } else {
+                format!("the deprecated command {cmd} changes the geometry and is not supported")
+            },
         );
     } else {
         st.diag(
@@ -807,12 +820,26 @@ fn function_block(st: &mut State, block: &str, line: usize) {
     if let Some(v) = y {
         st.y = Some(v);
     }
+    let d = match d {
+        Some(d) => Some(d),
+        None if x.is_some() || y.is_some() => match st.last_d {
+            Some(last) => {
+                st.diag(line, Severity::Warning, format!("coordinates without D01, D02 or D03: the last one (D{last:02}) was used (the deprecated implied operation)"));
+                Some(last)
+            }
+            None => {
+                st.diag(line, Severity::Error, "coordinates without D01, D02 or D03 and no operation before them to repeat");
+                None
+            }
+        },
+        None => None,
+    };
     let Some(d) = d else {
-        if x.is_some() || y.is_some() {
-            st.diag(line, Severity::Warning, "coordinates without D01, D02 or D03 (the deprecated implied operation) were ignored");
-        }
         return;
     };
+    if (1..=3).contains(&d) {
+        st.last_d = Some(d);
+    }
     match d {
         1..=3 => {
             let (Some(cx), Some(cy)) = (st.x, st.y) else {

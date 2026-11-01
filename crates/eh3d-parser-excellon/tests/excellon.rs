@@ -130,6 +130,7 @@ fn garbage_never_panics() {
         "M48\n%\nT\nTC\nT1C-1\nXY\nG85\nM15\nM16\nM30\nM30\n",
         "X\nY\nG\nM\n",
         "T99999999999999999999C1",
+        "M48\nMETRIC\nT1C0.8é\n%\nT1é\n",
     ] {
         let _ = parse(text);
     }

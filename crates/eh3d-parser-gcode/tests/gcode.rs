@@ -274,3 +274,14 @@ fn blocks_that_are_not_a_move_do_not_invent_one() {
         );
     }
 }
+
+#[test]
+fn the_box_of_an_arc_holds_its_bulge() {
+    // from (-10,0) to (10,0) clockwise about the origin goes over the top through (0,10)
+    let t = run("G21 G90\nG0 X-10 Y0\nG2 X10 Y0 I10 J0 F100\n");
+    assert!(close(t.max.y, 10.0), "{}", t.max.y);
+    assert!(close(t.min.y, 0.0), "{}", t.min.y);
+    // counterclockwise goes under
+    let t = run("G21 G90\nG0 X-10 Y0\nG3 X10 Y0 I10 J0 F100\n");
+    assert!(close(t.min.y, -10.0), "{}", t.min.y);
+}
