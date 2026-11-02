@@ -108,17 +108,43 @@
             "pt": "CAM puro"
           },
           "name": "eh3d-cam/"
+        },
+        {
+          "desc": {
+            "en": "Gerber X2 writer",
+            "es": "escritor de Gerber X2",
+            "de": "Gerber-X2-Schreiber",
+            "fr": "écrivain Gerber X2",
+            "it": "scrittore Gerber X2",
+            "ja": "Gerber X2 ライター",
+            "zh": "Gerber X2 写入器",
+            "pt": "escritor de Gerber X2"
+          },
+          "name": "eh3d-writer-gerber/"
+        },
+        {
+          "desc": {
+            "en": "Excellon writer",
+            "es": "escritor de Excellon",
+            "de": "Excellon-Schreiber",
+            "fr": "écrivain Excellon",
+            "it": "scrittore Excellon",
+            "ja": "Excellon ライター",
+            "zh": "Excellon 写入器",
+            "pt": "escritor de Excellon"
+          },
+          "name": "eh3d-writer-excellon/"
         }
       ],
       "sub": {
-        "en": "the three readers and what they share",
-        "es": "los tres lectores y lo que comparten",
-        "de": "die drei Leser und was sie teilen",
-        "fr": "les trois lecteurs et ce qu'ils partagent",
-        "it": "i tre lettori e ciò che condividono",
-        "ja": "3 つのリーダーと共有部分",
-        "zh": "三个读取器及其共用部分",
-        "pt": "os três leitores e o que partilham"
+        "en": "the three readers, the two writers and what they share",
+        "es": "los tres lectores, los dos escritores y lo que comparten",
+        "de": "die drei Leser, die zwei Schreiber und was sie teilen",
+        "fr": "les trois lecteurs, les deux écrivains et ce qu'ils partagent",
+        "it": "i tre lettori, i due scrittori e ciò che condividono",
+        "ja": "3 つのリーダー、2 つのライター、共有部分",
+        "zh": "三个读取器、两个写入器及其共用部分",
+        "pt": "os três leitores, os dois escritores e o que partilham"
       }
     },
     {

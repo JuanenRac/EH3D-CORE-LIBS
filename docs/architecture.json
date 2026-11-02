@@ -2,7 +2,7 @@
   "repo": "EH3D-CORE-LIBS",
   "ecosystem": "eh3d",
   "tagline": "Tolerant readers of Gerber, Excellon and G-code for the programs of the suite.",
-  "description": "EH3D-CORE-LIBS is a Rust workspace with three readers that share one small crate (diagnostics with a stable code, units, number limits, the reading of bytes) and have no other dependency: Gerber RS-274X, Excellon drill files and G-code with a modal interpreter. Each takes text from a person who may be careless or hostile and returns the data plus diagnostics with line numbers; none of them panics. Four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER and EH3D-ISOCAM). They draw nothing and move nothing.",
+  "description": "EH3D-CORE-LIBS is a Rust workspace with three readers that share one small crate (diagnostics with a stable code, units, number limits, the reading of bytes) and have no other dependency: Gerber RS-274X, Excellon drill files and G-code with a modal interpreter. Each takes text from a person who may be careless or hostile and returns the data plus diagnostics with line numbers; none of them panics. Four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER and EH3D-ISOCAM). Two more crates write Gerber X2 and Excellon files from the same data, without dates or versions, so the same content always gives the same bytes. They draw nothing and move nothing.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -53,6 +53,21 @@
       ],
       "code": [
         "crates/eh3d-parser-gerber/src/lib.rs::pub fn parse"
+      ]
+    },
+    {
+      "id": "writers",
+      "column": 1,
+      "level": "tested",
+      "title": "The two writers",
+      "lines": [
+        "the data the readers give,",
+        "written back with no date:",
+        "same content, same bytes"
+      ],
+      "code": [
+        "crates/eh3d-writer-gerber/src/lib.rs::pub fn write",
+        "crates/eh3d-writer-excellon/src/lib.rs::pub fn write"
       ]
     },
     {
@@ -165,6 +180,11 @@
     {
       "from": "pcommon",
       "to": "std",
+      "level": "tested"
+    },
+    {
+      "from": "writers",
+      "to": "gerber",
       "level": "tested"
     }
   ],

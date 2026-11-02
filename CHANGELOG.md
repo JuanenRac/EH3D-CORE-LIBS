@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- Add the `eh3d-writer-gerber` crate: a deterministic Gerber X2 writer for the data the Gerber reader gives (apertures, macros, regions, arcs, polarity, step and repeat, file attributes). The same content always gives the same bytes, nothing reads the clock, and a number that does not fit the coordinate format is an error.
+- Add the `eh3d-writer-excellon` crate: a deterministic Excellon writer for tools, holes, slots and routes, with coordinates written with a decimal point or in a fixed format with leading or trailing zeros left out.
+- Test both writers by writing and reading back with the readers, byte-identical second rounds and generated drawings and drill files.
 - **`decode_coordinate("-0")` is plain zero:** a negative zero coordinate no longer comes back as `-0.0`.
 - **More tests:** the fiducial fits, the order of the cuts, the lighter paths and the layout of a board (turning, mirroring, panels and alignment holes) in the CAM; the zero suppression, the limits of numbers and the encoding of a file in the shared rules; signs, arcs, polarity and line ends in the Gerber reader; decimals and units in the Excellon reader; comments and line cuts in the G-code reader; the distance transform against a slow exact answer; and the boxes and swept rectangles of the shapes. A star in the comment of a Marlin line is no longer taken for a checksum.
 
