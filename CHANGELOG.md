@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.0.3] - A common crate with stable diagnostic codes, one rule for files without units and a corpus of synthetic files
+
 - **A common crate for the three readers:** `eh3d-parser-common` (internal) holds `Severity`, `Diagnostic`, `Units`, the decoding of coordinates and the parsing of numbers that were written three times; the readers re-export them, so no program that depends on them changes.
 - **Stable codes in the diagnostics:** every `Diagnostic` has a `code` (`units-missing`, `number-too-large`, `unknown-g-code`...) so a program can filter by kind instead of by text; the texts are the same and `docs/DIAGNOSTICS.md` lists the codes. A test fails when the table and the code differ. A `Diagnostic` written as a struct literal now needs the `code` field (use `Diagnostic::new`).
 - **One rule for files without units:** Gerber and Excellon read them in millimetres and say so with a `units-missing` warning; `effective_units()` gives the unit that was used. The rule and the open decision about inches in old Excellon files are in `docs/DIAGNOSTICS.md`.
