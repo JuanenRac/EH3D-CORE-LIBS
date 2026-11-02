@@ -1,0 +1,14 @@
+[package]
+name = "eh3d-cam"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.88"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "The pure part of the CAM of the EH3D Fabrication Suite: the copper on a grid, isolation passes with their closeness checks, forced and fill passes, tolerance and design rule checks, the order and the optimisation of paths, fiducial alignment, board transforms and old-style Gerber."
+readme = "../../README.md"
+
+[dependencies]
+eh3d-geometry = { path = "../eh3d-geometry", version = ">=0.0.3" }
+eh3d-raster = { path = "../eh3d-raster", version = ">=0.0.3" }

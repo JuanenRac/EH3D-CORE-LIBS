@@ -95,6 +95,19 @@
             "pt": "geometria de uma camada"
           },
           "name": "eh3d-geometry/"
+        },
+        {
+          "desc": {
+            "en": "pure CAM",
+            "es": "CAM puro",
+            "de": "reine CAM",
+            "fr": "FAO pure",
+            "it": "CAM puro",
+            "ja": "純粋な CAM",
+            "zh": "纯 CAM",
+            "pt": "CAM puro"
+          },
+          "name": "eh3d-cam/"
         }
       ],
       "sub": {

@@ -18,7 +18,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que se ejecuta hoy:** tres bibliotecas de Rust sin dependencias que leen capas Gerber (RS-274X), ficheros de taladrado Excellon y G-code (un intérprete modal de los dialectos GRBL, Marlin y PlanetCNC). 99 pruebas se ejecutan en un ordenador, con entradas dañadas y hostiles incluidas. Los lectores nunca entran en pánico e informan de lo que no pudieron entender como diagnósticos con número de línea. No dibujan nada, no calculan ninguna trayectoria y no se han probado con una colección de ficheros de producción reales; cuatro programas de la suite los usan (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) y nada de aquí se ha ejecutado en una máquina.
+**Comprobación de honestidad - lo que se ejecuta hoy:** tres bibliotecas de Rust sin dependencias que leen capas Gerber (RS-274X), ficheros de taladrado Excellon y G-code (un intérprete modal de los dialectos GRBL, Marlin y PlanetCNC). 116 pruebas se ejecutan en un ordenador, con entradas dañadas y hostiles incluidas. Los lectores nunca entran en pánico e informan de lo que no pudieron entender como diagnósticos con número de línea. No dibujan nada, no calculan ninguna trayectoria y no se han probado con una colección de ficheros de producción reales; cuatro programas de la suite los usan (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) y nada de aquí se ha ejecutado en una máquina.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versión | `0.0.3` |
 | Madurez | Andamiaje |
-| Pruebas | 99 |
+| Pruebas | 116 |
 | Pila tecnológica | Rust |
 | En hardware real | No aplica: lectores de ficheros, nada aquí habla con una máquina |
 
@@ -47,7 +47,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 | Lector Gerber | 🟡 | RS-274X: se leen unidades, formato de coordenadas, aperturas, macros, regiones y comandos de dibujo; solo con ficheros de prueba hasta ahora, no con una colección de ficheros de producción reales. |
 | Lector Excellon | 🟡 | Se leen herramientas, taladros, ranuras y rutas simples en métrico o pulgadas; solo con ficheros de prueba hasta ahora. |
 | Lector de G-code | 🟡 | Un intérprete modal de los dialectos GRBL, Marlin y PlanetCNC da milímetros absolutos, arcos incluidos; la compensación de radio y los ciclos fijos se avisan como no soportados. |
-| Pruebas | 🟡 | Pasan 99 pruebas (`cargo test`): 26 de Gerber, 23 de Excellon, 31 de G-code y 6 del crate compartido, 7 de la geometría de trama y 6 de las formas, con entradas dañadas y hostiles y un corpus de ficheros sintéticos. |
+| Pruebas | 🟡 | Pasan 116 pruebas (`cargo test`): 26 de Gerber, 23 de Excellon, 31 de G-code y 6 del crate compartido, 7 de la geometría de trama, 6 de las formas y 17 del CAM puro, con entradas dañadas y hostiles y un corpus de ficheros sintéticos. |
 | Seguridad | 🟡 | Hecho para ficheros que envían otras personas: nada entra en pánico, ningún valor se adivina y los problemas vuelven como diagnósticos con número de línea; sin revisión independiente, y nada aquí juzga si un G-code es seguro de ejecutar. |
 | Geometría y HP-GL | 🔴 | La geometría 2D (offsets, booleanas) y los lectores de HP-GL y de Bungard están previstos y sin construir. |
 | Uso por otros programas | 🟡 | Cuatro programas de la suite dependen de los lectores (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); ninguno se ha ejecutado en una máquina. |
@@ -61,6 +61,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * El **lector e intérprete de G-code** (`eh3d-parser-gcode`): palabras, comentarios, números de línea y sumas de comprobación de Marlin, y el estado modal de un controlador (unidades, modo de distancia, avance, husillo, herramienta). Cada movimiento sale en milímetros absolutos, arcos incluidos, con la longitud del corte, la longitud de los rápidos y la caja envolvente del programa.
 * La **geometría de trama** (`eh3d-raster`): unidades de longitud (`8mil`, `0.01in`, `0.2mm`), la distancia euclídea exacta de cada celda de una rejilla a la celda ocupada más cercana, y las líneas donde esa distancia tiene un valor dado, simplificadas y orientadas.
 * Las **formas de una capa** (`eh3d-geometry`): discos, rectángulos, óvalos, pistas y regiones en milímetros con y hacia arriba, la caja que contiene un conjunto de ellas, y la conversión de capas Gerber y ficheros de taladro Excellon en ellas, con una nota por todo lo que no se dibuja.
+* El **CAM puro** (`eh3d-cam`): el cobre dibujado en una rejilla, pasadas de aislamiento con las comprobaciones de huecos que la herramienta no puede cortar, pasadas forzadas y de relleno, comprobaciones de tolerancia y de reglas de diseño, el orden y el acortamiento de caminos, la alineación sobre fiduciales, transformaciones de placa, aberturas de máscara de soldadura y Gerber antiguo. No lee ficheros del disco ni escribe G-code.
 * **Diagnósticos en lugar de fallos:** cada lector devuelve líneas con una gravedad (información, aviso, error) y el número de línea del fichero, y sigue leyendo.
 * **Previsto:** el lector de HP-GL y Bungard y la geometría 2D (offsets y booleanas).
 
@@ -110,6 +111,7 @@ Los lectores aceptan texto de cualquiera, así que el diseño asume ficheros des
 | `eh3d-parser-gcode` | `parse(text, dialect)`, luego `interpret(&program)` | `Program` (bloques) y `Trace` (segmentos en milímetros, caja envolvente, longitudes de corte y de rápidos) |
 | `eh3d-raster` | `parse_length(text, bare_unit)`, `distance_mm(on, w, h, res)`, luego `loops(&grid, level)` | `Unit`, distancias en milímetros por celda y caminos cerrados (`Loop`) en milímetros |
 | `eh3d-geometry` | `from_gerber(&file)`, `from_excellon(&file)`, luego `scene.bounds()` | `Scene` (`Shape` y notas) y `Bounds` en milímetros |
+| `eh3d-cam` | `from_scene(&scene, margin, res)`, luego `plan(&scene, &plan)` y `close_pieces(...)` | `Bitmap`, `Pass` (caminos cerrados y abiertos en milímetros), `Hole` y los hallazgos de las comprobaciones |
 
 Los tres comparten `Diagnostic { line, severity, code, message }` con `Severity` `Info`, `Warning` o `Error`, y `is_clean()` para preguntar si se encontró algún `Error`. No hay programa de línea de comandos, ni acceso a la red, ni acceso a ficheros: quien llama pasa el texto y recibe los datos. Cada aviso tiene un `code` estable (listado en `docs/DIAGNOSTICS.md`) para filtrar por tipo y no por texto. `parse_bytes` lee un fichero a partir de sus bytes con un límite de tamaño (256 MiB) y lee como Latin-1, con un aviso, el texto que no es UTF-8. Un fichero Gerber o Excellon sin unidades se lee en milímetros, con el aviso `units-missing`. Los tipos compartidos viven en el crate interno `eh3d-parser-common`, que los lectores reexportan.
 
@@ -149,7 +151,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Pruebas
 
-La suite tiene 99 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI): 26 de Gerber, 23 de Excellon, 31 de G-code y 6 del crate que comparten, 7 de la geometría de trama y 6 de las formas. Un corpus de 21 ficheros sintéticos pequeños (`tests/golden/`: Gerber en pulgadas y milímetros, Excellon con `LZ`/`TZ`, ranuras y rutas, G-code para GRBL, Marlin y LinuxCNC, con CRLF, Latin-1 y ficheros dañados) lo leen los lectores y se compara con un resumen guardado junto a cada fichero; `EH3D_REGENERATE=1 cargo test` reescribe los resúmenes para que el cambio se vea en el diff, y los mismos ficheros se dañan de miles de maneras en la prueba de mutación. Comprueban que una capa de cobre típica y un fichero métrico típico se leen completos, las coordenadas omitidas, las dos supresiones de ceros, ranuras, rutas, pulgadas a milímetros, cada comando conociendo su línea, arcos por centro y por radio, círculos completos, avance y movimiento modales, sumas de Marlin, funciones no soportadas avisadas en lugar de adivinadas, y entradas dañadas: basura, prefijos cortados y líneas larguísimas nunca entran en pánico. El CI también ejecuta `cargo fmt --check`, `cargo clippy` con advertencias como errores y `python -I tools/ci_validate.py`.
+La suite tiene 116 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI): 26 de Gerber, 23 de Excellon, 31 de G-code y 6 del crate que comparten, 7 de la geometría de trama, 6 de las formas y 17 del CAM puro. Un corpus de 21 ficheros sintéticos pequeños (`tests/golden/`: Gerber en pulgadas y milímetros, Excellon con `LZ`/`TZ`, ranuras y rutas, G-code para GRBL, Marlin y LinuxCNC, con CRLF, Latin-1 y ficheros dañados) lo leen los lectores y se compara con un resumen guardado junto a cada fichero; `EH3D_REGENERATE=1 cargo test` reescribe los resúmenes para que el cambio se vea en el diff, y los mismos ficheros se dañan de miles de maneras en la prueba de mutación. Comprueban que una capa de cobre típica y un fichero métrico típico se leen completos, las coordenadas omitidas, las dos supresiones de ceros, ranuras, rutas, pulgadas a milímetros, cada comando conociendo su línea, arcos por centro y por radio, círculos completos, avance y movimiento modales, sumas de Marlin, funciones no soportadas avisadas en lugar de adivinadas, y entradas dañadas: basura, prefijos cortados y líneas larguísimas nunca entran en pánico. El CI también ejecuta `cargo fmt --check`, `cargo clippy` con advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -172,7 +174,8 @@ EH3D-CORE-LIBS/
 │   ├── eh3d-parser-excellon/                    lector de ficheros de taladrado Excellon
 │   ├── eh3d-parser-gcode/                       lector e intérprete modal de G-code
 │   ├── eh3d-raster/                             geometría de trama
-│   └── eh3d-geometry/                           geometría de una capa
+│   ├── eh3d-geometry/                           geometría de una capa
+│   └── eh3d-cam/                                CAM puro
 ├── docs/                                        READERS.md, lo que promete cada lector y lo que no hace, DIAGNOSTICS.md, los códigos de aviso, y los datos de las dos imágenes
 ├── tests/                                       ficheros de muestra sintéticos y sus resúmenes esperados
 ├── tools/                                       comprobación del CI y del README y herramientas de imágenes
