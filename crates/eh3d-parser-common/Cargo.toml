@@ -1,0 +1,12 @@
+[package]
+name = "eh3d-parser-common"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "What the Gerber, Excellon and G-code readers of the EH3D Fabrication Suite share: severities, diagnostics with a stable code, units, coordinate decoding, bounded number parsing and the reading of bytes."
+publish = false
+
+[dependencies]

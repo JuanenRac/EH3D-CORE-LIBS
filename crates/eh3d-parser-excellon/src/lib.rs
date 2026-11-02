@@ -19,55 +19,11 @@
 
 use std::collections::BTreeMap;
 
-/// How serious a [`Diagnostic`] is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Severity {
-    /// Something worth knowing.
-    Info,
-    /// The file is probably still read correctly, but it is not clean.
-    Warning,
-    /// Something was lost: the result may be wrong around it.
-    Error,
-}
-
-/// Something the reader noticed, with the line where it happened (counting from 1).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Diagnostic {
-    /// The line in the file.
-    pub line: usize,
-    /// How serious it is.
-    pub severity: Severity,
-    /// What happened, in English.
-    pub message: String,
-}
-
-/// The units of the coordinates and tool diameters.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Units {
-    /// Millimetres.
-    Millimetres,
-    /// Inches.
-    Inches,
-}
-
-impl Units {
-    /// Converts a length in these units to millimetres.
-    pub fn to_mm(self, value: f64) -> f64 {
-        match self {
-            Units::Millimetres => value,
-            Units::Inches => value * 25.4,
-        }
-    }
-}
-
-/// Which zeros an integer coordinate leaves out.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ZeroSuppression {
-    /// Leading zeros are left out (`TZ`).
-    Leading,
-    /// Trailing zeros are left out (`LZ`).
-    Trailing,
-}
+pub use eh3d_parser_common::{
+    codes, decode_coordinate, Diagnostic, Severity, Units, ZeroSuppression,
+};
+use eh3d_parser_common::{coordinate_error_code, decode_input, parse_f64, resolve_units};
+pub use eh3d_parser_common::{InputError, InputLimits};
 
 /// A point in the units of the file.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -148,6 +104,12 @@ pub struct ExcellonFile {
 }
 
 impl ExcellonFile {
+    /// The units of the file, or millimetres (with the `units-missing` warning in the
+    /// diagnostics) when it does not declare any.
+    pub fn effective_units(&self) -> Units {
+        self.units.unwrap_or(eh3d_parser_common::ASSUMED_UNITS)
+    }
+
     /// True when the file has no diagnostic of severity `Error`.
     pub fn is_clean(&self) -> bool {
         self.diagnostics
@@ -169,12 +131,16 @@ struct State {
 }
 
 impl State {
-    fn diag(&mut self, line: usize, severity: Severity, message: impl Into<String>) {
-        self.file.diagnostics.push(Diagnostic {
-            line,
-            severity,
-            message: message.into(),
-        });
+    fn diag(
+        &mut self,
+        line: usize,
+        severity: Severity,
+        code: &'static str,
+        message: impl Into<String>,
+    ) {
+        self.file
+            .diagnostics
+            .push(Diagnostic::new(line, severity, code, message));
     }
 
     fn finish_route(&mut self) {
@@ -182,6 +148,20 @@ impl State {
             self.file.routes.push(route);
         }
     }
+}
+
+/// Reads a file from bytes: UTF-8 (with or without a byte order mark) or, with a warning
+/// (`input-not-utf8`), Latin-1. An input above the default limit of 256 MiB is refused.
+pub fn parse_bytes(bytes: &[u8]) -> Result<ExcellonFile, InputError> {
+    parse_bytes_with(bytes, &InputLimits::default())
+}
+
+/// Like [`parse_bytes`] with a limit of your own.
+pub fn parse_bytes_with(bytes: &[u8], limits: &InputLimits) -> Result<ExcellonFile, InputError> {
+    let input = decode_input(bytes, limits)?;
+    let mut file = parse(&input.text);
+    file.diagnostics.splice(0..0, input.diagnostics);
+    Ok(file)
 }
 
 /// Reads an Excellon file. Never fails: problems are in [`ExcellonFile::diagnostics`].
@@ -218,7 +198,12 @@ pub fn parse(text: &str) -> ExcellonFile {
             continue;
         }
         if st.file.ended {
-            st.diag(line, Severity::Warning, "text after M30 was ignored");
+            st.diag(
+                line,
+                Severity::Warning,
+                codes::TEXT_AFTER_END,
+                "text after M30 was ignored",
+            );
             continue;
         }
         let upper = trimmed.to_ascii_uppercase();
@@ -235,12 +220,23 @@ pub fn parse(text: &str) -> ExcellonFile {
         }
     }
     st.finish_route();
+    resolve_units(st.file.units, 1, &mut st.file.diagnostics);
     if !started {
-        st.diag(1, Severity::Warning, "the file has no M48 header");
+        st.diag(
+            1,
+            Severity::Warning,
+            codes::HEADER_MISSING,
+            "the file has no M48 header",
+        );
     }
     if !st.file.ended {
         let last = text.lines().count().max(1);
-        st.diag(last, Severity::Warning, "the file does not end with M30");
+        st.diag(
+            last,
+            Severity::Warning,
+            codes::END_MISSING,
+            "the file does not end with M30",
+        );
     }
     st.file
 }
@@ -255,16 +251,12 @@ fn comment_line(st: &mut State, comment: &str, line: usize) {
                 _ => st.diag(
                     line,
                     Severity::Warning,
+                    codes::FORMAT_COMMENT_INVALID,
                     "FILE_FORMAT comment is not understood",
                 ),
             }
         }
     }
-}
-
-fn parse_f64(text: &str) -> Option<f64> {
-    let value: f64 = text.parse().ok()?;
-    value.is_finite().then_some(value)
 }
 
 fn header_line(st: &mut State, upper: &str, line: usize) {
@@ -297,6 +289,7 @@ fn header_line(st: &mut State, upper: &str, line: usize) {
                     other => st.diag(
                         line,
                         Severity::Warning,
+                        codes::OPTION_UNKNOWN,
                         format!("unknown option '{other}' after {word}"),
                     ),
                 }
@@ -307,17 +300,22 @@ fn header_line(st: &mut State, upper: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Error,
+                    codes::INCREMENTAL_UNSUPPORTED,
                     "incremental coordinates (ICI) are not supported",
                 );
             }
         }
-        "FMAT" | "VER" | "DETECT" | "ATC" => {
-            st.diag(line, Severity::Info, format!("{word} was ignored"))
-        }
+        "FMAT" | "VER" | "DETECT" | "ATC" => st.diag(
+            line,
+            Severity::Info,
+            codes::COMMAND_IGNORED,
+            format!("{word} was ignored"),
+        ),
         _ if upper.starts_with('T') => tool_definition(st, upper, line),
         _ => st.diag(
             line,
             Severity::Warning,
+            codes::UNKNOWN_HEADER_LINE,
             format!(
                 "unknown header line '{}'",
                 upper.chars().take(20).collect::<String>()
@@ -333,6 +331,7 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
         st.diag(
             line,
             Severity::Error,
+            codes::TOOL_NUMBER_MISSING,
             "a tool definition has no tool number",
         );
         return;
@@ -363,6 +362,7 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Error,
+                    codes::TOOL_DIAMETER_INVALID,
                     "a tool has a diameter that is not a positive number",
                 );
                 return;
@@ -371,6 +371,7 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Warning,
+                    codes::TOOL_PARAMETER_UNKNOWN,
                     format!("unknown tool parameter '{other}' was ignored"),
                 );
             }
@@ -381,6 +382,7 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
         st.diag(
             line,
             Severity::Error,
+            codes::TOOL_DIAMETER_MISSING,
             format!("tool T{number} is defined without a diameter"),
         );
         return;
@@ -389,6 +391,7 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
+            codes::TOOL_REDEFINED,
             format!("tool T{number} is defined twice; the last definition wins"),
         );
     }
@@ -412,6 +415,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
+            codes::COMMAND_IGNORED,
             format!(
                 "'{}' was ignored",
                 upper.chars().take(20).collect::<String>()
@@ -421,6 +425,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
     }
     let (mut x, mut y) = (None, None);
     let mut g: Option<u32> = None;
+    let (int_digits, dec_digits) = current_format(st);
     for (letter, digits) in &words {
         match *letter {
             'T' => match digits.parse::<u32>() {
@@ -430,12 +435,18 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                         st.diag(
                             line,
                             Severity::Error,
+                            codes::TOOL_UNDEFINED,
                             format!("T{n} is selected but never defined"),
                         );
                     }
                     st.tool = Some(n);
                 }
-                Err(_) => st.diag(line, Severity::Error, "a tool selection has no number"),
+                Err(_) => st.diag(
+                    line,
+                    Severity::Error,
+                    codes::TOOL_SELECTION_INVALID,
+                    "a tool selection has no number",
+                ),
             },
             'G' => match digits.parse::<u32>() {
                 Ok(n @ (0 | 1)) => {
@@ -445,6 +456,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                 Ok(2 | 3) => st.diag(
                     line,
                     Severity::Error,
+                    codes::ARC_UNSUPPORTED,
                     "arcs in routes (G02/G03) are not supported",
                 ),
                 Ok(5) => {
@@ -455,10 +467,21 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                 Ok(91) => st.diag(
                     line,
                     Severity::Error,
+                    codes::INCREMENTAL_UNSUPPORTED,
                     "G91 (incremental coordinates) is not supported",
                 ),
-                Ok(93) => st.diag(line, Severity::Info, "G93 (zero set) was ignored"),
-                _ => st.diag(line, Severity::Warning, format!("unknown G{digits}")),
+                Ok(93) => st.diag(
+                    line,
+                    Severity::Info,
+                    codes::COMMAND_IGNORED,
+                    "G93 (zero set) was ignored",
+                ),
+                _ => st.diag(
+                    line,
+                    Severity::Warning,
+                    codes::UNKNOWN_G_CODE,
+                    format!("unknown G{digits}"),
+                ),
             },
             'M' => match digits.parse::<u32>() {
                 Ok(30) => st.file.ended = true,
@@ -477,7 +500,12 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                 Ok(0 | 1) => {}
                 Ok(71) => st.file.units = Some(Units::Millimetres),
                 Ok(72) => st.file.units = Some(Units::Inches),
-                _ => st.diag(line, Severity::Warning, format!("unknown M{digits}")),
+                _ => st.diag(
+                    line,
+                    Severity::Warning,
+                    codes::UNKNOWN_M_CODE,
+                    format!("unknown M{digits}"),
+                ),
             },
             'X' | 'Y' => match coordinate(st, digits) {
                 Some(v) if *letter == 'X' => x = Some(v),
@@ -486,6 +514,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                     st.diag(
                         line,
                         Severity::Error,
+                        coordinate_error_code(digits, int_digits, dec_digits),
                         format!("'{letter}{digits}' is not a valid coordinate"),
                     );
                     return;
@@ -495,6 +524,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
             other => st.diag(
                 line,
                 Severity::Warning,
+                codes::UNKNOWN_WORD,
                 format!("unknown word '{other}{digits}' was ignored"),
             ),
         }
@@ -521,6 +551,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
             st.diag(
                 line,
                 Severity::Error,
+                codes::TOOL_UNDEFINED,
                 format!("a hole uses the undefined tool T{tool}"),
             );
             st.file.drills.push(Hit { line, tool, at });
@@ -528,6 +559,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
         None => st.diag(
             line,
             Severity::Error,
+            codes::TOOL_NOT_SELECTED,
             "a hole comes before any tool is selected",
         ),
     }
@@ -547,6 +579,7 @@ fn split_xy(st: &mut State, text: &str, line: usize) -> Option<Point> {
                         st.diag(
                             line,
                             Severity::Error,
+                            codes::COORDINATE_INVALID,
                             "a slot has a coordinate that is not valid",
                         );
                         return None;
@@ -581,6 +614,7 @@ fn slot(st: &mut State, before: &str, after: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Error,
+                    codes::TOOL_UNDEFINED,
                     format!("a slot uses the undefined tool T{tool}"),
                 );
             }
@@ -594,59 +628,25 @@ fn slot(st: &mut State, before: &str, after: &str, line: usize) {
         None => st.diag(
             line,
             Severity::Error,
+            codes::TOOL_NOT_SELECTED,
             "a slot comes before any tool is selected",
         ),
     }
 }
 
-fn coordinate(st: &mut State, digits: &str) -> Option<f64> {
-    let units = st.file.units;
-    let (integer, decimal) = st.format.unwrap_or(match units {
+fn current_format(st: &State) -> (u32, u32) {
+    st.format.unwrap_or(match st.file.units {
         Some(Units::Inches) => (2, 4),
         _ => (3, 3),
-    });
+    })
+}
+
+fn coordinate(st: &mut State, digits: &str) -> Option<f64> {
+    let (integer, decimal) = current_format(st);
     decode_coordinate(
         digits,
         integer,
         decimal,
         st.file.zeros.unwrap_or(ZeroSuppression::Leading),
     )
-}
-
-/// Converts the digits of a coordinate to a number.
-///
-/// A value with a decimal point is read as it is. Otherwise the digits are an integer: with
-/// leading zeros suppressed it is divided by 10^decimals; with trailing zeros suppressed the digits
-/// are first padded on the right to the full width of the format.
-pub fn decode_coordinate(
-    text: &str,
-    integer_digits: u32,
-    decimal_digits: u32,
-    zeros: ZeroSuppression,
-) -> Option<f64> {
-    let (negative, digits) = match text.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, text.strip_prefix('+').unwrap_or(text)),
-    };
-    if digits.is_empty() {
-        return None;
-    }
-    let magnitude = if digits.contains('.') {
-        parse_f64(digits)?
-    } else {
-        if !digits.chars().all(|c| c.is_ascii_digit()) {
-            return None;
-        }
-        let width = (integer_digits + decimal_digits) as usize;
-        if digits.len() > width {
-            return None;
-        }
-        let padded = match zeros {
-            ZeroSuppression::Leading => digits.to_owned(),
-            ZeroSuppression::Trailing => format!("{digits:0<width$}"),
-        };
-        let value: f64 = padded.parse().ok()?;
-        value / 10f64.powi(decimal_digits as i32)
-    };
-    Some(if negative { -magnitude } else { magnitude })
 }

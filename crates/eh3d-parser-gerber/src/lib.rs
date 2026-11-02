@@ -17,46 +17,11 @@
 
 use std::collections::BTreeMap;
 
-/// How serious a [`Diagnostic`] is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Severity {
-    /// Something worth knowing (a deprecated command that was ignored).
-    Info,
-    /// The file is probably still read correctly, but it is not clean.
-    Warning,
-    /// Something was lost: the result may be wrong around it.
-    Error,
-}
-
-/// Something the reader noticed, with the line where it happened (counting from 1).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Diagnostic {
-    /// The line in the file.
-    pub line: usize,
-    /// How serious it is.
-    pub severity: Severity,
-    /// What happened, in English.
-    pub message: String,
-}
-
-/// The units of the coordinates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Units {
-    /// Millimetres.
-    Millimetres,
-    /// Inches.
-    Inches,
-}
-
-impl Units {
-    /// Converts a length in these units to millimetres.
-    pub fn to_mm(self, value: f64) -> f64 {
-        match self {
-            Units::Millimetres => value,
-            Units::Inches => value * 25.4,
-        }
-    }
-}
+pub use eh3d_parser_common::{codes, Diagnostic, Severity, Units};
+use eh3d_parser_common::{
+    coordinate_error_code, decode_input, parse_f64, resolve_units, ZeroSuppression,
+};
+pub use eh3d_parser_common::{InputError, InputLimits};
 
 /// Which zeros a coordinate omits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,6 +234,12 @@ impl GerberFile {
             .filter(move |d| d.severity >= severity)
     }
 
+    /// The units of the file, or millimetres (with the `units-missing` warning in the
+    /// diagnostics) when it does not declare any.
+    pub fn effective_units(&self) -> Units {
+        self.units.unwrap_or(eh3d_parser_common::ASSUMED_UNITS)
+    }
+
     /// True when the file has no diagnostic of severity `Error`.
     pub fn is_clean(&self) -> bool {
         self.diagnostics_from(Severity::Error).next().is_none()
@@ -295,17 +266,35 @@ enum Mode {
 }
 
 impl State {
-    fn diag(&mut self, line: usize, severity: Severity, message: impl Into<String>) {
-        self.file.diagnostics.push(Diagnostic {
-            line,
-            severity,
-            message: message.into(),
-        });
+    fn diag(
+        &mut self,
+        line: usize,
+        severity: Severity,
+        code: &'static str,
+        message: impl Into<String>,
+    ) {
+        self.file
+            .diagnostics
+            .push(Diagnostic::new(line, severity, code, message));
     }
 
     fn push(&mut self, line: usize, op: Operation) {
         self.file.commands.push(Command { line, op });
     }
+}
+
+/// Reads a file from bytes: UTF-8 (with or without a byte order mark) or, with a warning
+/// (`input-not-utf8`), Latin-1. An input above the default limit of 256 MiB is refused.
+pub fn parse_bytes(bytes: &[u8]) -> Result<GerberFile, InputError> {
+    parse_bytes_with(bytes, &InputLimits::default())
+}
+
+/// Like [`parse_bytes`] with a limit of your own.
+pub fn parse_bytes_with(bytes: &[u8], limits: &InputLimits) -> Result<GerberFile, InputError> {
+    let input = decode_input(bytes, limits)?;
+    let mut file = parse(&input.text);
+    file.diagnostics.splice(0..0, input.diagnostics);
+    Ok(file)
 }
 
 /// Reads a Gerber file. Never fails: problems are in [`GerberFile::diagnostics`].
@@ -353,6 +342,7 @@ pub fn parse(text: &str) -> GerberFile {
                 st.diag(
                     start_line,
                     Severity::Error,
+                    codes::EXTENDED_UNCLOSED,
                     "an extended command starts with % and is never closed",
                 );
             }
@@ -372,7 +362,12 @@ pub fn parse(text: &str) -> GerberFile {
                 .filter(|c| !c.is_whitespace())
                 .collect();
             if end >= chars.len() || chars[end] == '%' {
-                st.diag(start_line, Severity::Warning, "a block is not closed by *");
+                st.diag(
+                    start_line,
+                    Severity::Warning,
+                    codes::BLOCK_UNCLOSED,
+                    "a block is not closed by *",
+                );
             }
             if !block.is_empty() {
                 function_block(&mut st, &block, start_line);
@@ -386,22 +381,25 @@ pub fn parse(text: &str) -> GerberFile {
     }
     if !st.file.ended {
         let last = line;
-        st.diag(last, Severity::Warning, "the file does not end with M02");
+        st.diag(
+            last,
+            Severity::Warning,
+            codes::END_MISSING,
+            "the file does not end with M02",
+        );
     }
     if st.in_region {
         let last = line;
         st.diag(
             last,
             Severity::Error,
+            codes::REGION_UNCLOSED,
             "a region (G36) is never closed by G37",
         );
     }
+    let last = line;
+    resolve_units(st.file.units, last, &mut st.file.diagnostics);
     st.file
-}
-
-fn parse_f64(text: &str) -> Option<f64> {
-    let value: f64 = text.trim().parse().ok()?;
-    value.is_finite().then_some(value)
 }
 
 fn extended(st: &mut State, body: &str, line: usize) {
@@ -415,7 +413,12 @@ fn extended(st: &mut State, body: &str, line: usize) {
     if let Some(name) = cmd.strip_prefix("AM") {
         let body: Vec<String> = blocks[1..].to_vec();
         if name.is_empty() {
-            st.diag(line, Severity::Error, "an aperture macro (AM) has no name");
+            st.diag(
+                line,
+                Severity::Error,
+                codes::MACRO_NAME_MISSING,
+                "an aperture macro (AM) has no name",
+            );
         } else {
             st.file.macros.insert(
                 name.to_owned(),
@@ -442,6 +445,7 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
             _ => st.diag(
                 line,
                 Severity::Error,
+                codes::UNITS_UNKNOWN,
                 format!("unknown units '{rest}' in MO"),
             ),
         }
@@ -454,6 +458,7 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
             _ => st.diag(
                 line,
                 Severity::Error,
+                codes::POLARITY_UNKNOWN,
                 format!("unknown polarity '{rest}' in LP"),
             ),
         }
@@ -475,6 +480,7 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
+            codes::COMMAND_UNSUPPORTED,
             format!(
                 "{} is not supported and was ignored",
                 cmd.get(..2).unwrap_or(cmd)
@@ -500,6 +506,11 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
                 Severity::Error
             },
             if harmless {
+                codes::DEPRECATED_COMMAND
+            } else {
+                codes::GEOMETRY_COMMAND_UNSUPPORTED
+            },
+            if harmless {
                 format!(
                     "the deprecated command {} was ignored",
                     cmd.get(..2).unwrap_or(cmd)
@@ -512,6 +523,7 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
+            codes::UNKNOWN_COMMAND,
             format!(
                 "unknown extended command '{}'",
                 cmd.chars().take(12).collect::<String>()
@@ -529,6 +541,7 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
             st.diag(
                 line,
                 Severity::Error,
+                codes::FORMAT_ZERO_OMISSION_INVALID,
                 "FS: the zero omission must be L or T",
             );
             return;
@@ -538,6 +551,7 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
+            codes::FORMAT_TRAILING_DEPRECATED,
             "FS: omitting trailing zeros is deprecated",
         );
     }
@@ -546,11 +560,13 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
         Some('I') => st.diag(
             line,
             Severity::Error,
+            codes::INCREMENTAL_UNSUPPORTED,
             "FS: incremental coordinates are not supported",
         ),
         _ => st.diag(
             line,
             Severity::Error,
+            codes::FORMAT_MODE_INVALID,
             "FS: the coordinate mode must be A (absolute)",
         ),
     }
@@ -558,7 +574,12 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
     let (xs, ys) = match tail.split_once('Y') {
         Some((x, y)) if x.starts_with('X') => (x.strip_prefix('X').unwrap_or(x), y),
         _ => {
-            st.diag(line, Severity::Error, "FS: expected X<digits>Y<digits>");
+            st.diag(
+                line,
+                Severity::Error,
+                codes::FORMAT_MALFORMED,
+                "FS: expected X<digits>Y<digits>",
+            );
             return;
         }
     };
@@ -577,6 +598,7 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Warning,
+                    codes::FORMAT_AXES_DIFFER,
                     "FS: X and Y use different formats; the X format is used for both",
                 );
             }
@@ -589,6 +611,7 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
         _ => st.diag(
             line,
             Severity::Error,
+            codes::FORMAT_DIGITS_INVALID,
             "FS: the format must be two digits (1 to 6 integer, 0 to 6 decimal) for X and Y",
         ),
     }
@@ -599,19 +622,26 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
         st.diag(
             line,
             Severity::Error,
+            codes::APERTURE_NUMBER_INVALID,
             "AD: the aperture number must start with D",
         );
         return;
     };
     let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
     let Ok(number) = digits.parse::<u32>() else {
-        st.diag(line, Severity::Error, "AD: missing aperture number");
+        st.diag(
+            line,
+            Severity::Error,
+            codes::APERTURE_NUMBER_INVALID,
+            "AD: missing aperture number",
+        );
         return;
     };
     if number < 10 {
         st.diag(
             line,
             Severity::Error,
+            codes::APERTURE_NUMBER_RESERVED,
             format!("AD: D{number} is reserved; apertures start at D10"),
         );
         return;
@@ -623,7 +653,12 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
         match parse_f64(p) {
             Some(v) => params.push(v),
             None => {
-                st.diag(line, Severity::Error, format!("AD: '{p}' is not a number"));
+                st.diag(
+                    line,
+                    Severity::Error,
+                    codes::APERTURE_PARAMETER_INVALID,
+                    format!("AD: '{p}' is not a number"),
+                );
                 return;
             }
         }
@@ -646,7 +681,12 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
         "P" if params.len() >= 2 => {
             let vertices = params[1];
             if vertices.fract() != 0.0 || !(3.0..=12.0).contains(&vertices) {
-                st.diag(line, Severity::Error, "AD: a polygon has 3 to 12 vertices");
+                st.diag(
+                    line,
+                    Severity::Error,
+                    codes::APERTURE_POLYGON_VERTICES,
+                    "AD: a polygon has 3 to 12 vertices",
+                );
                 return;
             }
             Aperture::Polygon {
@@ -660,6 +700,7 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
             st.diag(
                 line,
                 Severity::Error,
+                codes::APERTURE_PARAMETERS_MISSING,
                 format!("AD: the {template} aperture has too few parameters"),
             );
             return;
@@ -669,6 +710,7 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Warning,
+                    codes::APERTURE_MACRO_UNDEFINED,
                     format!("AD: the macro '{name}' is not defined before its use"),
                 );
             }
@@ -678,7 +720,12 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
             }
         }
         _ => {
-            st.diag(line, Severity::Error, "AD: missing aperture template");
+            st.diag(
+                line,
+                Severity::Error,
+                codes::APERTURE_TEMPLATE_MISSING,
+                "AD: missing aperture template",
+            );
             return;
         }
     };
@@ -686,6 +733,7 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
+            codes::APERTURE_SIZE_NEGATIVE,
             format!("AD: D{number} has a negative size"),
         );
     }
@@ -693,6 +741,7 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
+            codes::APERTURE_REDEFINED,
             format!("AD: D{number} is defined twice; the last definition wins"),
         );
     }
@@ -738,6 +787,7 @@ fn step_repeat(st: &mut State, rest: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Error,
+                    codes::STEP_REPEAT_INVALID,
                     format!("SR: bad value '{letter}{value}'"),
                 );
                 return;
@@ -754,7 +804,12 @@ fn step_repeat(st: &mut State, rest: &str, line: usize) {
                 y_step,
             })),
         ),
-        _ => st.diag(line, Severity::Error, "SR: needs X, Y, I and J"),
+        _ => st.diag(
+            line,
+            Severity::Error,
+            codes::STEP_REPEAT_INVALID,
+            "SR: needs X, Y, I and J",
+        ),
     }
 }
 
@@ -780,6 +835,7 @@ fn function_block(st: &mut State, block: &str, line: usize) {
         st.diag(
             line,
             Severity::Warning,
+            codes::BLOCK_EMPTY,
             "a block has no letters and was ignored",
         );
         return;
@@ -794,9 +850,15 @@ fn function_block(st: &mut State, block: &str, line: usize) {
                 Ok(0) | Ok(1) => st.diag(
                     line,
                     Severity::Info,
+                    codes::DEPRECATED_COMMAND,
                     "M00/M01 are deprecated and were ignored",
                 ),
-                _ => st.diag(line, Severity::Warning, format!("unknown M{digits}")),
+                _ => st.diag(
+                    line,
+                    Severity::Warning,
+                    codes::UNKNOWN_M_CODE,
+                    format!("unknown M{digits}"),
+                ),
             },
             'X' | 'Y' | 'I' | 'J' => match coordinate(st, digits, line) {
                 Some(v) => match *letter {
@@ -813,6 +875,7 @@ fn function_block(st: &mut State, block: &str, line: usize) {
                     st.diag(
                         line,
                         Severity::Error,
+                        codes::D_CODE_INVALID,
                         format!("'D{digits}' is not an operation or aperture number"),
                     );
                     return;
@@ -823,6 +886,7 @@ fn function_block(st: &mut State, block: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Warning,
+                    codes::UNKNOWN_WORD,
                     format!("unknown word '{other}{digits}' was ignored"),
                 );
             }
@@ -839,11 +903,11 @@ fn function_block(st: &mut State, block: &str, line: usize) {
         None if x.is_some() || y.is_some() => {
             match st.last_d {
                 Some(last) => {
-                    st.diag(line, Severity::Warning, format!("coordinates without D01, D02 or D03: the last one (D{last:02}) was used (the deprecated implied operation)"));
+                    st.diag(line, Severity::Warning, codes::IMPLIED_OPERATION, format!("coordinates without D01, D02 or D03: the last one (D{last:02}) was used (the deprecated implied operation)"));
                     Some(last)
                 }
                 None => {
-                    st.diag(line, Severity::Error, "coordinates without D01, D02 or D03 and no operation before them to repeat");
+                    st.diag(line, Severity::Error, codes::OPERATION_MISSING, "coordinates without D01, D02 or D03 and no operation before them to repeat");
                     None
                 }
             }
@@ -862,6 +926,7 @@ fn function_block(st: &mut State, block: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Error,
+                    codes::COORDINATE_MISSING,
                     "an operation uses a coordinate that was never given",
                 );
                 return;
@@ -877,12 +942,14 @@ fn function_block(st: &mut State, block: &str, line: usize) {
                         st.diag(
                             line,
                             Severity::Error,
+                            codes::APERTURE_NOT_SELECTED,
                             "a flash (D03) happens before any aperture is selected",
                         );
                     } else if !st.file.apertures.contains_key(&st.aperture.unwrap_or(0)) {
                         st.diag(
                             line,
                             Severity::Error,
+                            codes::APERTURE_UNDEFINED,
                             "a flash uses an aperture that is not defined",
                         );
                     }
@@ -897,12 +964,14 @@ fn function_block(st: &mut State, block: &str, line: usize) {
                     st.diag(
                         line,
                         Severity::Error,
+                        codes::APERTURE_NOT_SELECTED,
                         "a draw (D01) happens before any aperture is selected",
                     );
                 } else if !st.file.apertures.contains_key(&st.aperture.unwrap_or(0)) {
                     st.diag(
                         line,
                         Severity::Error,
+                        codes::APERTURE_UNDEFINED,
                         "a draw uses an aperture that is not defined",
                     );
                 }
@@ -926,6 +995,7 @@ fn function_block(st: &mut State, block: &str, line: usize) {
                 st.diag(
                     line,
                     Severity::Warning,
+                    codes::APERTURE_UNDEFINED,
                     format!("D{n} is selected but not defined (yet)"),
                 );
             }
@@ -934,6 +1004,7 @@ fn function_block(st: &mut State, block: &str, line: usize) {
         n => st.diag(
             line,
             Severity::Error,
+            codes::D_CODE_INVALID,
             format!("D{n:02} is not a valid operation or aperture"),
         ),
     }
@@ -952,6 +1023,7 @@ fn current_point(st: &mut State, line: usize, _words: &[(char, String)]) -> Opti
         st.diag(
             line,
             Severity::Error,
+            codes::START_POINT_MISSING,
             "a draw starts before any move gave a start point",
         );
     }
@@ -965,14 +1037,24 @@ fn g_code(st: &mut State, digits: &str, line: usize) {
         Ok(3) => st.mode = Mode::CounterClockwise,
         Ok(36) => {
             if st.in_region {
-                st.diag(line, Severity::Error, "G36 inside a region");
+                st.diag(
+                    line,
+                    Severity::Error,
+                    codes::REGION_NESTED,
+                    "G36 inside a region",
+                );
             }
             st.in_region = true;
             st.push(line, Operation::RegionStart);
         }
         Ok(37) => {
             if !st.in_region {
-                st.diag(line, Severity::Error, "G37 without G36");
+                st.diag(
+                    line,
+                    Severity::Error,
+                    codes::REGION_NOT_OPEN,
+                    "G37 without G36",
+                );
             }
             st.in_region = false;
             st.push(line, Operation::RegionEnd);
@@ -982,30 +1064,48 @@ fn g_code(st: &mut State, digits: &str, line: usize) {
             st.diag(
                 line,
                 Severity::Warning,
+                codes::DEPRECATED_COMMAND,
                 "G74 (single quadrant) is deprecated",
             );
         }
         Ok(75) => st.quadrant = QuadrantMode::Multi,
         Ok(70) => {
             st.file.units = Some(Units::Inches);
-            st.diag(line, Severity::Warning, "G70 is deprecated: use MOIN");
+            st.diag(
+                line,
+                Severity::Warning,
+                codes::DEPRECATED_COMMAND,
+                "G70 is deprecated: use MOIN",
+            );
         }
         Ok(71) => {
             st.file.units = Some(Units::Millimetres);
-            st.diag(line, Severity::Warning, "G71 is deprecated: use MOMM");
+            st.diag(
+                line,
+                Severity::Warning,
+                codes::DEPRECATED_COMMAND,
+                "G71 is deprecated: use MOMM",
+            );
         }
         Ok(54) | Ok(55) => st.diag(
             line,
             Severity::Info,
+            codes::DEPRECATED_COMMAND,
             "G54/G55 are deprecated and were ignored",
         ),
         Ok(90) => {}
         Ok(91) => st.diag(
             line,
             Severity::Error,
+            codes::INCREMENTAL_UNSUPPORTED,
             "G91 (incremental coordinates) is not supported",
         ),
-        _ => st.diag(line, Severity::Warning, format!("unknown G{digits}")),
+        _ => st.diag(
+            line,
+            Severity::Warning,
+            codes::UNKNOWN_G_CODE,
+            format!("unknown G{digits}"),
+        ),
     }
 }
 
@@ -1014,6 +1114,7 @@ fn coordinate(st: &mut State, digits: &str, line: usize) -> Option<f64> {
         st.diag(
             line,
             Severity::Error,
+            codes::COORDINATE_BEFORE_FORMAT,
             "a coordinate appears before the format (FS) is given",
         );
         return None;
@@ -1024,6 +1125,7 @@ fn coordinate(st: &mut State, digits: &str, line: usize) -> Option<f64> {
             st.diag(
                 line,
                 Severity::Error,
+                coordinate_error_code(digits, format.integer_digits, format.decimal_digits),
                 format!("'{digits}' is not a valid coordinate"),
             );
             None
@@ -1037,32 +1139,11 @@ fn coordinate(st: &mut State, digits: &str, line: usize) -> Option<f64> {
 /// the format: leading-zero omission divides by 10^decimals; trailing-zero omission first pads the
 /// digits on the right to the full width.
 pub fn decode_coordinate(text: &str, format: CoordinateFormat) -> Option<f64> {
-    let (negative, digits) = match text.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, text.strip_prefix('+').unwrap_or(text)),
+    let zeros = match format.zero_omission {
+        ZeroOmission::Leading => ZeroSuppression::Leading,
+        ZeroOmission::Trailing => ZeroSuppression::Trailing,
     };
-    if digits.is_empty() {
-        return None;
-    }
-    let magnitude = if digits.contains('.') {
-        parse_f64(digits)?
-    } else {
-        if !digits.chars().all(|c| c.is_ascii_digit()) {
-            return None;
-        }
-        let width = (format.integer_digits + format.decimal_digits) as usize;
-        // More digits than the format has cannot be a coordinate of this file: refuse it instead of returning an absurd value.
-        if digits.len() > width {
-            return None;
-        }
-        let padded: String = match format.zero_omission {
-            ZeroOmission::Leading => digits.to_owned(),
-            ZeroOmission::Trailing => format!("{digits:0<width$}"),
-        };
-        let integer: f64 = padded.parse().ok()?;
-        integer / 10f64.powi(format.decimal_digits as i32)
-    };
-    Some(if negative { -magnitude } else { magnitude })
+    eh3d_parser_common::decode_coordinate(text, format.integer_digits, format.decimal_digits, zeros)
 }
 
 #[cfg(test)]

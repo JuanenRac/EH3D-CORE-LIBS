@@ -10,3 +10,4 @@ description = "Tolerant parser for Excellon drill files of the EH3D Fabrication 
 readme = "../../README.md"
 
 [dependencies]
+eh3d-parser-common = { path = "../eh3d-parser-common", version = "0.0.2" }

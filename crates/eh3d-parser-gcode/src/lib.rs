@@ -18,27 +18,8 @@
 #![warn(missing_docs)]
 #![warn(clippy::string_slice)]
 
-/// How serious a [`Diagnostic`] is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Severity {
-    /// Something worth knowing.
-    Info,
-    /// The program is probably still read correctly, but it is not clean.
-    Warning,
-    /// Something was lost: the result may be wrong around it.
-    Error,
-}
-
-/// Something the reader noticed, with the line where it happened (counting from 1).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Diagnostic {
-    /// The line in the file.
-    pub line: usize,
-    /// How serious it is.
-    pub severity: Severity,
-    /// What happened, in English.
-    pub message: String,
-}
+pub use eh3d_parser_common::{codes, Diagnostic, InputError, InputLimits, Severity};
+use eh3d_parser_common::{decode_input, parse_number, NumberError};
 
 /// The flavour of G-code of a program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,6 +86,24 @@ impl Program {
 /// The longest line the reader looks at, in characters; a longer one is cut and reported.
 pub const MAX_LINE_CHARS: usize = 512;
 
+/// Reads a program from bytes: UTF-8 (with or without a byte order mark) or, with a warning
+/// (`input-not-utf8`), Latin-1. An input above the default limit of 256 MiB is refused.
+pub fn parse_bytes(bytes: &[u8], dialect: Dialect) -> Result<Program, InputError> {
+    parse_bytes_with(bytes, dialect, &InputLimits::default())
+}
+
+/// Like [`parse_bytes`] with a limit of your own.
+pub fn parse_bytes_with(
+    bytes: &[u8],
+    dialect: Dialect,
+    limits: &InputLimits,
+) -> Result<Program, InputError> {
+    let input = decode_input(bytes, limits)?;
+    let mut program = parse(&input.text, dialect);
+    program.diagnostics.splice(0..0, input.diagnostics);
+    Ok(program)
+}
+
 /// Reads a program. Never fails: problems are in [`Program::diagnostics`].
 pub fn parse(text: &str, dialect: Dialect) -> Program {
     let mut blocks = Vec::new();
@@ -123,6 +122,7 @@ pub fn parse(text: &str, dialect: Dialect) -> Program {
             diagnostics.push(Diagnostic {
                 line,
                 severity: Severity::Warning,
+                code: codes::LINE_TOO_LONG,
                 message: format!("the line is longer than {MAX_LINE_CHARS} characters and was cut"),
             });
         }
@@ -148,6 +148,7 @@ fn parse_line(
         diagnostics.push(Diagnostic {
             line,
             severity: Severity::Info,
+            code: codes::BLOCK_DELETE_READ,
             message: "a block-delete line was read as if the switch were off".to_string(),
         });
         body = after.trim_start();
@@ -156,6 +157,7 @@ fn parse_line(
         diagnostics.push(Diagnostic {
             line,
             severity: Severity::Info,
+            code: codes::SYSTEM_COMMAND_IGNORED,
             message: "a GRBL system command ($) was ignored".to_string(),
         });
         return None;
@@ -176,11 +178,13 @@ fn parse_line(
                 Ok(_) => diagnostics.push(Diagnostic {
                     line,
                     severity: Severity::Error,
+                    code: codes::CHECKSUM_MISMATCH,
                     message: "the checksum of the line does not match".to_string(),
                 }),
                 Err(_) => diagnostics.push(Diagnostic {
                     line,
                     severity: Severity::Warning,
+                    code: codes::CHECKSUM_INVALID,
                     message: "the checksum of the line is not a number".to_string(),
                 }),
             }
@@ -211,6 +215,7 @@ fn parse_line(
                 diagnostics.push(Diagnostic {
                     line,
                     severity: Severity::Warning,
+                    code: codes::COMMENT_UNCLOSED,
                     message: "a comment in parentheses is not closed".to_string(),
                 });
             }
@@ -228,11 +233,15 @@ fn parse_line(
                 i += 1;
             }
             let number: String = chars[start..i].iter().collect();
-            match number.parse::<f64>() {
-                Ok(value) if value.is_finite() => words.push(Word { letter, value }),
-                _ => diagnostics.push(Diagnostic {
+            match parse_number(&number) {
+                Ok(value) => words.push(Word { letter, value }),
+                Err(why) => diagnostics.push(Diagnostic {
                     line,
                     severity: Severity::Error,
+                    code: match why {
+                        NumberError::TooLarge => codes::NUMBER_TOO_LARGE,
+                        NumberError::Invalid => codes::WORD_NUMBER_INVALID,
+                    },
                     message: format!("the word '{letter}{number}' has no valid number"),
                 }),
             }
@@ -240,6 +249,7 @@ fn parse_line(
             diagnostics.push(Diagnostic {
                 line,
                 severity: Severity::Warning,
+                code: codes::CHARACTER_IGNORED,
                 message: format!("the character '{c}' was ignored"),
             });
             i += 1;
@@ -363,6 +373,7 @@ pub fn interpret(program: &Program) -> Trace {
             trace.diagnostics.push(Diagnostic {
                 line: block.line,
                 severity: Severity::Warning,
+                code: codes::TEXT_AFTER_END,
                 message: "the program went on after M2/M30".to_string(),
             });
             break;
@@ -372,12 +383,16 @@ pub fn interpret(program: &Program) -> Trace {
     trace
 }
 
-fn diag(trace: &mut Trace, line: usize, severity: Severity, message: impl Into<String>) {
-    trace.diagnostics.push(Diagnostic {
-        line,
-        severity,
-        message: message.into(),
-    });
+fn diag(
+    trace: &mut Trace,
+    line: usize,
+    severity: Severity,
+    code: &'static str,
+    message: impl Into<String>,
+) {
+    trace
+        .diagnostics
+        .push(Diagnostic::new(line, severity, code, message));
 }
 
 fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect) {
@@ -415,6 +430,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                                 trace,
                                 block.line,
                                 Severity::Warning,
+                                codes::PLANE_UNSUPPORTED,
                                 "only the XY plane (G17) is supported for arcs",
                             );
                         }
@@ -429,6 +445,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                             trace,
                             block.line,
                             Severity::Warning,
+                            codes::POSITION_UNTRACKED,
                             format!(
                                 "G{} was read but its effect on the position is not tracked: the positions after it may be wrong",
                                 v
@@ -441,6 +458,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                             trace,
                             block.line,
                             Severity::Error,
+                            codes::CUTTER_COMPENSATION_UNSUPPORTED,
                             "cutter radius compensation (G41/G42) is not supported",
                         );
                     }
@@ -450,6 +468,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                             trace,
                             block.line,
                             Severity::Error,
+                            codes::CANNED_CYCLE_UNSUPPORTED,
                             format!("canned cycles (G{v}) are not supported"),
                         );
                     }
@@ -457,6 +476,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                         trace,
                         block.line,
                         Severity::Warning,
+                        codes::UNKNOWN_G_CODE,
                         format!("G{v} is not known and was ignored"),
                     ),
                 }
@@ -473,6 +493,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                     trace,
                     block.line,
                     Severity::Warning,
+                    codes::UNKNOWN_M_CODE,
                     format!("M{v} is not known and was ignored"),
                 ),
             },
@@ -482,6 +503,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                         trace,
                         block.line,
                         Severity::Error,
+                        codes::NEGATIVE_FEED,
                         "a negative feed rate was ignored",
                     );
                 } else {
@@ -494,6 +516,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                         trace,
                         block.line,
                         Severity::Error,
+                        codes::NEGATIVE_SPINDLE,
                         "a negative spindle speed was ignored",
                     );
                 } else {
@@ -508,6 +531,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                         trace,
                         block.line,
                         Severity::Error,
+                        codes::TOOL_NUMBER_INVALID,
                         "a tool number that is not a whole number was ignored",
                     );
                 }
@@ -518,6 +542,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                 trace,
                 block.line,
                 Severity::Warning,
+                codes::UNKNOWN_WORD,
                 format!("the word '{other}' is not known and was ignored"),
             ),
         }
@@ -538,6 +563,7 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                     trace,
                     block.line,
                     Severity::Warning,
+                    codes::IMPLIED_RAPID,
                     "an axis word comes before any G0/G1/G2/G3: it was taken as a rapid (G0)",
                 );
             }
@@ -592,7 +618,7 @@ fn run_motion(
                 match centre_from_radius(from, to, scale(st, r), code == 2) {
                     Some(c) => Some(c),
                     None => {
-                        diag(trace, block.line, Severity::Error, "an arc with a radius (R) that does not reach from its start to its end was drawn as a straight line");
+                        diag(trace, block.line, Severity::Error, codes::ARC_RADIUS_UNREACHABLE, "an arc with a radius (R) that does not reach from its start to its end was drawn as a straight line");
                         None
                     }
                 }
@@ -601,6 +627,7 @@ fn run_motion(
                     trace,
                     block.line,
                     Severity::Error,
+                    codes::ARC_CENTRE_MISSING,
                     "an arc has no centre (I/J) and no radius (R): it was drawn as a straight line",
                 );
                 None
@@ -618,6 +645,7 @@ fn run_motion(
             trace,
             block.line,
             Severity::Warning,
+            codes::FEED_MISSING,
             "a cutting move was made with no feed rate set",
         );
     }
