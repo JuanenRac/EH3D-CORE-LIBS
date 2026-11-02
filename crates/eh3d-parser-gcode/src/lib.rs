@@ -164,7 +164,12 @@ fn parse_line(
     }
     // Marlin: a checksum after '*' is verified and cut
     if dialect == Dialect::Marlin {
-        if let Some((content, sum)) = body.split_once('*') {
+        // a '*' after a ';' belongs to the comment, not to a checksum
+        let star = body.find('*').filter(|&s| match body.find(';') {
+            Some(c) => s < c,
+            None => true,
+        });
+        if let Some((content, sum)) = star.and_then(|_| body.split_once('*')) {
             let computed = content.bytes().fold(0u8, |a, b| a ^ b);
             match sum
                 .trim()
