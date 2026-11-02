@@ -42,3 +42,105 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Tests
         run: cargo test --all-targets
+
+  consumers-list:
+    name: Repositories that depend on this one
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.find.outputs.repos }}
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Find the repositories whose manifest names this one in depends_on
+        id: find
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          owner, me = os.environ["GITHUB_REPOSITORY"].split("/")
+
+
+          def get(url, token=None):
+              headers = {"Authorization": f"Bearer {token}"} if token else {}
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
+                      return response.read()
+              except urllib.error.HTTPError as error:
+                  if error.code == 404:
+                      return None
+                  raise
+
+
+          names, page = [], 1
+          while True:
+              batch = json.loads(get(f"https://api.github.com/users/{owner}/repos?per_page=100&page={page}", os.environ["GITHUB_TOKEN"]))
+              if not batch:
+                  break
+              names += [repo["name"] for repo in batch]
+              page += 1
+          found = []
+          for name in sorted(names):
+              if not name.startswith("EH3D-") or name == me:
+                  continue
+              raw = get(f"https://raw.githubusercontent.com/{owner}/{name}/HEAD/eh3d.project.json")
+              if raw is None or me not in (json.loads(raw).get("depends_on") or []):
+                  continue
+              if get(f"https://raw.githubusercontent.com/{owner}/{name}/HEAD/Cargo.toml") is not None:
+                  found.append(name)
+          print("Consumers:", found)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write("repos=" + json.dumps(found) + "\n")
+          PY
+
+  consumers:
+    name: Consumer ${{ matrix.repo }}
+    # Builds every repository that depends on this one, with this change in place of the sibling, so a break reaches the author before the merge.
+    needs: consumers-list
+    if: needs.consumers-list.outputs.repos != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJSON(needs.consumers-list.outputs.repos) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: EH3D-CORE-LIBS
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Check out the consumer and its other siblings at main
+        shell: bash
+        env:
+          CONSUMER: ${{ matrix.repo }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          owner, me = os.environ["GITHUB_REPOSITORY"].split("/")
+          consumer = os.environ["CONSUMER"]
+          pending, seen = [consumer], {me, consumer}
+          subprocess.run(["git", "clone", "--quiet", "--depth", "1", f"https://github.com/{owner}/{consumer}.git", consumer], check=True)
+          while pending:
+              manifest = json.loads(Path(pending.pop(), "eh3d.project.json").read_text(encoding="utf-8"))
+              for dep in manifest.get("depends_on") or []:
+                  if dep in seen:
+                      continue
+                  seen.add(dep)
+                  subprocess.run(["git", "clone", "--quiet", "--depth", "1", f"https://github.com/{owner}/{dep}.git", dep], check=True)
+                  pending.append(dep)
+          PY
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal
+      - name: Build the consumer against this change
+        run: cargo check --all-targets
+        working-directory: ${{ matrix.repo }}

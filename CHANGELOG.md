@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The CI builds the repositories that depend on this one:** a `consumers` job reads which repositories name this one in `depends_on` of their manifest and runs `cargo check --all-targets` on each with the change in place of the sibling, so a break reaches the author before the merge.
+
 ## [0.0.3] - A common crate with stable diagnostic codes, one rule for files without units and a corpus of synthetic files
 
 - **A common crate for the three readers:** `eh3d-parser-common` (internal) holds `Severity`, `Diagnostic`, `Units`, the decoding of coordinates and the parsing of numbers that were written three times; the readers re-export them, so no program that depends on them changes.
