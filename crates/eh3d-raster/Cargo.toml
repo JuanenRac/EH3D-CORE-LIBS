@@ -1,0 +1,12 @@
+[package]
+name = "eh3d-raster"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Raster geometry of the EH3D Fabrication Suite: units of length, the exact Euclidean distance transform of a grid, and the contour lines of that distance."
+readme = "../../README.md"
+
+[dependencies]

@@ -59,6 +59,7 @@
 * **Gerber 读取器**（`eh3d-parser-gerber`，RS-274X）：单位、带零省略的坐标格式、光圈（圆形、矩形、长圆形、多边形）和宏、区域、步进重复以及绘图命令。比其格式更宽的坐标会被拒绝，而不是猜测。
 * **Excellon 读取器**（`eh3d-parser-excellon`）：带直径、进给和转速的刀具、钻孔、槽孔（`G85`）和简单路径，支持公制或英制，以及前导或尾随零省略。
 * **G 代码读取器和解释器**（`eh3d-parser-gcode`）：字、注释、行号和 Marlin 校验和，以及控制器的模态状态（单位、距离模式、进给、主轴、刀具）。每个运动都以绝对毫米输出（含圆弧），并给出切削长度、快速移动长度和程序的包围盒。
+* **栅格几何**（`eh3d-raster`）：长度单位（`8mil`、`0.01in`、`0.2mm`）、网格中每个单元到最近占用单元的精确欧氏距离，以及该距离等于给定值的线（已简化并定向）。
 * **用诊断代替失败：** 每个读取器返回带严重程度（信息、警告、错误）和文件行号的条目，并继续读取。
 * **计划中：** HP-GL 和 Bungard 读取器以及 2D 几何（偏置和布尔运算）。
 
@@ -106,6 +107,7 @@ EH3D-CORE-LIBS 把文件转换成套件各程序（隔离、钻孔、轮廓、�
 | `eh3d-parser-gerber` | `parse(text)`、`decode_coordinate(text, format)` | `GerberFile`：单位、格式、光圈、宏、属性、`commands`、`ended`、`diagnostics` |
 | `eh3d-parser-excellon` | `parse(text)`、`decode_coordinate(...)` | `ExcellonFile`：单位、零省略、`tools`、`drills`、`slots`、`routes`、`ended`、`diagnostics` |
 | `eh3d-parser-gcode` | `parse(text, dialect)`，然后 `interpret(&program)` | `Program`（块）和 `Trace`（毫米线段、包围盒、切削与快速移动长度） |
+| `eh3d-raster` | `parse_length(text, bare_unit)`、`distance_mm(on, w, h, res)`，然后 `loops(&grid, level)` | `Unit`、每个单元的毫米距离和以毫米表示的闭合路径（`Loop`） |
 
 三者共用 `Diagnostic { line, severity, code, message }`（`Severity` 为 `Info`、`Warning` 或 `Error`），以及用来询问是否发现 `Error` 的 `is_clean()`。没有命令行程序，没有网络访问，也没有文件访问：调用方传入文本，得到数据。 每条诊断都有稳定的 `code`（列于 `docs/DIAGNOSTICS.md`），可按类型而不是按文字过滤。`parse_bytes` 从字节读取文件并限制大小（256 MiB），不是 UTF-8 的文本会带警告按 Latin-1 读取。没有单位的 Gerber 或 Excellon 文件按毫米读取，并给出警告 `units-missing`。共用类型位于内部 crate `eh3d-parser-common`，各读取器会重新导出。
 
@@ -166,7 +168,8 @@ EH3D-CORE-LIBS/
 │   ├── eh3d-parser-common/                      三者共用的部分：诊断代码、单位、数字和字节
 │   ├── eh3d-parser-gerber/                      Gerber RS-274X 读取器
 │   ├── eh3d-parser-excellon/                    Excellon 钻孔文件读取器
-│   └── eh3d-parser-gcode/                       G 代码读取器和模态解释器
+│   ├── eh3d-parser-gcode/                       G 代码读取器和模态解释器
+│   └── eh3d-raster/                             栅格几何
 ├── docs/                                        READERS.md：每个读取器的承诺和不做的事，DIAGNOSTICS.md：诊断代码，以及两张图的数据
 ├── tests/                                       合成示例文件及其预期摘要
 ├── tools/                                       CI 和 README 检查及绘图工具

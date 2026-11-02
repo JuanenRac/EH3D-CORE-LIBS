@@ -69,6 +69,19 @@
             "pt": "leitor e intérprete modal de G-code"
           },
           "name": "eh3d-parser-gcode/"
+        },
+        {
+          "desc": {
+            "en": "raster geometry",
+            "es": "geometría de trama",
+            "de": "Raster-Geometrie",
+            "fr": "géométrie raster",
+            "it": "geometria raster",
+            "ja": "ラスター幾何",
+            "zh": "栅格几何",
+            "pt": "geometria raster"
+          },
+          "name": "eh3d-raster/"
         }
       ],
       "sub": {

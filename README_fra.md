@@ -59,6 +59,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * Le **lecteur Gerber** (`eh3d-parser-gerber`, RS-274X) : unités, le format des coordonnées avec sa suppression des zéros, ouvertures (cercle, rectangle, oblong, polygone) et macros, régions, répétition (step and repeat) et commandes de dessin. Une coordonnée plus large que son format est refusée au lieu d'être devinée.
 * Le **lecteur Excellon** (`eh3d-parser-excellon`) : outils avec diamètre, avance et vitesse, trous, rainures (`G85`) et parcours simples, en métrique ou en pouces, avec suppression des zéros en tête ou en fin.
 * Le **lecteur et interpréteur G-code** (`eh3d-parser-gcode`) : mots, commentaires, numéros de ligne et sommes de contrôle Marlin, et l'état modal d'un contrôleur (unités, mode de distance, avance, broche, outil). Chaque mouvement sort en millimètres absolus, arcs compris, avec la longueur de coupe, la longueur des rapides et la boîte englobante du programme.
+* La **géométrie raster** (`eh3d-raster`) : unités de longueur (`8mil`, `0.01in`, `0.2mm`), la distance euclidienne exacte de chaque cellule d'une grille à la cellule occupée la plus proche, et les lignes où cette distance a une valeur donnée, simplifiées et orientées.
 * **Des diagnostics plutôt que des échecs :** chaque lecteur renvoie des lignes avec une gravité (information, avertissement, erreur) et le numéro de ligne du fichier, et continue la lecture.
 * **Prévu :** le lecteur HP-GL et Bungard et la géométrie 2D (décalages et booléennes).
 
@@ -106,6 +107,7 @@ Les lecteurs prennent du texte de n'importe qui ; la conception suppose donc des
 | `eh3d-parser-gerber` | `parse(text)`, `decode_coordinate(text, format)` | `GerberFile` : unités, format, ouvertures, macros, attributs, `commands`, `ended`, `diagnostics` |
 | `eh3d-parser-excellon` | `parse(text)`, `decode_coordinate(...)` | `ExcellonFile` : unités, suppression des zéros, `tools`, `drills`, `slots`, `routes`, `ended`, `diagnostics` |
 | `eh3d-parser-gcode` | `parse(text, dialect)`, puis `interpret(&program)` | `Program` (blocs) et `Trace` (segments en millimètres, boîte englobante, longueurs de coupe et de rapides) |
+| `eh3d-raster` | `parse_length(text, bare_unit)`, `distance_mm(on, w, h, res)`, puis `loops(&grid, level)` | `Unit`, distances en millimètres par cellule et chemins fermés (`Loop`) en millimètres |
 
 Les trois partagent `Diagnostic { line, severity, code, message }` avec `Severity` `Info`, `Warning` ou `Error`, et `is_clean()` pour savoir si un `Error` a été trouvé. Il n'y a ni programme en ligne de commande, ni accès réseau, ni accès aux fichiers : l'appelant passe le texte et reçoit les données. Chaque avis a un `code` stable (listé dans `docs/DIAGNOSTICS.md`) pour filtrer par type et non par texte. `parse_bytes` lit un fichier à partir de ses octets avec une limite de taille (256 MiB) et lit en Latin-1, avec un avertissement, le texte qui n'est pas en UTF-8. Un fichier Gerber ou Excellon sans unités est lu en millimètres, avec l'avertissement `units-missing`. Les types partagés vivent dans le crate interne `eh3d-parser-common`, que les lecteurs réexportent.
 
@@ -166,7 +168,8 @@ EH3D-CORE-LIBS/
 │   ├── eh3d-parser-common/                      ce que les trois partagent : codes d'avis, unités, nombres et octets
 │   ├── eh3d-parser-gerber/                      lecteur Gerber RS-274X
 │   ├── eh3d-parser-excellon/                    lecteur de fichiers de perçage Excellon
-│   └── eh3d-parser-gcode/                       lecteur et interpréteur modal de G-code
+│   ├── eh3d-parser-gcode/                       lecteur et interpréteur modal de G-code
+│   └── eh3d-raster/                             géométrie raster
 ├── docs/                                        READERS.md, ce que promet chaque lecteur et ce qu'il ne fait pas, DIAGNOSTICS.md, les codes d'avis, et les données des deux images
 ├── tests/                                       fichiers d'exemple synthétiques et leurs résumés attendus
 ├── tools/                                       contrôle de la CI et du README et outils d'images

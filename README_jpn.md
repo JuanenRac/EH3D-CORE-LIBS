@@ -59,6 +59,7 @@
 * **Gerber リーダー**（`eh3d-parser-gerber`、RS-274X）：単位、ゼロ省略を含む座標フォーマット、アパーチャ（円、長方形、小判、多角形）とマクロ、リージョン、ステップ＆リピート、描画コマンド。フォーマットより桁数の多い座標は、推測せずに拒否します。
 * **Excellon リーダー**（`eh3d-parser-excellon`）：直径・送り・回転数を持つ工具、穴、スロット（`G85`）、単純なルートを、メートル法またはインチで、先頭または末尾のゼロ省略に対応して読みます。
 * **G コード リーダー兼インタープリター**（`eh3d-parser-gcode`）：ワード、コメント、行番号、Marlin のチェックサム、コントローラーのモーダル状態（単位、距離モード、送り、スピンドル、工具）。すべての動きは円弧を含む絶対ミリメートルで出力され、切削長、早送り長、プログラムの外接ボックスも得られます。
+* **ラスター幾何**（`eh3d-raster`）：長さの単位（`8mil`、`0.01in`、`0.2mm`）、グリッドの各セルから最も近い占有セルまでの正確なユークリッド距離、その距離が指定値になる線（簡略化と向き付け済み）。
 * **失敗ではなく診断：** 各リーダーは重大度（情報、警告、エラー）とファイルの行番号を持つ行を返し、読み続けます。
 * **計画中：** HP-GL と Bungard のリーダー、2D ジオメトリ（オフセットとブーリアン）。
 
@@ -106,6 +107,7 @@ EH3D-CORE-LIBS は、ファイルをスイートのプログラム（アイソ�
 | `eh3d-parser-gerber` | `parse(text)`、`decode_coordinate(text, format)` | `GerberFile`：単位、フォーマット、アパーチャ、マクロ、属性、`commands`、`ended`、`diagnostics` |
 | `eh3d-parser-excellon` | `parse(text)`、`decode_coordinate(...)` | `ExcellonFile`：単位、ゼロ省略、`tools`、`drills`、`slots`、`routes`、`ended`、`diagnostics` |
 | `eh3d-parser-gcode` | `parse(text, dialect)` のあと `interpret(&program)` | `Program`（ブロック）と `Trace`（ミリメートルのセグメント、外接ボックス、切削長と早送り長） |
+| `eh3d-raster` | `parse_length(text, bare_unit)`、`distance_mm(on, w, h, res)`、続いて `loops(&grid, level)` | `Unit`、セルごとのミリメートル距離、ミリメートルの閉じたパス（`Loop`） |
 
 3 つとも `Diagnostic { line, severity, code, message }`（`Severity` は `Info`、`Warning`、`Error`）と、`Error` があったかを尋ねる `is_clean()` を共有します。コマンドライン プログラム、ネットワーク アクセス、ファイル アクセスはなく、呼び出し側がテキストを渡してデータを受け取ります。 各診断には安定した `code`（`docs/DIAGNOSTICS.md` に一覧）があり、テキストではなく種類で絞り込めます。`parse_bytes` はバイト列からサイズ上限（256 MiB）付きでファイルを読み、UTF-8 でないテキストは警告付きで Latin-1 として読みます。単位のない Gerber や Excellon のファイルは、警告 `units-missing` とともにミリメートルとして読みます。共有の型は内部クレート `eh3d-parser-common` にあり、各リーダーが再エクスポートします。
 
@@ -166,7 +168,8 @@ EH3D-CORE-LIBS/
 │   ├── eh3d-parser-common/                      3 つが共有するもの：診断コード、単位、数値、バイト列
 │   ├── eh3d-parser-gerber/                      Gerber RS-274X リーダー
 │   ├── eh3d-parser-excellon/                    Excellon ドリル ファイル リーダー
-│   └── eh3d-parser-gcode/                       G コード リーダーとモーダル インタープリター
+│   ├── eh3d-parser-gcode/                       G コード リーダーとモーダル インタープリター
+│   └── eh3d-raster/                             ラスター幾何
 ├── docs/                                        READERS.md：各リーダーの約束としないこと、DIAGNOSTICS.md：診断コード、2 つの図のデータ
 ├── tests/                                       合成のサンプル ファイルと期待される要約
 ├── tools/                                       CI と README のチェック、図のツール

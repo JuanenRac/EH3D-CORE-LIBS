@@ -59,6 +59,7 @@ Each line is one part of this repository and the light says how far it is today.
 * The **Gerber reader** (`eh3d-parser-gerber`, RS-274X): units, the coordinate format with its zero suppression, apertures (circle, rectangle, obround, polygon) and macros, regions, step and repeat, and the drawing commands. A coordinate wider than its format is refused instead of guessed.
 * The **Excellon reader** (`eh3d-parser-excellon`): tools with diameter, feed and speed, drill hits, slots (`G85`) and simple routes, in metric or inches, with leading or trailing zero suppression.
 * The **G-code reader and interpreter** (`eh3d-parser-gcode`): words, comments, line numbers and Marlin checksums, and the modal state of a controller (units, distance mode, feed, spindle, tool). Every motion comes out in absolute millimetres, arcs included, with the length of the cut, the length of the rapids and the bounding box of the program.
+* The **raster geometry** (`eh3d-raster`): units of length (`8mil`, `0.01in`, `0.2mm`), the exact Euclidean distance from every cell of a grid to the nearest occupied cell, and the lines where that distance has a given value, simplified and oriented.
 * **Diagnostics instead of failures:** each reader returns lines with a severity (information, warning, error) and the number of the line of the file, and goes on reading.
 * **Planned:** the HP-GL and Bungard reader and the 2D geometry (offsets and booleans).
 
@@ -106,6 +107,7 @@ The readers take text from anyone, so the design assumes careless or hostile fil
 | `eh3d-parser-gerber` | `parse(text)`, `decode_coordinate(text, format)` | `GerberFile`: units, format, apertures, macros, attributes, `commands`, `ended`, `diagnostics` |
 | `eh3d-parser-excellon` | `parse(text)`, `decode_coordinate(...)` | `ExcellonFile`: units, zero suppression, `tools`, `drills`, `slots`, `routes`, `ended`, `diagnostics` |
 | `eh3d-parser-gcode` | `parse(text, dialect)`, then `interpret(&program)` | `Program` (blocks) and `Trace` (segments in millimetres, bounding box, cutting and rapid lengths) |
+| `eh3d-raster` | `parse_length(text, bare_unit)`, `distance_mm(on, w, h, res)`, then `loops(&grid, level)` | `Unit`, distances in millimetres per cell and closed paths (`Loop`) in millimetres |
 
 All three share `Diagnostic { line, severity, code, message }` with `Severity` `Info`, `Warning` or `Error`, and `is_clean()` to ask whether any `Error` was found. There is no command-line program, no network access and no file access: the callers pass text in and get data out. Each diagnostic has a stable `code` (listed in `docs/DIAGNOSTICS.md`) to filter by kind instead of by text. `parse_bytes` reads a file from its bytes with a size limit (256 MiB) and reads text that is not UTF-8 as Latin-1 with a warning. A Gerber or Excellon file without units is read in millimetres, with a `units-missing` warning. The shared types live in the internal crate `eh3d-parser-common`, which the readers re-export.
 
@@ -166,7 +168,8 @@ EH3D-CORE-LIBS/
 │   ├── eh3d-parser-common/                      what the three share: diagnostic codes, units, numbers and bytes
 │   ├── eh3d-parser-gerber/                      Gerber RS-274X reader
 │   ├── eh3d-parser-excellon/                    Excellon drill file reader
-│   └── eh3d-parser-gcode/                       G-code reader and modal interpreter
+│   ├── eh3d-parser-gcode/                       G-code reader and modal interpreter
+│   └── eh3d-raster/                             raster geometry
 ├── docs/                                        READERS.md, what every reader promises and what it does not do, DIAGNOSTICS.md, the diagnostic codes, and the data of the two pictures
 ├── tests/                                       synthetic sample files and their expected summaries
 ├── tools/                                       CI check, README check and the picture tools

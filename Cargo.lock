@@ -4,25 +4,29 @@ version = 3
 
 [[package]]
 name = "eh3d-parser-common"
-version = "0.0.2"
+version = "0.0.3"
 
 [[package]]
 name = "eh3d-parser-excellon"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gcode"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gerber"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "eh3d-parser-common",
 ]
+
+[[package]]
+name = "eh3d-raster"
+version = "0.0.3"
