@@ -46,3 +46,17 @@ dependencies = [
 [[package]]
 name = "eh3d-raster"
 version = "0.0.4"
+
+[[package]]
+name = "eh3d-writer-excellon"
+version = "0.0.4"
+dependencies = [
+ "eh3d-parser-excellon",
+]
+
+[[package]]
+name = "eh3d-writer-gerber"
+version = "0.0.4"
+dependencies = [
+ "eh3d-parser-gerber",
+]

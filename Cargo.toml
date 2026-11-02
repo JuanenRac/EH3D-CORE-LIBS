@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/eh3d-parser-common", "crates/eh3d-parser-gerber", "crates/eh3d-parser-excellon", "crates/eh3d-parser-gcode", "crates/eh3d-raster", "crates/eh3d-geometry", "crates/eh3d-cam"]
+members = ["crates/eh3d-parser-common", "crates/eh3d-parser-gerber", "crates/eh3d-parser-excellon", "crates/eh3d-parser-gcode", "crates/eh3d-raster", "crates/eh3d-geometry", "crates/eh3d-cam", "crates/eh3d-writer-gerber", "crates/eh3d-writer-excellon"]
 
 [workspace.package]
 version = "0.0.4"

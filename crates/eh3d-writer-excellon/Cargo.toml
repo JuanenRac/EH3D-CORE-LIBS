@@ -1,0 +1,13 @@
+[package]
+name = "eh3d-writer-excellon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Deterministic writer for Excellon (NC drill) files of the EH3D Fabrication Suite: the same content always gives the same bytes, and nothing reads the clock."
+readme = "../../README.md"
+
+[dependencies]
+eh3d-parser-excellon = { path = "../eh3d-parser-excellon", version = ">=0.0.2" }

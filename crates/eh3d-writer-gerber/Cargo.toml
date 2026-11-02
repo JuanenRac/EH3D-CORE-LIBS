@@ -1,0 +1,13 @@
+[package]
+name = "eh3d-writer-gerber"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Deterministic writer for Gerber X2 (RS-274X) files of the EH3D Fabrication Suite: the same content always gives the same bytes, and nothing reads the clock."
+readme = "../../README.md"
+
+[dependencies]
+eh3d-parser-gerber = { path = "../eh3d-parser-gerber", version = ">=0.0.2" }
