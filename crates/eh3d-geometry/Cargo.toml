@@ -1,0 +1,14 @@
+[package]
+name = "eh3d-geometry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "The shapes of a layer of the EH3D Fabrication Suite: discs, rectangles, tracks and regions in millimetres with y up, their bounding box, and the conversion of Gerber and Excellon files into them."
+readme = "../../README.md"
+
+[dependencies]
+eh3d-parser-gerber = { path = "../eh3d-parser-gerber", version = ">=0.0.2" }
+eh3d-parser-excellon = { path = "../eh3d-parser-excellon", version = ">=0.0.2" }

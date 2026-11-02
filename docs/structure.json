@@ -82,6 +82,19 @@
             "pt": "geometria raster"
           },
           "name": "eh3d-raster/"
+        },
+        {
+          "desc": {
+            "en": "geometry of a layer",
+            "es": "geometría de una capa",
+            "de": "Geometrie einer Lage",
+            "fr": "géométrie d'une couche",
+            "it": "geometria di uno strato",
+            "ja": "レイヤーの幾何",
+            "zh": "图层几何",
+            "pt": "geometria de uma camada"
+          },
+          "name": "eh3d-geometry/"
         }
       ],
       "sub": {

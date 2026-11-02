@@ -3,6 +3,14 @@
 version = 3
 
 [[package]]
+name = "eh3d-geometry"
+version = "0.0.3"
+dependencies = [
+ "eh3d-parser-excellon",
+ "eh3d-parser-gerber",
+]
+
+[[package]]
 name = "eh3d-parser-common"
 version = "0.0.3"
 

@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A geometry crate:** `eh3d-geometry` holds the shapes of a layer (`Scene`, `Shape`, `Bounds`) and the conversion of Gerber and Excellon files into them, so the viewer and the CAM programs share one copy; its own tests cover the bounds, the conversion, the notes, the swept rectangle and the arcs.
 - **A raster geometry crate:** `eh3d-raster` holds the units of length (`8mil`, `0.01in`), the exact Euclidean distance transform of a grid and the contour lines of that distance, so the programs of the suite that cut copper share one copy; its own tests cover units, the distance, the contour and the orientation of a path.
 - **The CI builds the repositories that depend on this one:** a `consumers` job reads which repositories name this one in `depends_on` of their manifest and runs `cargo check --all-targets` on each with the change in place of the sibling, so a break reaches the author before the merge.
 
