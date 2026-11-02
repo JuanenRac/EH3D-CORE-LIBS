@@ -1,0 +1,4 @@
+blocks: 9  segments: 7  ended: true
+box: x 0.0000..25.4000  y 0.0000..25.4000  z -0.5080..5.0800
+cutting: 107.188 mm  rapid: 10.668 mm
+diagnostics: 0

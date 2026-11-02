@@ -1,0 +1,8 @@
+units: Some(Millimetres)  zeros: Some(Leading)  ended: true
+tool T1 diameter 0.8000
+tool T2 diameter 1.0000
+tool T3 diameter 3.0000
+drills: 6  slots: 0  routes: 0 (0 points)
+box: x 5.0000..25.0000  y 5.0000..20.0000
+diagnostics: 1
+  line 5 Info command-ignored

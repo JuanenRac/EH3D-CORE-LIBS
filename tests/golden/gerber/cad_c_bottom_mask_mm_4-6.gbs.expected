@@ -1,0 +1,6 @@
+units: Some(Millimetres)
+format: 4.6 Leading
+apertures: 3  macros: 0  attributes: 1  ended: true
+flashes: 6  lines: 0  arcs: 0  regions: 0  moves: 0
+box: x 5.0000..25.0000  y 5.0000..20.0000
+diagnostics: 0

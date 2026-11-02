@@ -1,0 +1,9 @@
+units: Some(Inches)
+format: 2.4 Leading
+apertures: 3  macros: 0  attributes: 0  ended: true
+flashes: 6  lines: 0  arcs: 0  regions: 0  moves: 0
+box: x 0.1969..0.9843  y 0.1969..0.7874
+diagnostics: 3
+  line 2 Warning deprecated-command
+  line 3 Info deprecated-command
+  line 4 Info deprecated-command

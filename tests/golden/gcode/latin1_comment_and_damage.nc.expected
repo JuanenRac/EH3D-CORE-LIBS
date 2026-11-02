@@ -1,0 +1,16 @@
+blocks: 9  segments: 6  ended: false
+box: x 0.0000..30.0000  y 0.0000..30.0000  z 0.0000..0.0000
+cutting: 91.834 mm  rapid: 0.000 mm
+diagnostics: 12
+  line 1 Warning input-not-utf8
+  line 10 Warning comment-unclosed
+  line 3 Warning feed-missing
+  line 4 Error negative-feed
+  line 4 Warning feed-missing
+  line 5 Error negative-spindle
+  line 6 Error tool-number-invalid
+  line 7 Warning feed-missing
+  line 8 Error arc-centre-missing
+  line 8 Warning feed-missing
+  line 9 Error arc-centre-missing
+  line 9 Warning feed-missing

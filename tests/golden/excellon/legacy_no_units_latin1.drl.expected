@@ -1,0 +1,9 @@
+units: None  zeros: None  ended: true
+tool T1 diameter 0.8000
+drills: 3  slots: 0  routes: 0 (0 points)
+box: x 10.0000..30.0000  y 10.0000..10.0000
+diagnostics: 4
+  line 1 Warning input-not-utf8
+  line 8 Error tool-undefined
+  line 9 Error tool-undefined
+  line 1 Warning units-missing

@@ -1,0 +1,6 @@
+units: Some(Inches)  zeros: Some(Trailing)  ended: true
+tool T1 diameter 0.0315
+tool T2 diameter 0.0394
+drills: 6  slots: 0  routes: 0 (0 points)
+box: x 0.1969..0.9843  y 0.1969..0.7874
+diagnostics: 0

@@ -1,0 +1,13 @@
+units: Some(Millimetres)
+format: 2.4 Leading
+apertures: 1  macros: 0  attributes: 0  ended: false
+flashes: 0  lines: 3  arcs: 0  regions: 1  moves: 2
+box: x 0.0000..0.5000  y 0.0000..0.2000
+diagnostics: 7
+  line 4 Warning aperture-redefined
+  line 8 Error incremental-unsupported
+  line 13 Error polarity-unknown
+  line 14 Error number-too-large
+  line 15 Warning aperture-undefined
+  line 16 Warning end-missing
+  line 16 Error region-unclosed

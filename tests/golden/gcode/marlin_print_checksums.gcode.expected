@@ -1,0 +1,9 @@
+blocks: 17  segments: 7  ended: false
+box: x 0.0000..60.0000  y 0.0000..60.0000  z 0.0000..0.3000
+cutting: 216.869 mm  rapid: 0.000 mm
+diagnostics: 5
+  line 18 Error checksum-mismatch
+  line 5 Warning position-untracked
+  line 7 Warning position-untracked
+  line 14 Warning position-untracked
+  line 17 Warning unknown-m-code

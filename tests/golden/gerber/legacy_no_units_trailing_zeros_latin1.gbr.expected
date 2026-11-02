@@ -1,0 +1,12 @@
+units: None
+format: 2.4 Trailing
+apertures: 2  macros: 0  attributes: 0  ended: false
+flashes: 1  lines: 2  arcs: 0  regions: 0  moves: 1
+box: x 10.0000..50.0000  y 10.0000..40.0000
+diagnostics: 6
+  line 1 Warning input-not-utf8
+  line 3 Warning format-trailing-deprecated
+  line 9 Warning implied-operation
+  line 12 Info deprecated-command
+  line 13 Warning end-missing
+  line 13 Warning units-missing

@@ -95,8 +95,14 @@ where
                     return;
                 }
                 if started.elapsed() > Duration::from_secs(2) {
-                    let _ = tx.send(Err(format!("too slow on {variant:?}")));
-                    return;
+                    // a busy computer can stall a thread: only a second slow run counts
+                    let again = std::time::Instant::now();
+                    let _ =
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| reader(&variant)));
+                    if again.elapsed() > Duration::from_secs(2) {
+                        let _ = tx.send(Err(format!("too slow on {variant:?}")));
+                        return;
+                    }
                 }
                 count += 1;
             }

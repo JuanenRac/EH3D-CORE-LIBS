@@ -1,0 +1,10 @@
+(inch program)
+G20 G90
+G0 X0 Y0 Z0.2
+G1 Z-0.02 F10
+G1 X1.0 Y0 F20
+G1 X1.0 Y1.0
+G1 X0 Y1.0
+G1 X0 Y0
+G0 Z0.2
+M30
