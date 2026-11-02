@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** three Rust libraries with no dependencies that read Gerber (RS-274X) layers, Excellon drill files and G-code (a modal interpreter for the GRBL, Marlin and PlanetCNC dialects). 51 tests run on a computer, including damaged and hostile input. The readers never panic and report what they could not understand as diagnostics with line numbers. They draw nothing, compute no toolpath and have not been tried on a collection of real production files; four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) and nothing here has run on a machine.
+**Honesty check - what actually runs today:** three Rust libraries with no dependencies that read Gerber (RS-274X) layers, Excellon drill files and G-code (a modal interpreter for the GRBL, Marlin and PlanetCNC dialects). 86 tests run on a computer, including damaged and hostile input. The readers never panic and report what they could not understand as diagnostics with line numbers. They draw nothing, compute no toolpath and have not been tried on a collection of real production files; four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) and nothing here has run on a machine.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.2` |
 | Maturity | Scaffolding |
-| Tests | 51 |
+| Tests | 86 |
 | Stack | Rust |
 | On real hardware | Not applicable: file readers, nothing here talks to a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 | Gerber reader | 🟡 | RS-274X: units, coordinate format, apertures, macros, regions and drawing commands are read; only test files so far, not a collection of real production files. |
 | Excellon reader | 🟡 | Tools, drill hits, slots and simple routes in metric or inches are read; only test files so far. |
 | G-code reader | 🟡 | A modal interpreter for the GRBL, Marlin and PlanetCNC dialects gives absolute millimetres, arcs included; cutter compensation and canned cycles are reported as unsupported. |
-| Tests | 🟡 | 51 tests pass (`cargo test`): 15 on Gerber plus 1 in the module, 13 on Excellon and 22 on G-code, with damaged and hostile input. |
+| Tests | 🟡 | 86 tests pass (`cargo test`): 26 on Gerber, 23 on Excellon, 31 on G-code and 6 on the shared crate, with damaged and hostile input and a corpus of synthetic files. |
 | Security | 🟡 | Built for files that other people send: nothing panics, no value is guessed and problems come back as diagnostics with line numbers; no independent review, and nothing here judges whether a G-code is safe to run. |
 | Geometry and HP-GL | 🔴 | The 2D geometry (offsets, booleans) and the HP-GL and Bungard readers are planned and not built. |
 | Use by other programs | 🟡 | Four programs of the suite depend on the readers (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); none of them has run on a machine. |
@@ -107,7 +107,7 @@ The readers take text from anyone, so the design assumes careless or hostile fil
 | `eh3d-parser-excellon` | `parse(text)`, `decode_coordinate(...)` | `ExcellonFile`: units, zero suppression, `tools`, `drills`, `slots`, `routes`, `ended`, `diagnostics` |
 | `eh3d-parser-gcode` | `parse(text, dialect)`, then `interpret(&program)` | `Program` (blocks) and `Trace` (segments in millimetres, bounding box, cutting and rapid lengths) |
 
-All three share `Diagnostic { line, severity, message }` with `Severity` `Info`, `Warning` or `Error`, and `is_clean()` to ask whether any `Error` was found. There is no command-line program, no network access and no file access: the callers pass text in and get data out.
+All three share `Diagnostic { line, severity, code, message }` with `Severity` `Info`, `Warning` or `Error`, and `is_clean()` to ask whether any `Error` was found. There is no command-line program, no network access and no file access: the callers pass text in and get data out. Each diagnostic has a stable `code` (listed in `docs/DIAGNOSTICS.md`) to filter by kind instead of by text. `parse_bytes` reads a file from its bytes with a size limit (256 MiB) and reads text that is not UTF-8 as Latin-1 with a warning. A Gerber or Excellon file without units is read in millimetres, with a `units-missing` warning. The shared types live in the internal crate `eh3d-parser-common`, which the readers re-export.
 
 ## ⚙️ Configuration
 
@@ -145,7 +145,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Testing
 
-The suite has 51 tests (`cargo test`, run on Windows and Linux in the CI): 15 on Gerber (plus 1 inside the module), 13 on Excellon and 22 on G-code. They check a typical copper layer and a typical metric file read completely, omitted coordinates, both zero suppressions, slots, routes, inches to millimetres, every command knowing its line, arcs by centre and by radius, full circles, modal feed and motion, Marlin checksums, unsupported features reported instead of guessed, and damaged input: garbage, cut prefixes and very long lines never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 86 tests (`cargo test`, run on Windows and Linux in the CI): 26 on Gerber, 23 on Excellon, 31 on G-code and 6 on the crate they share. A corpus of 21 small synthetic files (`tests/golden/`: Gerber in inches and millimetres, Excellon with `LZ`/`TZ`, slots and routes, G-code for GRBL, Marlin and LinuxCNC, with CRLF, Latin-1 and damaged files) is read by the readers and compared with a summary kept next to each file; `EH3D_REGENERATE=1 cargo test` rewrites the summaries so the change shows in the diff, and the same files are damaged in thousands of ways by the mutation test. They check a typical copper layer and a typical metric file read completely, omitted coordinates, both zero suppressions, slots, routes, inches to millimetres, every command knowing its line, arcs by centre and by radius, full circles, modal feed and motion, Marlin checksums, unsupported features reported instead of guessed, and damaged input: garbage, cut prefixes and very long lines never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -163,10 +163,12 @@ The version lives in `Cargo.toml` (the workspace), in `eh3d.project.json` and, t
 ```text
 EH3D-CORE-LIBS/
 ├── crates/
+│   ├── eh3d-parser-common/                      what the three share: diagnostic codes, units, numbers and bytes
 │   ├── eh3d-parser-gerber/                      Gerber RS-274X reader
 │   ├── eh3d-parser-excellon/                    Excellon drill file reader
 │   └── eh3d-parser-gcode/                       G-code reader and modal interpreter
-├── docs/                                        READERS.md, what every reader promises and what it does not do, and the data of the two pictures
+├── docs/                                        READERS.md, what every reader promises and what it does not do, DIAGNOSTICS.md, the diagnostic codes, and the data of the two pictures
+├── tests/                                       synthetic sample files and their expected summaries
 ├── tools/                                       CI check, README check and the picture tools
 ├── images/                                      banner and the Architecture and Repository Structure pictures
 ├── .github/                                     CI and release workflows, issue and pull-request templates

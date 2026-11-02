@@ -20,6 +20,19 @@
       "rows": [
         {
           "desc": {
+            "en": "what the three share: diagnostic codes, units, numbers and bytes",
+            "es": "lo que comparten los tres: códigos de aviso, unidades, números y bytes",
+            "de": "was die drei teilen: Hinweiscodes, Einheiten, Zahlen und Bytes",
+            "fr": "ce que les trois partagent : codes d'avis, unités, nombres et octets",
+            "it": "ciò che i tre condividono: codici di avviso, unità, numeri e byte",
+            "ja": "3 つが共有するもの：診断コード、単位、数値、バイト列",
+            "zh": "三者共用的部分：诊断代码、单位、数字和字节",
+            "pt": "o que os três partilham: códigos de aviso, unidades, números e bytes"
+          },
+          "name": "eh3d-parser-common/"
+        },
+        {
+          "desc": {
             "en": "Gerber RS-274X reader",
             "es": "lector Gerber RS-274X",
             "de": "Gerber-RS-274X-Leser",
@@ -59,14 +72,14 @@
         }
       ],
       "sub": {
-        "en": "the three readers, one crate each",
-        "es": "los tres lectores, un crate cada uno",
-        "de": "die drei Leser, je ein Crate",
-        "fr": "les trois lecteurs, un crate chacun",
-        "it": "i tre lettori, un crate ciascuno",
-        "ja": "3 つのリーダー（各 1 クレート）",
-        "zh": "三个读取器，各一个 crate",
-        "pt": "os três leitores, um crate cada"
+        "en": "the three readers and what they share",
+        "es": "los tres lectores y lo que comparten",
+        "de": "die drei Leser und was sie teilen",
+        "fr": "les trois lecteurs et ce qu'ils partagent",
+        "it": "i tre lettori e ciò che condividono",
+        "ja": "3 つのリーダーと共有部分",
+        "zh": "三个读取器及其共用部分",
+        "pt": "os três leitores e o que partilham"
       }
     },
     {
@@ -86,6 +99,19 @@
             "pt": "o que cada leitor promete e o que não faz"
           },
           "name": "READERS.md"
+        },
+        {
+          "desc": {
+            "en": "the diagnostic codes and the rule for files without units",
+            "es": "los códigos de aviso y la regla para ficheros sin unidades",
+            "de": "die Hinweiscodes und die Regel für Dateien ohne Einheiten",
+            "fr": "les codes d'avis et la règle pour les fichiers sans unités",
+            "it": "i codici di avviso e la regola per i file senza unità",
+            "ja": "診断コードと、単位のないファイルの規則",
+            "zh": "诊断代码和无单位文件的规则",
+            "pt": "os códigos de aviso e a regra para ficheiros sem unidades"
+          },
+          "name": "DIAGNOSTICS.md"
         },
         {
           "desc": {
@@ -115,14 +141,14 @@
         }
       ],
       "tree": {
-        "en": "READERS.md, what every reader promises and what it does not do, and the data of the two pictures",
-        "es": "READERS.md, lo que promete cada lector y lo que no hace, y los datos de las dos imágenes",
-        "de": "READERS.md, was jeder Leser verspricht und was nicht, und die Daten der beiden Bilder",
-        "fr": "READERS.md, ce que promet chaque lecteur et ce qu'il ne fait pas, et les données des deux images",
-        "it": "READERS.md, cosa promette ogni lettore e cosa non fa, e i dati delle due immagini",
-        "ja": "READERS.md：各リーダーの約束と、しないこと。2 つの図のデータ",
-        "zh": "READERS.md：每个读取器的承诺和不做的事，以及两张图的数据",
-        "pt": "READERS.md, o que cada leitor promete e o que não faz, e os dados das duas imagens"
+        "en": "READERS.md, what every reader promises and what it does not do, DIAGNOSTICS.md, the diagnostic codes, and the data of the two pictures",
+        "es": "READERS.md, lo que promete cada lector y lo que no hace, DIAGNOSTICS.md, los códigos de aviso, y los datos de las dos imágenes",
+        "de": "READERS.md, was jeder Leser verspricht und was nicht, DIAGNOSTICS.md, die Hinweiscodes, und die Daten der beiden Bilder",
+        "fr": "READERS.md, ce que promet chaque lecteur et ce qu'il ne fait pas, DIAGNOSTICS.md, les codes d'avis, et les données des deux images",
+        "it": "READERS.md, cosa promette ogni lettore e cosa non fa, DIAGNOSTICS.md, i codici di avviso, e i dati delle due immagini",
+        "ja": "READERS.md：各リーダーの約束としないこと、DIAGNOSTICS.md：診断コード、2 つの図のデータ",
+        "zh": "READERS.md：每个读取器的承诺和不做的事，DIAGNOSTICS.md：诊断代码，以及两张图的数据",
+        "pt": "READERS.md, o que cada leitor promete e o que não faz, DIAGNOSTICS.md, os códigos de aviso, e os dados das duas imagens"
       }
     },
     {
@@ -140,6 +166,19 @@
       "accent": "a",
       "kind": "group",
       "rows": [
+        {
+          "name": "tests/",
+          "desc": {
+            "en": "synthetic sample files and their expected summaries",
+            "es": "ficheros de muestra sintéticos y sus resúmenes esperados",
+            "de": "synthetische Beispieldateien und ihre erwarteten Zusammenfassungen",
+            "fr": "fichiers d'exemple synthétiques et leurs résumés attendus",
+            "it": "file di esempio sintetici e i loro riepiloghi attesi",
+            "ja": "合成のサンプル ファイルと期待される要約",
+            "zh": "合成示例文件及其预期摘要",
+            "pt": "ficheiros de exemplo sintéticos e os seus resumos esperados"
+          }
+        },
         {
           "desc": {
             "en": "CI check, README check and the picture tools",
