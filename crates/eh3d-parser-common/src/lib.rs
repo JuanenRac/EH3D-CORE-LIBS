@@ -273,7 +273,12 @@ pub fn decode_coordinate(
         let value: f64 = padded.parse().ok()?;
         value / 10f64.powi(decimal_digits as i32)
     };
-    Some(if negative { -magnitude } else { magnitude })
+    // "-0" is plain zero, not negative zero
+    Some(if negative && magnitude != 0.0 {
+        -magnitude
+    } else {
+        magnitude
+    })
 }
 
 /// The code of the diagnostic for a coordinate that [`decode_coordinate`] refused: too many digits
@@ -375,6 +380,19 @@ pub fn decode_input(bytes: &[u8], limits: &InputLimits) -> Result<DecodedInput, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn minus_zero_decodes_to_plain_zero() {
+        for text in ["-0", "-000", "-0.0", "-.0"] {
+            let v = decode_coordinate(text, 2, 4, ZeroSuppression::Leading).unwrap();
+            assert_eq!(v, 0.0, "{text}");
+            assert!(v.is_sign_positive(), "{text} gave negative zero");
+        }
+        assert_eq!(
+            decode_coordinate("-5000", 2, 4, ZeroSuppression::Leading),
+            Some(-0.5)
+        );
+    }
 
     #[test]
     fn codes_are_unique_and_kebab_case() {
