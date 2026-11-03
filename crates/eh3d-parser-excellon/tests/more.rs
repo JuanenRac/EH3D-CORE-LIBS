@@ -88,7 +88,7 @@ fn a_file_with_no_units_whose_holes_are_tiny_may_be_in_inches() {
     assert!(f.diagnostics.iter().any(|d| d.code == codes::UNITS_SUSPECT));
     // a metric file of the same holes, a larger board and a single hole are not suspect
     for other in [
-        "METRIC\nT1C0.8\n%\nT1\nX0.5Y0.5\nX2.5Y1.5\nM30\n",
+        "M48\nMETRIC\nT1C0.8\n%\nT1\nX0.5Y0.5\nX2.5Y1.5\nM30\n",
         "M48\nT1C0.8\n%\nT1\nX10Y10\nX60Y40\nM30\n",
         "M48\nT1C0.8\n%\nT1\nX1Y1\nM30\n",
     ] {
