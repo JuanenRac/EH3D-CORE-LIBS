@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A size limit of the largest possible value no longer overflows:** `read_file_limited` adds one to the limit with a saturating sum, so the caller can pass `usize::MAX` to mean "no limit" without a panic; a test reads a file under that limit.
+
 ## [0.0.5] - Macro apertures, arcs by tolerance, bounded readers, strict G-code planes and arcs, and the Gerber and Excellon writers
 
 - **Shared checks updated:** the validator also compares the badge and the Version row of the README with the manifest, fails when one of its checks cannot run, and the CHANGELOG step of the workflow reads the base branch from the environment.

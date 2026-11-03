@@ -377,7 +377,7 @@ pub fn read_file_limited(
         }));
     }
     let mut bytes = Vec::with_capacity(size as usize);
-    file.take(limits.max_bytes as u64 + 1)
+    file.take((limits.max_bytes as u64).saturating_add(1))
         .read_to_end(&mut bytes)
         .map_err(ReadError::Io)?;
     if bytes.len() > limits.max_bytes {

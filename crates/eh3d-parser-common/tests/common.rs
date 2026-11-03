@@ -221,3 +221,17 @@ fn a_file_above_the_limit_is_refused_by_its_size_before_it_is_read() {
     ));
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn a_limit_of_usize_max_reads_the_file_and_does_not_overflow() {
+    use eh3d_parser_common::{read_file_limited, InputLimits};
+    let dir = std::env::temp_dir().join("eh3d-limit-max");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("a.gbr");
+    std::fs::write(&path, b"0123456789").unwrap();
+    let limits = InputLimits {
+        max_bytes: usize::MAX,
+    };
+    assert_eq!(read_file_limited(&path, &limits).unwrap().len(), 10);
+    std::fs::remove_dir_all(&dir).ok();
+}
