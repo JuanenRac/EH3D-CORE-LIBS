@@ -89,8 +89,8 @@ fn a_file_with_no_units_whose_holes_are_tiny_may_be_in_inches() {
     // a metric file of the same holes, a larger board and a single hole are not suspect
     for other in [
         "M48\nMETRIC\nT1C0.8\n%\nT1\nX0.5Y0.5\nX2.5Y1.5\nM30\n",
-        "M48\nT1C0.8\n%\nT1\nX10Y10\nX60Y40\nM30\n",
-        "M48\nT1C0.8\n%\nT1\nX1Y1\nM30\n",
+        "M48\nT1C0.8\n%\nT1\nX10.0Y10.0\nX60.0Y40.0\nM30\n",
+        "M48\nT1C0.8\n%\nT1\nX1.0Y1.0\nM30\n",
     ] {
         let f = parse(other);
         assert!(
