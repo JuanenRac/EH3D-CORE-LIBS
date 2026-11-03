@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+
+## [0.0.5] - Macro apertures, arcs by tolerance, bounded readers, strict G-code planes and arcs, and the Gerber and Excellon writers
+
 - **Shared checks updated:** the validator also compares the badge and the Version row of the README with the manifest, fails when one of its checks cannot run, and the CHANGELOG step of the workflow reads the base branch from the environment.
 - Add the `eh3d-writer-gerber` crate: a deterministic Gerber X2 writer for the data the Gerber reader gives (apertures, macros, regions, arcs, polarity, step and repeat, file attributes). The same content always gives the same bytes, nothing reads the clock, and a number that does not fit the coordinate format is an error.
 - Add the `eh3d-writer-excellon` crate: a deterministic Excellon writer for tools, holes, slots and routes, with coordinates written with a decimal point or in a fixed format with leading or trailing zeros left out.
