@@ -212,6 +212,10 @@ fn parse_line(
         });
         body = after.trim_start();
     }
+    // a line with only % starts or ends the program in Mach3 and PlanetCNC: it is not a character to complain about
+    if body == "%" {
+        return None;
+    }
     if body.starts_with('$') && dialect == Dialect::Grbl {
         diagnostics.push(Diagnostic {
             line,

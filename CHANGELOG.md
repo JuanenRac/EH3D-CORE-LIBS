@@ -20,6 +20,7 @@ All notable changes to this project are documented here.
 - **Every reader is bounded in memory:** the G-code reader keeps at most 5000000 blocks and 100000 diagnostics (`parse_with_limits` sets others), and the Gerber reader reads the text by bytes without copying it into a list of characters.
 - **The grid of the CAM tells its memory:** `estimate` gives the cells and the memory (21 bytes a cell) of a layer before the grid is made, the default limit is 30 million cells (it was 60 million) and `new_with_limit` / `from_scene_with_limit` take the limit of the caller.
 - **A drill file in inches with no header is noticed:** a file with no units whose holes span less than 5 units gives `units-suspect`, and a hole with a tool that was never defined is said in the notes of the scene.
+- **A line with only `%` is not a complaint:** the mark that starts and ends a program in Mach3 and PlanetCNC is read without a warning (a `%` inside a line still is one).
 - **The workflows are hardened:** every action is pinned by its commit with its version in a comment, and the checkouts keep no credentials.
 
 ## [0.0.4] - Raster, geometry and CAM crates

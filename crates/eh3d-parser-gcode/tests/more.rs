@@ -281,3 +281,18 @@ fn a_program_is_read_up_to_its_limits_and_the_cut_is_said_once() {
         1
     );
 }
+
+#[test]
+fn a_line_with_only_a_percent_sign_is_the_start_and_end_of_the_program_and_says_nothing() {
+    for dialect in [Dialect::Grbl, Dialect::Marlin, Dialect::PlanetCnc] {
+        let p = parse("%\nG1 X1 F100\n%\n", dialect);
+        assert!(p.diagnostics.is_empty(), "{dialect:?}: {:?}", p.diagnostics);
+        assert_eq!(p.blocks.len(), 1);
+    }
+    // a percent sign inside a line is still something odd
+    let odd = parse("G1 X1 % F100\n", Dialect::Grbl);
+    assert!(odd
+        .diagnostics
+        .iter()
+        .any(|d| d.code == codes::CHARACTER_IGNORED));
+}

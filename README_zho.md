@@ -18,7 +18,7 @@
 
 ---
 
-**诚实性核对 - 今天真正能运行的内容：** 三个没有依赖的 Rust 库，读取 Gerber（RS-274X）图层、Excellon 钻孔文件和 G 代码（针对 GRBL、Marlin 和 PlanetCNC 方言的模态解释器）。256 个测试在计算机上运行，包括损坏和恶意输入。另有两个库以确定的方式写出 Gerber X2 和 Excellon 文件，不含日期和版本，相同内容总是得到相同字节；它们通过写出再用读取器读回来测试，目前还没有任何查看器或机器打开过它们的文件。读取器不会 panic，并把无法理解的内容作为带行号的诊断报告出来。它们不绘图，不计算刀路，也没有在一批真实生产文件上试过；套件中有四个程序使用它们（EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM），这里的内容也从未在机床上运行过。
+**诚实性核对 - 今天真正能运行的内容：** 三个没有依赖的 Rust 库，读取 Gerber（RS-274X）图层、Excellon 钻孔文件和 G 代码（针对 GRBL、Marlin 和 PlanetCNC 方言的模态解释器）。257 个测试在计算机上运行，包括损坏和恶意输入。另有两个库以确定的方式写出 Gerber X2 和 Excellon 文件，不含日期和版本，相同内容总是得到相同字节；它们通过写出再用读取器读回来测试，目前还没有任何查看器或机器打开过它们的文件。读取器不会 panic，并把无法理解的内容作为带行号的诊断报告出来。它们不绘图，不计算刀路，也没有在一批真实生产文件上试过；套件中有四个程序使用它们（EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM），这里的内容也从未在机床上运行过。
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | 版本 | `0.0.4` |
 | 成熟度 | 脚手架 |
-| 测试 | 256 |
+| 测试 | 257 |
 | 技术栈 | Rust |
 | 真实硬件 | 不适用：文件读取库，不与机床通信 |
 
@@ -47,7 +47,7 @@
 | Gerber 读取器 | 🟡 | RS-274X：读取单位、坐标格式、光圈、宏、区域和绘图命令；目前只用测试文件试过，没有用真实生产文件集合。 |
 | Excellon 读取器 | 🟡 | 读取公制或英制的刀具、钻孔、槽孔和简单路径；目前只用测试文件试过。 |
 | G 代码读取器 | 🟡 | 针对 GRBL、Marlin 和 PlanetCNC 方言的模态解释器输出绝对毫米坐标（含圆弧）；刀具半径补偿和固定循环会被报告为不支持。 |
-| 测试 | 🟡 | 256 个测试通过（`cargo test`）：Gerber 42 个，Excellon 32 个，G 代码 47 个，共用 crate 18 个，栅格几何 17 个，形状 19 个，纯 CAM 55 个，Gerber 写入器 14 个，Excellon 写入器 12 个，包含损坏和恶意输入以及合成文件语料库。 |
+| 测试 | 🟡 | 257 个测试通过（`cargo test`）：Gerber 42 个，Excellon 32 个，G 代码 48 个，共用 crate 18 个，栅格几何 17 个，形状 19 个，纯 CAM 55 个，Gerber 写入器 14 个，Excellon 写入器 12 个，包含损坏和恶意输入以及合成文件语料库。 |
 | 安全 | 🟡 | 为他人发来的文件而设计：不会 panic，不猜测任何值，问题以带行号的诊断返回；没有独立审查，这里也不判断某段 G 代码能否安全运行。 |
 | 几何与 HP-GL | 🔴 | 2D 几何（偏置、布尔运算）以及 HP-GL 和 Bungard 读取器已在计划中，尚未构建。 |
 | 被其他程序使用 | 🟡 | 套件中有四个程序依赖这些读取器（EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM），都还没有在机床上运行过。 |
@@ -113,7 +113,7 @@ EH3D-CORE-LIBS 把文件转换成套件各程序（隔离、钻孔、轮廓、�
 | `eh3d-geometry` | `from_gerber(&file)`、`from_excellon(&file)`，然后 `scene.bounds()` | `Scene`（`Shape` 和说明）以及毫米的 `Bounds` |
 | `eh3d-cam` | `from_scene(&scene, margin, res)`，然后 `plan(&scene, &plan)` 和 `close_pieces(...)` | `Bitmap`、`Pass`（以毫米表示的闭合和开放路径）、`Hole` 以及各项检查的结果 |
 
-三者共用 `Diagnostic { line, severity, code, message }`（`Severity` 为 `Info`、`Warning` 或 `Error`），以及用来询问是否发现 `Error` 的 `is_clean()`。没有命令行程序，没有网络访问，也没有文件访问：调用方传入文本，得到数据。 每条诊断都有稳定的 `code`（列于 `docs/DIAGNOSTICS.md`），可按类型而不是按文字过滤。`parse_bytes` 从字节读取文件并限制大小（256 MiB），不是 UTF-8 的文本会带警告按 Latin-1 读取。没有单位的 Gerber 或 Excellon 文件按毫米读取，并给出警告 `units-missing`。共用类型位于内部 crate `eh3d-parser-common`，各读取器会重新导出。
+三者共用 `Diagnostic { line, severity, code, message }`（`Severity` 为 `Info`、`Warning` 或 `Error`），以及用来询问是否发现 `Error` 的 `is_clean()`。没有命令行程序，没有网络访问，也没有文件访问：调用方传入文本，得到数据。 每条诊断都有稳定的 `code`（列于 `docs/DIAGNOSTICS.md`），可按类型而不是按文字过滤。`parse_bytes` 从字节读取文件并限制大小（257 MiB），不是 UTF-8 的文本会带警告按 Latin-1 读取。没有单位的 Gerber 或 Excellon 文件按毫米读取，并给出警告 `units-missing`。共用类型位于内部 crate `eh3d-parser-common`，各读取器会重新导出。
 
 ## ⚙️ 配置
 
@@ -151,7 +151,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 测试
 
-测试共 256 个（`cargo test`，CI 中在 Windows 和 Linux 上运行）：Gerber 42 个、Excellon 32 个、G 代码 47 个、共用 crate 18 个，栅格几何 17 个，形状 19 个，纯 CAM 55 个、Gerber 写入器 14 个、Excellon 写入器 12 个。由 21 个小型合成文件组成的语料库（`tests/golden/`：英寸和毫米的 Gerber、带 `LZ`/`TZ`、槽孔和路径的 Excellon、面向 GRBL、Marlin 和 LinuxCNC 的 G 代码，含 CRLF、Latin-1 和损坏文件）由各读取器读取，并与每个文件旁保存的摘要比较；`EH3D_REGENERATE=1 cargo test` 会重写摘要，使变化在 diff 中可见，同样的文件还会被变异测试以数千种方式破坏。它们检查：典型的铜层和典型的公制文件能被完整读取、省略的坐标、两种零省略、槽孔、路径、英寸换算为毫米、每条命令都知道自己的行号、按圆心和按半径指定的圆弧、整圆、模态进给与运动、Marlin 校验和、不支持的功能被报告而不是猜测，以及损坏的输入：乱码、被截断的前缀和超长的行都不会 panic。CI 还运行 `cargo fmt --check`、将警告视为错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试共 257 个（`cargo test`，CI 中在 Windows 和 Linux 上运行）：Gerber 42 个、Excellon 32 个、G 代码 48 个、共用 crate 18 个，栅格几何 17 个，形状 19 个，纯 CAM 55 个、Gerber 写入器 14 个、Excellon 写入器 12 个。由 21 个小型合成文件组成的语料库（`tests/golden/`：英寸和毫米的 Gerber、带 `LZ`/`TZ`、槽孔和路径的 Excellon、面向 GRBL、Marlin 和 LinuxCNC 的 G 代码，含 CRLF、Latin-1 和损坏文件）由各读取器读取，并与每个文件旁保存的摘要比较；`EH3D_REGENERATE=1 cargo test` 会重写摘要，使变化在 diff 中可见，同样的文件还会被变异测试以数千种方式破坏。它们检查：典型的铜层和典型的公制文件能被完整读取、省略的坐标、两种零省略、槽孔、路径、英寸换算为毫米、每条命令都知道自己的行号、按圆心和按半径指定的圆弧、整圆、模态进给与运动、Marlin 校验和、不支持的功能被报告而不是猜测，以及损坏的输入：乱码、被截断的前缀和超长的行都不会 panic。CI 还运行 `cargo fmt --check`、将警告视为错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
