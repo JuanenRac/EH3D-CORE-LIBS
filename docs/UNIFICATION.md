@@ -7,6 +7,8 @@ The suite reads the same two kinds of file with two different pairs of readers:
 
 The same file can therefore be drawn correctly by the viewer and be read differently by the program that drives the machine. This page is the plan to end that; it is not done yet, and nothing here changes a reader.
 
+The crates added since this page was written (`eh3d-geometry`, `eh3d-cam`, `eh3d-raster` and the Gerber and Excellon writers) build on the readers of this repository and do not change them, and `EH3D-COMMON` still does not depend on this repository, so the two pairs of readers are still two.
+
 ## Where they differ today
 
 | Point | These crates | Bungard formats crate |

@@ -52,7 +52,7 @@ Each line is one part of this repository and the light says how far it is today.
 | Geometry and HP-GL | 🔴 | The 2D geometry (offsets, booleans) and the HP-GL and Bungard readers are planned and not built. |
 | Use by other programs | 🟡 | Four programs of the suite depend on the readers (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); none of them has run on a machine. |
 | Real hardware | 🟡 | Not applicable: file readers, nothing here talks to a machine. |
-| Documentation | 🟡 | README in eight languages and `docs/READERS.md`, which says what each reader promises and what it does not do. |
+| Documentation | 🟡 | README in eight languages and `docs/READERS.md`, which says what each reader promises and what it does not do; `docs/UNIFICATION.md` is the plan (not done) to end the two pairs of readers of the suite. |
 
 ## 🎯 Overview
 
@@ -221,6 +221,7 @@ README and texts exist in English, Spanish, French, Italian, German, Chinese, Ja
 ## 📚 Documentation
 
 * [What each reader promises](docs/READERS.md): the guarantees, the diagnostics and what is not done.
+* [One reader for Gerber and one for Excellon](docs/UNIFICATION.md): a plan, not done: how the readers of this repository and those of EH3D-COMMON would become one.
 * [Changelog](CHANGELOG.md)
 
 ## 🤝 Contributing & Community

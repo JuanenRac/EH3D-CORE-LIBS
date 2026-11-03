@@ -52,7 +52,7 @@
 | 几何与 HP-GL | 🔴 | 2D 几何（偏置、布尔运算）以及 HP-GL 和 Bungard 读取器已在计划中，尚未构建。 |
 | 被其他程序使用 | 🟡 | 套件中有四个程序依赖这些读取器（EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM），都还没有在机床上运行过。 |
 | 真实硬件 | 🟡 | 不适用：文件读取库，不与机床通信。 |
-| 文档 | 🟡 | 八种语言的 README 和 `docs/READERS.md`，说明每个读取器承诺什么、不做什么。 |
+| 文档 | 🟡 | 八种语言的 README 和 `docs/READERS.md`，说明每个读取器承诺什么、不做什么；`docs/UNIFICATION.md` 是结束套件中两套读取器的计划（尚未实施）。 |
 
 ## 🎯 概述
 
@@ -221,6 +221,7 @@ README 和文本提供英语、西班牙语、法语、意大利语、德语、�
 ## 📚 文档
 
 * [每个读取器的承诺](docs/READERS.md)：保证、诊断以及不做的事。
+* [Gerber 和 Excellon 各用一个读取器](docs/UNIFICATION.md)：计划（尚未实施）：本仓库与 EH3D-COMMON 的读取器如何合而为一。
 * [变更日志](CHANGELOG.md)
 
 ## 🤝 参与贡献与社区
