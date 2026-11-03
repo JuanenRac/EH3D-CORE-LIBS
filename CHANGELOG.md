@@ -15,6 +15,11 @@ All notable changes to this project are documented here.
 - **A file above the limit is refused before it is read:** `read_file_limited` checks the size on disk and reads at most one byte more than the limit.
 - **Faster CAM checks:** the pieces that come close are found in one pass over the grid, and a long diagonal track is drawn row by row; a board size out of range is refused instead of wrapping.
 - **The direction of a path between two pieces of copper** is decided by all its edges and not by the longest one, and a path with no nearer side is left as it is.
+- **Arcs in the wrong plane or with a wrong centre are errors:** after `G18` or `G19` an arc gives `plane-unsupported` as an error and is a line, and an arc given by `I`/`J` whose centre is not as far from its end as from its start gives `arc-radius-mismatch`.
+- **Marlin commands with text are not errors:** `M117`, `M118`, `M23`, `M28`, `M29`, `M32`, `M550` and `M551` keep their text as the comment of one line instead of an error for each letter.
+- **Every reader is bounded in memory:** the G-code reader keeps at most 5000000 blocks and 100000 diagnostics (`parse_with_limits` sets others), and the Gerber reader reads the text by bytes without copying it into a list of characters.
+- **The grid of the CAM tells its memory:** `estimate` gives the cells and the memory (21 bytes a cell) of a layer before the grid is made, the default limit is 30 million cells (it was 60 million) and `new_with_limit` / `from_scene_with_limit` take the limit of the caller.
+- **A drill file in inches with no header is noticed:** a file with no units whose holes span less than 5 units gives `units-suspect`, and a hole with a tool that was never defined is said in the notes of the scene.
 - **The workflows are hardened:** every action is pinned by its commit with its version in a comment, and the checkouts keep no credentials.
 
 ## [0.0.4] - Raster, geometry and CAM crates

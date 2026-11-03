@@ -108,8 +108,38 @@ pub fn parse_bytes_with(
 
 /// Reads a program. Never fails: problems are in [`Program::diagnostics`].
 pub fn parse(text: &str, dialect: Dialect) -> Program {
+    parse_with_limits(text, dialect, &ParseLimits::default())
+}
+
+/// The most blocks the reader keeps by default.
+pub const MAX_BLOCKS: usize = 5_000_000;
+
+/// The most diagnostics the reader keeps by default.
+pub const MAX_DIAGNOSTICS: usize = 100_000;
+
+/// How much a program may grow in memory while it is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParseLimits {
+    /// The most blocks kept; the rest of the program is not read (program-too-long).
+    pub max_blocks: usize,
+    /// The most diagnostics kept; the rest are dropped (	oo-many-diagnostics).
+    pub max_diagnostics: usize,
+}
+
+impl Default for ParseLimits {
+    fn default() -> Self {
+        ParseLimits {
+            max_blocks: MAX_BLOCKS,
+            max_diagnostics: MAX_DIAGNOSTICS,
+        }
+    }
+}
+
+/// Like [parse] with the limits given.
+pub fn parse_with_limits(text: &str, dialect: Dialect, limits: &ParseLimits) -> Program {
     let mut blocks = Vec::new();
-    let mut diagnostics = Vec::new();
+    let mut diagnostics: Vec<Diagnostic> = Vec::new();
+    let mut cut = false;
     for (index, raw) in text.lines().enumerate() {
         let line = index + 1;
         let raw = raw.trim_start_matches('\u{feff}');
@@ -128,8 +158,35 @@ pub fn parse(text: &str, dialect: Dialect) -> Program {
                 message: format!("the line is longer than {MAX_LINE_CHARS} characters and was cut"),
             });
         }
+        if blocks.len() >= limits.max_blocks {
+            diagnostics.push(Diagnostic::new(
+                line,
+                Severity::Error,
+                codes::PROGRAM_TOO_LONG,
+                format!(
+                    "the program has more than {} blocks: the rest was not read",
+                    limits.max_blocks
+                ),
+            ));
+            break;
+        }
         if let Some(block) = parse_line(raw, line, dialect, &mut diagnostics) {
             blocks.push(block);
+        }
+        if cut {
+            diagnostics.truncate(limits.max_diagnostics + 1);
+        } else if diagnostics.len() > limits.max_diagnostics {
+            diagnostics.truncate(limits.max_diagnostics);
+            diagnostics.push(Diagnostic::new(
+                line,
+                Severity::Error,
+                codes::TOO_MANY_DIAGNOSTICS,
+                format!(
+                    "more than {} diagnostics: the rest are not kept",
+                    limits.max_diagnostics
+                ),
+            ));
+            cut = true;
         }
     }
     Program {
@@ -196,6 +253,11 @@ fn parse_line(
                 }),
             }
             body = content;
+        }
+    }
+    if dialect == Dialect::Marlin {
+        if let Some(block) = text_command(body, line) {
+            return Some(block);
         }
     }
     let mut words = Vec::new();
@@ -269,6 +331,44 @@ fn parse_line(
         line,
         words,
         comment,
+    })
+}
+
+/// The Marlin commands whose argument is text (M117 Hello, M23 file.gco): the line is one word and the text is kept as its comment, not read as words.
+fn text_command(body: &str, line: usize) -> Option<Block> {
+    let mut rest = body.trim_start();
+    // an optional line number
+    if rest.starts_with(['N', 'n']) {
+        rest = rest
+            .get(1..)?
+            .trim_start_matches(|c: char| c.is_ascii_digit());
+        rest = rest.trim_start();
+    }
+    if !rest.starts_with(['M', 'm']) {
+        return None;
+    }
+    let digits: String = rest
+        .get(1..)?
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    let code: u32 = digits.parse().ok()?;
+    if ![23, 28, 29, 32, 117, 118, 550, 551].contains(&code) {
+        return None;
+    }
+    let text = rest.get(1 + digits.len()..)?;
+    // M1170 is another command: the code ends at a space or at the end
+    if text.chars().next().is_some_and(|c| !c.is_whitespace()) {
+        return None;
+    }
+    let text = text.trim();
+    Some(Block {
+        line,
+        words: vec![Word {
+            letter: 'M',
+            value: f64::from(code),
+        }],
+        comment: (!text.is_empty()).then(|| text.to_string()),
     })
 }
 
@@ -355,6 +455,8 @@ struct State {
     tool: Option<u32>,
     motion: Option<u32>,
     seen_move: bool,
+    /// False after G18 or G19: arcs are not interpreted.
+    plane_xy: bool,
 }
 
 /// Walks a program, keeping the modal state, and returns its motions.
@@ -370,6 +472,7 @@ pub fn interpret(program: &Program) -> Trace {
         tool: None,
         motion: None,
         seen_move: false,
+        plane_xy: true,
     };
     let mut trace = Trace {
         diagnostics: program.diagnostics.clone(),
@@ -397,6 +500,18 @@ fn diag(
     code: &'static str,
     message: impl Into<String>,
 ) {
+    if trace.diagnostics.len() > MAX_DIAGNOSTICS {
+        return;
+    }
+    if trace.diagnostics.len() == MAX_DIAGNOSTICS {
+        trace.diagnostics.push(Diagnostic::new(
+            line,
+            Severity::Error,
+            codes::TOO_MANY_DIAGNOSTICS,
+            format!("more than {MAX_DIAGNOSTICS} diagnostics: the rest are not kept"),
+        ));
+        return;
+    }
     trace
         .diagnostics
         .push(Diagnostic::new(line, severity, code, message));
@@ -431,16 +546,16 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                     910 => st.absolute = false,
                     901 => st.absolute_arc_centre = true,
                     911 => st.absolute_arc_centre = false,
-                    170 | 180 | 190 => {
-                        if code != 170 {
-                            diag(
-                                trace,
-                                block.line,
-                                Severity::Warning,
-                                codes::PLANE_UNSUPPORTED,
-                                "only the XY plane (G17) is supported for arcs",
-                            );
-                        }
+                    170 => st.plane_xy = true,
+                    180 | 190 => {
+                        st.plane_xy = false;
+                        diag(
+                            trace,
+                            block.line,
+                            Severity::Error,
+                            codes::PLANE_UNSUPPORTED,
+                            "only the XY plane (G17) is supported for arcs: the arcs after G18/G19 are drawn as lines",
+                        );
                     }
                     40 | 400 | 540 | 550 | 560 | 570 | 580 | 590 | 921 | 922 | 930 | 940 | 500
                     | 610 | 640 | 490 | 430 | 440 => {}
@@ -495,7 +610,8 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                 5 => st.spindle_on = false,
                 6 => {}
                 7..=9 => {}
-                104 | 109 | 140 | 190 | 106 | 107 if dialect == Dialect::Marlin => {}
+                104 | 109 | 140 | 190 | 106 | 107 | 23 | 28 | 29 | 32 | 117 | 118 | 550 | 551
+                    if dialect == Dialect::Marlin => {}
                 _ => diag(
                     trace,
                     block.line,
@@ -613,14 +729,39 @@ fn run_motion(
         1 => Motion::Linear,
         2 | 3 => {
             let (i, j, r) = (block.get('I'), block.get('J'), block.get('R'));
-            let centre = if i.is_some() || j.is_some() {
+            let centre = if !st.plane_xy {
+                diag(
+                    trace,
+                    block.line,
+                    Severity::Error,
+                    codes::PLANE_UNSUPPORTED,
+                    "an arc outside the XY plane was drawn as a straight line",
+                );
+                None
+            } else if i.is_some() || j.is_some() {
                 let i_mm = scale(st, i.unwrap_or(0.0));
                 let j_mm = scale(st, j.unwrap_or(0.0));
-                Some(if st.absolute_arc_centre {
+                let c = if st.absolute_arc_centre {
                     (i_mm, j_mm)
                 } else {
                     (from.x + i_mm, from.y + j_mm)
-                })
+                };
+                // the centre must be as far from the start as from the end (a controller refuses an arc that is not)
+                let (r0, r1) = (
+                    (from.x - c.0).hypot(from.y - c.1),
+                    (to.x - c.0).hypot(to.y - c.1),
+                );
+                let delta = (r0 - r1).abs();
+                if delta > 0.005 && (delta > 0.5 || delta > 0.001 * r0) {
+                    diag(
+                        trace,
+                        block.line,
+                        Severity::Error,
+                        codes::ARC_RADIUS_MISMATCH,
+                        format!("the arc is {r0:.3} mm from its centre at the start and {r1:.3} mm at the end"),
+                    );
+                }
+                Some(c)
             } else if let Some(r) = r {
                 match centre_from_radius(from, to, scale(st, r), code == 2) {
                     Some(c) => Some(c),

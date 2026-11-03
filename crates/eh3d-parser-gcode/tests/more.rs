@@ -174,3 +174,110 @@ fn the_lengths_of_a_trace_add_up_from_its_segments() {
     );
     assert_eq!(t.segments.len(), 4);
 }
+
+#[test]
+fn an_arc_in_another_plane_is_an_error_and_is_not_drawn_as_an_xy_arc() {
+    let t = interpret(&parse(
+        "G21 F100\nG18\nG2 X10 Z-2 I5 K0\nG17\nG2 X2 Y0 I1 J0\n",
+        Dialect::Grbl,
+    ));
+    let planes: Vec<_> = t
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == codes::PLANE_UNSUPPORTED)
+        .collect();
+    assert_eq!(planes.len(), 2, "{:?}", t.diagnostics);
+    assert!(planes.iter().all(|d| d.severity == Severity::Error));
+    assert!(matches!(
+        t.segments[0].motion,
+        eh3d_parser_gcode::Motion::Linear
+    ));
+    // back in the XY plane the arc is an arc again
+    assert!(matches!(
+        t.segments[1].motion,
+        eh3d_parser_gcode::Motion::ArcCw { .. }
+    ));
+}
+
+#[test]
+fn an_arc_whose_centre_is_not_as_far_from_its_end_as_from_its_start_is_an_error() {
+    let bad = interpret(&parse("G21 F100\nG2 X10 Y0 I1 J0\n", Dialect::Grbl));
+    assert!(bad
+        .diagnostics
+        .iter()
+        .any(|d| d.code == codes::ARC_RADIUS_MISMATCH && d.severity == Severity::Error));
+    for good in [
+        "G21 F100\nG2 X2 Y0 I1 J0\n",
+        "G21 F100\nG2 X0 Y0 I1 J0\n",
+        "G21 F100\nG3 X0 Y2 I0 J1.0004\n",
+    ] {
+        let t = interpret(&parse(good, Dialect::Grbl));
+        assert!(
+            t.diagnostics
+                .iter()
+                .all(|d| d.code != codes::ARC_RADIUS_MISMATCH),
+            "{good:?}: {:?}",
+            t.diagnostics
+        );
+    }
+}
+
+#[test]
+fn marlin_commands_with_text_are_one_opaque_line() {
+    let text = "M117 Hello world\nN12 M118 E1 done\nM23 part_1.gco\nM28 file.gco\nG1 X1 F100\n";
+    let p = parse(text, Dialect::Marlin);
+    assert!(p.is_clean(), "{:?}", p.diagnostics);
+    assert!(p.diagnostics.is_empty(), "{:?}", p.diagnostics);
+    assert_eq!(p.blocks[0].comment.as_deref(), Some("Hello world"));
+    assert_eq!(p.blocks[0].get('M'), Some(117.0));
+    assert_eq!(p.blocks[1].comment.as_deref(), Some("E1 done"));
+    let t = interpret(&p);
+    assert!(
+        t.diagnostics.iter().all(|d| d.severity < Severity::Warning),
+        "{:?}",
+        t.diagnostics
+    );
+    assert_eq!(t.segments.len(), 1);
+    // another command that starts with the same digits is not one of them
+    let other = parse("M1170 Hello\n", Dialect::Marlin);
+    assert!(!other.is_clean());
+}
+
+#[test]
+fn a_program_is_read_up_to_its_limits_and_the_cut_is_said_once() {
+    use eh3d_parser_gcode::{parse_with_limits, ParseLimits};
+    let many_blocks = "G1 X1\n".repeat(10);
+    let p = parse_with_limits(
+        &many_blocks,
+        Dialect::Grbl,
+        &ParseLimits {
+            max_blocks: 3,
+            max_diagnostics: 100,
+        },
+    );
+    assert_eq!(p.blocks.len(), 3);
+    assert_eq!(
+        p.diagnostics
+            .iter()
+            .filter(|d| d.code == codes::PROGRAM_TOO_LONG)
+            .count(),
+        1
+    );
+    let bad = "X\n".repeat(50);
+    let p = parse_with_limits(
+        &bad,
+        Dialect::Grbl,
+        &ParseLimits {
+            max_blocks: 1000,
+            max_diagnostics: 5,
+        },
+    );
+    assert_eq!(p.diagnostics.len(), 6, "{:?}", p.diagnostics);
+    assert_eq!(
+        p.diagnostics
+            .iter()
+            .filter(|d| d.code == codes::TOO_MANY_DIAGNOSTICS)
+            .count(),
+        1
+    );
+}

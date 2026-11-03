@@ -1,6 +1,6 @@
 //! More of the Excellon reader: signs, decimals, repeated tools, units and line ends.
 
-use eh3d_parser_excellon::{parse, parse_bytes, Units, ZeroSuppression};
+use eh3d_parser_excellon::{codes, parse, parse_bytes, Units, ZeroSuppression};
 
 fn holes(text: &str) -> Vec<(u32, f64, f64)> {
     parse(text)
@@ -79,4 +79,23 @@ fn a_tool_that_was_never_defined_is_reported_and_the_holes_after_it_are_still_re
 fn the_same_text_read_twice_is_the_same_file() {
     let text = "M48\nMETRIC\nT1C0.8\n%\nT1\nX1.0Y1.0G85X5.0Y1.0\nX2.0Y2.0\nM30\n";
     assert_eq!(parse(text), parse(text));
+}
+
+#[test]
+fn a_file_with_no_units_whose_holes_are_tiny_may_be_in_inches() {
+    let text = "M48\nT1C0.03\n%\nT1\nX0.5Y0.5\nX2.5Y1.5\nM30\n";
+    let f = parse(text);
+    assert!(f.diagnostics.iter().any(|d| d.code == codes::UNITS_SUSPECT));
+    // a metric file of the same holes, a larger board and a single hole are not suspect
+    for other in [
+        "METRIC\nT1C0.8\n%\nT1\nX0.5Y0.5\nX2.5Y1.5\nM30\n",
+        "M48\nT1C0.8\n%\nT1\nX10Y10\nX60Y40\nM30\n",
+        "M48\nT1C0.8\n%\nT1\nX1Y1\nM30\n",
+    ] {
+        let f = parse(other);
+        assert!(
+            f.diagnostics.iter().all(|d| d.code != codes::UNITS_SUSPECT),
+            "{other:?}"
+        );
+    }
 }

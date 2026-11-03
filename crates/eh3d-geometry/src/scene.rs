@@ -445,6 +445,9 @@ pub fn from_excellon(file: &ExcellonFile) -> Scene {
     let mut scene = Scene::default();
     let diameter = |tool: u32| file.tools.get(&tool).map(|t| t.diameter * k).unwrap_or(0.0);
     for h in &file.drills {
+        if !file.tools.contains_key(&h.tool) {
+            scene.note("a hole with a tool that is not defined has no diameter");
+        }
         scene.shapes.push(Shape::Disc {
             x: h.at.x * k,
             y: h.at.y * k,
@@ -452,6 +455,9 @@ pub fn from_excellon(file: &ExcellonFile) -> Scene {
         });
     }
     for s in &file.slots {
+        if !file.tools.contains_key(&s.tool) {
+            scene.note("a hole with a tool that is not defined has no diameter");
+        }
         scene.shapes.push(Shape::Stroke {
             x0: s.from.x * k,
             y0: s.from.y * k,

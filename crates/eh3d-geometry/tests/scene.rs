@@ -333,3 +333,18 @@ fn the_tolerance_of_arcs_is_an_option_and_a_small_arc_keeps_its_32_pieces() {
     let small = from_gerber(&eh3d_parser_gerber::parse(&full_circle(0.5)));
     assert_eq!(small.shapes.len(), 32);
 }
+
+#[test]
+fn a_hole_with_a_tool_that_was_never_defined_is_said() {
+    let s = from_excellon(&eh3d_parser_excellon::parse(
+        "M48\nMETRIC\nT1C0.8\n%\nT1\nX1Y1\nT2\nX2Y2\nM30\n",
+    ));
+    assert_eq!(s.shapes.len(), 2);
+    assert!(
+        s.notes.iter().any(|n| n.contains("not defined")),
+        "{:?}",
+        s.notes
+    );
+    let ok = from_excellon(&eh3d_parser_excellon::parse(DRILL));
+    assert!(ok.notes.is_empty(), "{:?}", ok.notes);
+}

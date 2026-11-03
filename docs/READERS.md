@@ -11,7 +11,7 @@ All three readers (`eh3d-parser-gerber`, `eh3d-parser-excellon`, `eh3d-parser-gc
 * **Files.** ead_file_limited refuses a file above the limit by its size on disk, before it is read into memory.
 * **Bytes.** `parse_bytes` reads a file from its bytes with a size limit (256 MiB by default) and reads text that is not UTF-8 as Latin-1, with an `input-not-utf8` warning.
 * **Units.** A Gerber or Excellon file that does not declare its units is read in millimetres, with a `units-missing` warning.
-* **Bounded.** The G-code reader cuts a line at 512 characters and says so. A number above 1e15 is refused with `number-too-large`.
+* **Bounded.** The G-code reader cuts a line at 512 characters and says so. A number above 1e15 is refused with `number-too-large`. A program keeps at most 5000000 blocks (`program-too-long`) and every reader at most 100000 diagnostics (`too-many-diagnostics`); `parse_with_limits` sets other limits.
 
 ## Gerber (RS-274X)
 
@@ -23,12 +23,12 @@ Tools with diameter, feed and speed; drill hits; slots with `G85`; simple routes
 
 ## G-code
 
-Dialects: GRBL, Marlin (line numbers and checksums, verified) and PlanetCNC. `interpret` walks the program the way a controller does: `G20`/`G21`, `G90`/`G91`, `G90.1`/`G91.1`, `G0`..`G3` (arcs with `I`/`J` or `R`), `F`, `S`, `T`, `M3`/`M4`/`M5`, `M2`/`M30`. Every motion comes out in absolute millimetres, with the feed in millimetres per minute.
+Dialects: GRBL, Marlin (line numbers and checksums, verified; `M117`, `M118`, `M23` and the like with text are kept as one line) and PlanetCNC. `interpret` walks the program the way a controller does: `G20`/`G21`, `G90`/`G91`, `G90.1`/`G91.1`, `G0`..`G3` (arcs with `I`/`J` or `R`), `F`, `S`, `T`, `M3`/`M4`/`M5`, `M2`/`M30`. Every motion comes out in absolute millimetres, with the feed in millimetres per minute.
 
 ## What is not done
 
 * Cutter radius compensation (`G41`/`G42`) and canned cycles (`G81`..`G89`) are errors, and the block moves nothing.
 * Tool length offsets, probing cycles, `G28`/`G30` and work coordinate systems are read but their effect on the position is not tracked.
-* Planes other than XY for arcs.
+* Planes other than XY for arcs (`G18` and `G19` are an error and the arc is drawn as a line).
 * HP-GL and the Bungard format, and the 2D geometry (offsets and booleans), are planned.
 * None of this has been tried on a collection of real production files, and nothing here decides whether a program is safe to run on a machine.

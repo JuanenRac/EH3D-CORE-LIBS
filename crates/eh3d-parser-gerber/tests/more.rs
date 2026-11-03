@@ -77,7 +77,10 @@ fn windows_line_ends_give_the_same_commands_and_the_same_lines() {
     let lf = format!("{HEAD}X10000Y10000D02*\nX20000Y10000D01*\nX30000Y30000D03*\nM02*\n");
     let crlf = lf.replace('\n', "\r\n");
     let (a, b) = (parse(&lf), parse(&crlf));
-    assert_eq!(a.commands, b.commands);
+    let ops = |f: &eh3d_parser_gerber::GerberFile| {
+        f.commands.iter().map(|c| c.op.clone()).collect::<Vec<_>>()
+    };
+    assert_eq!(ops(&a), ops(&b));
     assert_eq!(a.diagnostics, b.diagnostics);
     assert!(a.ended && b.ended);
 }
@@ -245,4 +248,17 @@ fn a_layer_transform_that_changes_the_drawing_is_an_error_and_one_that_changes_n
         let file = parse(&format!("{HEAD}%{cmd}*%\nM02*\n"));
         assert!(file.is_clean(), "{cmd}: {:?}", file.diagnostics);
     }
+}
+
+#[test]
+fn a_file_with_non_ascii_spaces_and_text_is_read_like_the_same_file_without_them() {
+    let plain = "%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0.1*%\nD10*\nX0Y0D02*\nX10000Y0D01*\nM02*\n";
+    let odd = "\u{feff}%FSLAX24Y24*%\u{a0}\n%MOMM*%\n%TF.Note,caf\u{e9}\u{20ac}*%\n%ADD10C,0.1*%\nD10*\u{2003}\nX0Y0D02*\nX10000Y0D01*\nM02*\n";
+    let (a, b) = (parse(plain), parse(odd));
+    let ops = |f: &eh3d_parser_gerber::GerberFile| {
+        f.commands.iter().map(|c| c.op.clone()).collect::<Vec<_>>()
+    };
+    assert_eq!(ops(&a), ops(&b));
+    assert_eq!(a.apertures, b.apertures);
+    assert!(b.is_clean(), "{:?}", b.diagnostics);
 }

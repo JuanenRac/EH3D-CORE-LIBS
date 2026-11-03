@@ -152,3 +152,28 @@ fn the_pieces_that_come_close_are_found_among_many_without_going_through_the_gri
         "{close:?}"
     );
 }
+
+#[test]
+fn the_memory_of_a_grid_is_told_before_it_is_made_and_the_limit_is_the_callers() {
+    use eh3d_cam::bitmap::{estimate, from_scene_with_limit, BYTES_PER_CELL, MAX_CELLS};
+    let mut b = eh3d_geometry::scene::Bounds::empty();
+    b.include(0.0, 0.0);
+    b.include(100.0, 80.0);
+    let e = estimate(&b, 0.0, 0.02).unwrap();
+    assert_eq!((e.w, e.h), (5001, 4001));
+    assert_eq!(e.cells, 5001 * 4001);
+    assert_eq!(e.bytes, (5001u64 * 4001) * BYTES_PER_CELL as u64);
+    // 20 million cells fit by default, 56 million do not, and the caller can allow them
+    assert!(e.cells <= MAX_CELLS);
+    let mut big = eh3d_geometry::scene::Bounds::empty();
+    big.include(0.0, 0.0);
+    big.include(150.0, 150.0);
+    let message = eh3d_cam::bitmap::Bitmap::new(&big, 0.0, 0.02).unwrap_err();
+    assert!(message.contains("MB"), "{message}");
+    assert!(eh3d_cam::bitmap::Bitmap::new_with_limit(&big, 0.0, 0.02, 60_000_000).is_ok());
+    let scene = Scene {
+        shapes: vec![stroke(0.0, 0.0, 10.0, 10.0, 0.2)],
+        notes: Vec::new(),
+    };
+    assert!(from_scene_with_limit(&scene, 0.0, 0.02, 1000).is_err());
+}

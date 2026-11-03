@@ -150,6 +150,9 @@ pub mod codes {
         IMPLIED_RAPID = "implied-rapid",
         ARC_RADIUS_UNREACHABLE = "arc-radius-unreachable",
         ARC_CENTRE_MISSING = "arc-centre-missing",
+        ARC_RADIUS_MISMATCH = "arc-radius-mismatch",
+        PROGRAM_TOO_LONG = "program-too-long",
+        UNITS_SUSPECT = "units-suspect",
         FEED_MISSING = "feed-missing",
     }
 }

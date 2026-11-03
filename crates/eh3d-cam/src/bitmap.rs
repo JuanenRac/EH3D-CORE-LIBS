@@ -2,8 +2,11 @@
 
 use eh3d_geometry::scene::{Bounds, Scene, Shape};
 
-/// The most cells a grid may have (a board of 200 x 200 mm at 0.02 mm is 100 million: too many; the tool says so instead of running out of memory).
-pub const MAX_CELLS: usize = 60_000_000;
+/// The most cells a grid may have by default (a board of 150 x 150 mm at 0.02 mm is about 56 million: too many; the tool says so instead of running out of memory). A program that can afford more passes its own limit to [`Bitmap::new_with_limit`].
+pub const MAX_CELLS: usize = 30_000_000;
+
+/// The memory the isolation work needs per cell of the grid, in bytes: the copper (1), the distance (4 and a copy of 4), the distance to the pads (4 and a copy of 4) and the paths of one tool (4).
+pub const BYTES_PER_CELL: usize = 21;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Bitmap {
@@ -16,33 +19,79 @@ pub struct Bitmap {
     pub on: Vec<bool>,
 }
 
+/// The size of the grid of a layer and the memory its processing needs.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GridEstimate {
+    /// Cells across.
+    pub w: usize,
+    /// Cells up.
+    pub h: usize,
+    /// `w * h`.
+    pub cells: usize,
+    /// The memory of the isolation work on this grid, in bytes (an estimate: [`BYTES_PER_CELL`] per cell).
+    pub bytes: u64,
+}
+
+/// The grid a layer would have, without making it: the cells and the memory they would need.
+pub fn estimate(bounds: &Bounds, margin_mm: f64, res: f64) -> Result<GridEstimate, String> {
+    if !(res.is_finite() && (0.002..=1.0).contains(&res)) {
+        return Err(format!("the cell is {res} mm: it must be from 0.002 to 1"));
+    }
+    if bounds.is_empty() {
+        return Err("the layer has no copper".into());
+    }
+    let m = margin_mm.max(0.0);
+    // counted as numbers first: a size out of range must not wrap on its way to a count
+    let wf = ((bounds.width() + 2.0 * m) / res).ceil() + 1.0;
+    let hf = ((bounds.height() + 2.0 * m) / res).ceil() + 1.0;
+    let cells = wf * hf;
+    if !(wf.is_finite() && hf.is_finite() && cells < usize::MAX as f64) {
+        return Err(format!(
+            "{wf} x {hf} cells is more than any grid: use a larger cell or a smaller board"
+        ));
+    }
+    let (w, h) = (wf as usize, hf as usize);
+    Ok(GridEstimate {
+        w,
+        h,
+        cells: w * h,
+        bytes: (w * h) as u64 * BYTES_PER_CELL as u64,
+    })
+}
+
 impl Bitmap {
+    /// A grid over `bounds` with the default limit of [`MAX_CELLS`].
     pub fn new(bounds: &Bounds, margin_mm: f64, res: f64) -> Result<Bitmap, String> {
-        if !(res.is_finite() && (0.002..=1.0).contains(&res)) {
-            return Err(format!("the cell is {res} mm: it must be from 0.002 to 1"));
-        }
-        if bounds.is_empty() {
-            return Err("the layer has no copper".into());
+        Bitmap::new_with_limit(bounds, margin_mm, res, MAX_CELLS)
+    }
+
+    /// A grid over `bounds` with at most `max_cells` cells; the error says how much memory the grid would need.
+    pub fn new_with_limit(
+        bounds: &Bounds,
+        margin_mm: f64,
+        res: f64,
+        max_cells: usize,
+    ) -> Result<Bitmap, String> {
+        let e = estimate(bounds, margin_mm, res)?;
+        if e.cells > max_cells {
+            return Err(format!(
+                "{} x {} cells ({} MB of memory) is more than the {max_cells} cells allowed: use a larger cell or a smaller board",
+                e.w,
+                e.h,
+                e.bytes / 1_000_000
+            ));
         }
         let m = margin_mm.max(0.0);
         let (x0, y0) = (bounds.min_x - m, bounds.min_y - m);
-        // counted as numbers first: a size out of range must not wrap on its way to a count
-        let wf = ((bounds.width() + 2.0 * m) / res).ceil() + 1.0;
-        let hf = ((bounds.height() + 2.0 * m) / res).ceil() + 1.0;
-        if !(wf.is_finite() && hf.is_finite()) || wf * hf > MAX_CELLS as f64 {
-            return Err(format!("{wf} x {hf} cells is more than the {MAX_CELLS} allowed: use a larger cell or a smaller board"));
-        }
-        let (w, h) = (wf as usize, hf as usize);
         Ok(Bitmap {
-            w,
-            h,
+            w: e.w,
+            h: e.h,
             res,
             x0,
             y0,
-            on: vec![false; w * h],
+            on: vec![false; e.cells],
         })
     }
-
     /// The centre of the cell `(ix, iy)` in mm.
     pub fn centre(&self, ix: f64, iy: f64) -> (f64, f64) {
         (
@@ -297,8 +346,18 @@ pub fn check_finite(scene: &Scene) -> Result<(), String> {
 
 /// The copper of a scene on a grid with a margin around it.
 pub fn from_scene(scene: &Scene, margin_mm: f64, res: f64) -> Result<Bitmap, String> {
+    from_scene_with_limit(scene, margin_mm, res, MAX_CELLS)
+}
+
+/// Like [rom_scene] with the most cells the grid may have given.
+pub fn from_scene_with_limit(
+    scene: &Scene,
+    margin_mm: f64,
+    res: f64,
+    max_cells: usize,
+) -> Result<Bitmap, String> {
     check_finite(scene)?;
-    let mut b = Bitmap::new(&scene.bounds(), margin_mm, res)?;
+    let mut b = Bitmap::new_with_limit(&scene.bounds(), margin_mm, res, max_cells)?;
     b.draw(scene);
     Ok(b)
 }

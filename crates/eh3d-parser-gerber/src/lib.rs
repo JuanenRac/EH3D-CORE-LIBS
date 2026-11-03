@@ -347,27 +347,39 @@ pub fn parse(text: &str) -> GerberFile {
         diagnostics_cut: false,
         aperture: None,
     };
-    let chars: Vec<char> = text.chars().collect();
+    // Read by bytes: every character that decides anything (`%`, `*`, a line end) is ASCII, so
+    // the positions below are always on a character boundary and the text is not copied.
+    let bytes = text.as_bytes();
     let mut pos = 0;
     let mut line = 1usize;
-    while pos < chars.len() {
-        let c = chars[pos];
-        if c == '\n' {
+    while pos < bytes.len() {
+        let c = bytes[pos];
+        if c == b'\n' {
             line += 1;
             pos += 1;
-        } else if c.is_whitespace() || c == '\u{feff}' {
+        } else if c.is_ascii_whitespace() || c == 0x0B {
             pos += 1;
-        } else if c == '%' {
+        } else if c >= 0x80
+            && text
+                .get(pos..)
+                .and_then(|t| t.chars().next())
+                .is_some_and(|ch| ch.is_whitespace() || ch == '\u{feff}')
+        {
+            pos += text
+                .get(pos..)
+                .and_then(|t| t.chars().next())
+                .map_or(1, char::len_utf8);
+        } else if c == b'%' {
             let start_line = line;
             let mut end = pos + 1;
-            while end < chars.len() && chars[end] != '%' {
-                if chars[end] == '\n' {
+            while end < bytes.len() && bytes[end] != b'%' {
+                if bytes[end] == b'\n' {
                     line += 1;
                 }
                 end += 1;
             }
-            let body: String = chars[pos + 1..end.min(chars.len())].iter().collect();
-            if end >= chars.len() {
+            let body = text.get(pos + 1..end.min(bytes.len())).unwrap_or("");
+            if end >= bytes.len() {
                 st.diag(
                     start_line,
                     Severity::Error,
@@ -375,22 +387,24 @@ pub fn parse(text: &str) -> GerberFile {
                     "an extended command starts with % and is never closed",
                 );
             }
-            extended(&mut st, &body, start_line);
+            extended(&mut st, body, start_line);
             pos = end + 1;
         } else {
             let start_line = line;
             let mut end = pos;
-            while end < chars.len() && chars[end] != '*' && chars[end] != '%' {
-                if chars[end] == '\n' {
+            while end < bytes.len() && bytes[end] != b'*' && bytes[end] != b'%' {
+                if bytes[end] == b'\n' {
                     line += 1;
                 }
                 end += 1;
             }
-            let block: String = chars[pos..end]
-                .iter()
+            let block: String = text
+                .get(pos..end)
+                .unwrap_or("")
+                .chars()
                 .filter(|c| !c.is_whitespace())
                 .collect();
-            if end >= chars.len() || chars[end] == '%' {
+            if end >= bytes.len() || bytes[end] == b'%' {
                 st.diag(
                     start_line,
                     Severity::Warning,
@@ -401,7 +415,7 @@ pub fn parse(text: &str) -> GerberFile {
             if !block.is_empty() {
                 function_block(&mut st, &block, start_line);
             }
-            pos = if end < chars.len() && chars[end] == '*' {
+            pos = if end < bytes.len() && bytes[end] == b'*' {
                 end + 1
             } else {
                 end

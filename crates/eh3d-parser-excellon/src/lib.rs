@@ -25,6 +25,9 @@ pub use eh3d_parser_common::{
 use eh3d_parser_common::{coordinate_error_code, decode_input, parse_f64, resolve_units};
 pub use eh3d_parser_common::{read_file_limited, InputError, InputLimits, ReadError};
 
+/// A file with no units whose holes span less than this many units may be in inches (no board is 5 mm wide).
+const SUSPECT_SPAN: f64 = 5.0;
+
 /// A point in the units of the file.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
@@ -221,6 +224,25 @@ pub fn parse(text: &str) -> ExcellonFile {
     }
     st.finish_route();
     resolve_units(st.file.units, 1, &mut st.file.diagnostics);
+    if st.file.units.is_none() && st.file.drills.len() >= 2 {
+        // a drill file in inches without its header (old Eagle or Protel files) read as millimetres is 25.4 times too small
+        let (mut lo, mut hi) = (
+            (f64::INFINITY, f64::INFINITY),
+            (f64::NEG_INFINITY, f64::NEG_INFINITY),
+        );
+        for h in &st.file.drills {
+            lo = (lo.0.min(h.at.x), lo.1.min(h.at.y));
+            hi = (hi.0.max(h.at.x), hi.1.max(h.at.y));
+        }
+        if (hi.0 - lo.0).max(hi.1 - lo.1) < SUSPECT_SPAN {
+            st.diag(
+                1,
+                Severity::Warning,
+                codes::UNITS_SUSPECT,
+                "the file declares no units and its holes span less than 5 units: it may be in inches",
+            );
+        }
+    }
     if !started {
         st.diag(
             1,
