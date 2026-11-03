@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "eh3d-cam"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-geometry",
  "eh3d-raster",
@@ -12,7 +12,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-geometry"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-excellon",
  "eh3d-parser-gerber",
@@ -20,43 +20,43 @@ dependencies = [
 
 [[package]]
 name = "eh3d-parser-common"
-version = "0.0.5"
+version = "0.0.6"
 
 [[package]]
 name = "eh3d-parser-excellon"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gcode"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gerber"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-raster"
-version = "0.0.5"
+version = "0.0.6"
 
 [[package]]
 name = "eh3d-writer-excellon"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-excellon",
 ]
 
 [[package]]
 name = "eh3d-writer-gerber"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-gerber",
 ]
