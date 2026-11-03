@@ -122,7 +122,7 @@ pub const MAX_DIAGNOSTICS: usize = 100_000;
 pub struct ParseLimits {
     /// The most blocks kept; the rest of the program is not read (program-too-long).
     pub max_blocks: usize,
-    /// The most diagnostics kept; the rest are dropped (	oo-many-diagnostics).
+    /// The most diagnostics kept; the rest are dropped (`too-many-diagnostics`).
     pub max_diagnostics: usize,
 }
 
