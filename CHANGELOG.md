@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **Brand:** Add the application icon and the logos of the program.
 
 ## [0.0.6] - Readers accept the largest size limit without overflowing
 
