@@ -1,9 +1,7 @@
 blocks: 13  segments: 3  ended: true
 box: x 0.0000..5.0000  y 0.0000..5.0000  z 0.0000..10.0000
 cutting: 0.000 mm  rapid: 22.071 mm
-diagnostics: 6
-  line 1 Warning character-ignored
-  line 16 Warning character-ignored
+diagnostics: 4
   line 9 Error canned-cycle-unsupported
   line 10 Error canned-cycle-unsupported
   line 11 Warning unknown-g-code

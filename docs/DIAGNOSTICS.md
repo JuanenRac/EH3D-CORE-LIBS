@@ -77,7 +77,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `checksum-invalid` | G-code | Warning | The Marlin checksum is not a number. |
 | `comment-unclosed` | G-code | Warning | A comment in parentheses is not closed. |
 | `word-number-invalid` | G-code | Error | A word has no valid number. |
-| `character-ignored` | G-code | Warning | A character that is not part of the language was ignored. |
+| `character-ignored` | G-code | Warning | A character that is not part of the language was ignored (a line with only `%`, the start and end of a program, is not reported). |
 | `plane-unsupported` | G-code | Error | Only the XY plane is supported for arcs: after `G18` or `G19` an arc is drawn as a line. |
 | `cutter-compensation-unsupported` | G-code | Error | `G41` / `G42` are not supported. |
 | `canned-cycle-unsupported` | G-code | Error | Canned cycles are not supported. |
