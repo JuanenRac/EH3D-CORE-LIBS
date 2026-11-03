@@ -205,36 +205,50 @@ impl Grid<'_> {
     }
 }
 
+/// The most edges of a path that `orient_climb` looks at.
+const CLIMB_EDGES: usize = 64;
+
 /// Turns a path round when needed so that the copper is on the right of the tool (the tool goes clockwise round an island of copper). The side is found by looking at the
-/// distance to the copper a little to each side of the longest edge: it is smaller on the side of the copper.
+/// distance to the copper a little to each side of the edges of the path: it is smaller on the side of the copper. The edges vote, each with its length, so a path between two
+/// pieces of copper (where the longest edge alone has the same distance on both sides) goes the way of the nearer one; a path with no side nearer than the other is not turned.
 pub fn orient_climb(g: &Grid, path: &mut Loop) {
     let n = path.len();
     if n < 3 {
         return;
     }
-    let mut best = (0usize, 0.0f64);
-    for i in 0..n {
-        let (a, b) = (path[i], path[(i + 1) % n]);
-        let l = (b.0 - a.0).hypot(b.1 - a.1);
-        if l > best.1 {
-            best = (i, l);
-        }
-    }
-    if best.1 < 1e-9 {
+    // every edge when there are few, and the longest ones when there are many
+    let mut edges: Vec<(usize, f64)> = (0..n)
+        .map(|i| {
+            let (a, b) = (path[i], path[(i + 1) % n]);
+            (i, (b.0 - a.0).hypot(b.1 - a.1))
+        })
+        .filter(|(_, l)| *l >= 1e-9)
+        .collect();
+    if edges.is_empty() {
         return;
     }
-    let (a, b) = (path[best.0], path[(best.0 + 1) % n]);
-    let (m, len) = (((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0), best.1);
-    let (nx, ny) = ((b.1 - a.1) / len, -(b.0 - a.0) / len);
+    if edges.len() > CLIMB_EDGES {
+        edges.sort_by(|p, q| q.1.partial_cmp(&p.1).unwrap_or(std::cmp::Ordering::Equal));
+        edges.truncate(CLIMB_EDGES);
+    }
     let step = 1.5 * g.res;
-    let right = g.sample(m.0 + nx * step, m.1 + ny * step);
-    let left = g.sample(m.0 - nx * step, m.1 - ny * step);
-    let copper_on_right = match (right, left) {
-        (Some(r), Some(l)) => r < l,
-        (Some(_), None) => true,
-        _ => false,
-    };
-    if !copper_on_right {
+    // positive: the copper is on the right
+    let mut score = 0.0;
+    for (i, len) in edges {
+        let (a, b) = (path[i], path[(i + 1) % n]);
+        let m = ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
+        let (nx, ny) = ((b.1 - a.1) / len, -(b.0 - a.0) / len);
+        let right = g.sample(m.0 + nx * step, m.1 + ny * step);
+        let left = g.sample(m.0 - nx * step, m.1 - ny * step);
+        score += len
+            * match (right, left) {
+                (Some(r), Some(l)) => l - r,
+                (Some(_), None) => step,
+                (None, Some(_)) => -step,
+                (None, None) => 0.0,
+            };
+    }
+    if score < -1e-9 {
         path.reverse();
     }
 }

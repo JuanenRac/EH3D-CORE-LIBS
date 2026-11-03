@@ -8,6 +8,13 @@ All notable changes to this project are documented here.
 - Test both writers by writing and reading back with the readers, byte-identical second rounds and generated drawings and drill files.
 - **`decode_coordinate("-0")` is plain zero:** a negative zero coordinate no longer comes back as `-0.0`.
 - **More tests:** the fiducial fits, the order of the cuts, the lighter paths and the layout of a board (turning, mirroring, panels and alignment holes) in the CAM; the zero suppression, the limits of numbers and the encoding of a file in the shared rules; signs, arcs, polarity and line ends in the Gerber reader; decimals and units in the Excellon reader; comments and line cuts in the G-code reader; the distance transform against a slow exact answer; and the boxes and swept rectangles of the shapes. A star in the comment of a Marlin line is no longer taken for a checksum.
+- **Macro apertures are drawn:** the shapes of an aperture macro (circles, vector and center lines, outlines and regular polygons, with variables, arithmetic and rotation) are drawn where the aperture is flashed, so the rounded pads that KiCad writes with a macro are no longer missing; a primitive that clears or has no drawing is still said in the notes.
+- **Arcs follow a tolerance:** an arc is cut in as many segments as keep it within 0.005 mm of the true arc (it was always 32), so a large circle is no longer up to 0.1 mm inside; `SceneOptions` and `arc_points_with` set another tolerance.
+- **`LR`, `LM` and `LS` are errors when they change the drawing:** a turn, a mirror or a scale of the apertures that was only a warning now gives `geometry-command-unsupported` (the values that change nothing stay a warning), and so does `AB`.
+- **The Gerber reader is linear on a file full of draws with no start point:** the last point is kept instead of being searched for in all the commands, and a file keeps at most 100000 diagnostics (`too-many-diagnostics` says the rest were dropped).
+- **A file above the limit is refused before it is read:** `read_file_limited` checks the size on disk and reads at most one byte more than the limit.
+- **Faster CAM checks:** the pieces that come close are found in one pass over the grid, and a long diagonal track is drawn row by row; a board size out of range is refused instead of wrapping.
+- **The direction of a path between two pieces of copper** is decided by all its edges and not by the longest one, and a path with no nearer side is left as it is.
 - **The workflows are hardened:** every action is pinned by its commit with its version in a comment, and the checkouts keep no credentials.
 
 ## [0.0.4] - Raster, geometry and CAM crates

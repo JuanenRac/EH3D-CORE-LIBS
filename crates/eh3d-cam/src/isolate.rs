@@ -520,24 +520,45 @@ pub fn close_pieces(scene: &Scene, min_gap_mm: f64, res_mm: f64) -> Result<Vec<C
     let reach = min_gap_mm / 2.0 + res_mm / 2.0;
     let grown: Vec<bool> = dist.iter().map(|d| f64::from(*d) <= reach).collect();
     let (merged, merged_count) = label(&grown, bm.w, bm.h);
+    // one pass over the grid, gathering what each merged piece holds (going through the whole grid
+    // once per merged piece made the time grow with pieces x cells)
+    struct Group {
+        originals: Vec<u32>,
+        sx: f64,
+        sy: f64,
+        cells: usize,
+    }
+    let mut groups: Vec<Group> = (0..merged_count)
+        .map(|_| Group {
+            originals: Vec::new(),
+            sx: 0.0,
+            sy: 0.0,
+            cells: 0,
+        })
+        .collect();
+    for (i, &m) in merged.iter().enumerate() {
+        if m == 0 {
+            continue;
+        }
+        let g = &mut groups[m as usize - 1];
+        g.sx += (i % bm.w) as f64;
+        g.sy += (i / bm.w) as f64;
+        g.cells += 1;
+        let piece = pieces[i];
+        if piece != 0 && g.originals.last() != Some(&piece) {
+            g.originals.push(piece);
+        }
+    }
     let mut out = Vec::new();
-    for m in 1..=merged_count {
-        let mut originals: Vec<u32> = (0..bm.w * bm.h)
-            .filter(|&i| merged[i] == m && pieces[i] != 0)
-            .map(|i| pieces[i])
-            .collect();
-        originals.sort_unstable();
-        originals.dedup();
-        if originals.len() >= 2 {
-            let cells: Vec<usize> = (0..bm.w * bm.h).filter(|&i| merged[i] == m).collect();
-            let (sx, sy) = cells.iter().fold((0.0, 0.0), |a, &i| {
-                (a.0 + (i % bm.w) as f64, a.1 + (i / bm.w) as f64)
-            });
-            let (x, y) = bm.centre(sx / cells.len() as f64, sy / cells.len() as f64);
+    for mut g in groups {
+        g.originals.sort_unstable();
+        g.originals.dedup();
+        if g.originals.len() >= 2 {
+            let (x, y) = bm.centre(g.sx / g.cells as f64, g.sy / g.cells as f64);
             out.push(Closeness {
                 x,
                 y,
-                pieces: originals.len(),
+                pieces: g.originals.len(),
             });
         }
     }

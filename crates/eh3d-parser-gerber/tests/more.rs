@@ -164,3 +164,85 @@ fn the_same_text_read_twice_is_the_same_file() {
     let text = format!("{HEAD}X10000Y10000D02*\nX20000Y10000D01*\nG36*\nX0Y0D02*\nX1000Y0D01*\nX1000Y1000D01*\nG37*\nM02*\n");
     assert_eq!(parse(&text), parse(&text));
 }
+
+#[test]
+fn a_draw_with_no_start_point_does_not_make_the_reading_quadratic() {
+    // 150000 flashless draws after 150000 aperture selections: looking back through the commands
+    // for the last point on every draw took minutes
+    let mut text = String::from("%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0.1*%\n");
+    for _ in 0..150_000 {
+        text.push_str("D10*\n");
+    }
+    for _ in 0..150_000 {
+        text.push_str("X1Y1D01*\n");
+    }
+    let started = std::time::Instant::now();
+    let file = parse(&text);
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "took {:?}",
+        started.elapsed()
+    );
+    assert!(file
+        .diagnostics
+        .iter()
+        .any(|d| d.code == eh3d_parser_gerber::codes::START_POINT_MISSING));
+}
+
+#[test]
+fn the_start_point_is_the_end_of_the_last_move_flash_line_or_arc() {
+    let o = ops(&format!(
+        "{HEAD}X10000Y10000D03*\nX20000Y10000D01*\nX30000Y10000D02*\nX40000Y10000D01*\nM02*\n"
+    ));
+    assert_eq!(
+        o[2],
+        Operation::Line {
+            from: p(1.0, 1.0),
+            to: p(2.0, 1.0)
+        }
+    );
+    assert_eq!(
+        o[4],
+        Operation::Line {
+            from: p(3.0, 1.0),
+            to: p(4.0, 1.0)
+        }
+    );
+}
+
+#[test]
+fn the_diagnostics_kept_are_limited_and_the_cut_is_said_once() {
+    let mut text = String::from("%FSLAX24Y24*%\n%MOMM*%\n");
+    for _ in 0..(eh3d_parser_gerber::MAX_DIAGNOSTICS + 500) {
+        text.push_str("X1Y1D01*\n");
+    }
+    let file = parse(&text);
+    assert!(file.diagnostics.len() <= eh3d_parser_gerber::MAX_DIAGNOSTICS + 3);
+    let cuts = file
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == eh3d_parser_gerber::codes::TOO_MANY_DIAGNOSTICS)
+        .count();
+    assert_eq!(cuts, 1);
+}
+
+#[test]
+fn a_layer_transform_that_changes_the_drawing_is_an_error_and_one_that_changes_nothing_is_not() {
+    use eh3d_parser_gerber::{codes, Severity};
+    for cmd in ["LR90", "LR-45.5", "LMX", "LMXY", "LS0.5", "LS2", "AB10"] {
+        let file = parse(&format!("{HEAD}%{cmd}*%\nM02*\n"));
+        assert!(
+            file.diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Error
+                    && d.code == codes::GEOMETRY_COMMAND_UNSUPPORTED),
+            "{cmd}: {:?}",
+            file.diagnostics
+        );
+        assert!(!file.is_clean(), "{cmd}");
+    }
+    for cmd in ["LR0", "LR0.0", "LMN", "LS1", "LS1.0"] {
+        let file = parse(&format!("{HEAD}%{cmd}*%\nM02*\n"));
+        assert!(file.is_clean(), "{cmd}: {:?}", file.diagnostics);
+    }
+}

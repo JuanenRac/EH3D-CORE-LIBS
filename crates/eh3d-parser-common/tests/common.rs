@@ -199,3 +199,25 @@ fn the_codes_of_the_diagnostics_are_the_ones_the_tools_filter_on() {
     }
     assert!(Severity::Error > Severity::Warning && Severity::Warning > Severity::Info);
 }
+
+#[test]
+fn a_file_above_the_limit_is_refused_by_its_size_before_it_is_read() {
+    use eh3d_parser_common::{read_file_limited, ReadError};
+    let dir = std::env::temp_dir().join(format!("eh3d_limit_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("layer.gbr");
+    std::fs::write(&path, b"0123456789").unwrap();
+    let ok = read_file_limited(&path, &InputLimits { max_bytes: 10 }).unwrap();
+    assert_eq!(ok.len(), 10);
+    match read_file_limited(&path, &InputLimits { max_bytes: 9 }) {
+        Err(ReadError::TooLarge(InputError::TooLarge { size, limit })) => {
+            assert_eq!((size, limit), (10, 9))
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(matches!(
+        read_file_limited(&dir.join("missing.gbr"), &InputLimits::default()),
+        Err(ReadError::Io(_))
+    ));
+    std::fs::remove_dir_all(&dir).ok();
+}

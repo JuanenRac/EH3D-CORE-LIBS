@@ -8,7 +8,8 @@
 //! coordinates already converted to numbers in the units of the file.
 //!
 //! What is **not** done: aperture macro bodies are kept as text and not interpreted, block
-//! apertures (`AB`) and the layer transforms `LM`/`LR`/`LS` are reported as unsupported, and no
+//! apertures (`AB`) and the layer transforms `LM`/`LR`/`LS` are reported as unsupported (an
+//! error when they would change what is drawn), and no
 //! geometry is calculated (no arc flattening, no polygon union): that belongs to the CAM engine.
 
 #![forbid(unsafe_code)]
@@ -21,7 +22,7 @@ pub use eh3d_parser_common::{codes, Diagnostic, Severity, Units};
 use eh3d_parser_common::{
     coordinate_error_code, decode_input, parse_f64, resolve_units, ZeroSuppression,
 };
-pub use eh3d_parser_common::{InputError, InputLimits};
+pub use eh3d_parser_common::{read_file_limited, InputError, InputLimits, ReadError};
 
 /// Which zeros a coordinate omits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -256,7 +257,15 @@ struct State {
     aperture: Option<u32>,
     /// The last D01, D02 or D03: coordinates without a D code of their own (old files) repeat it.
     last_d: Option<u32>,
+    /// The end point of the last move, flash, line or arc.
+    last_point: Option<Point>,
+    /// Whether the diagnostics were cut at [`MAX_DIAGNOSTICS`].
+    diagnostics_cut: bool,
 }
+
+/// The most diagnostics kept for one file: a damaged file of millions of bad blocks does not
+/// fill the memory with messages.
+pub const MAX_DIAGNOSTICS: usize = 100_000;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
@@ -273,12 +282,30 @@ impl State {
         code: &'static str,
         message: impl Into<String>,
     ) {
+        if self.file.diagnostics.len() >= MAX_DIAGNOSTICS {
+            if !self.diagnostics_cut {
+                self.diagnostics_cut = true;
+                self.file.diagnostics.push(Diagnostic::new(
+                    line,
+                    Severity::Error,
+                    codes::TOO_MANY_DIAGNOSTICS,
+                    format!("more than {MAX_DIAGNOSTICS} diagnostics: the rest are not kept"),
+                ));
+            }
+            return;
+        }
         self.file
             .diagnostics
             .push(Diagnostic::new(line, severity, code, message));
     }
 
     fn push(&mut self, line: usize, op: Operation) {
+        match &op {
+            Operation::Move { to } => self.last_point = Some(*to),
+            Operation::Flash { at } => self.last_point = Some(*at),
+            Operation::Line { to, .. } | Operation::Arc { to, .. } => self.last_point = Some(*to),
+            _ => {}
+        }
         self.file.commands.push(Command { line, op });
     }
 }
@@ -316,6 +343,8 @@ pub fn parse(text: &str) -> GerberFile {
         quadrant: QuadrantMode::Multi,
         in_region: false,
         last_d: None,
+        last_point: None,
+        diagnostics_cut: false,
         aperture: None,
     };
     let chars: Vec<char> = text.chars().collect();
@@ -477,15 +506,37 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
             values: parts.map(str::to_owned).collect(),
         });
     } else if ["LM", "LR", "LS", "AB"].iter().any(|k| cmd.starts_with(k)) {
-        st.diag(
-            line,
-            Severity::Warning,
-            codes::COMMAND_UNSUPPORTED,
-            format!(
-                "{} is not supported and was ignored",
-                cmd.get(..2).unwrap_or(cmd)
-            ),
-        );
+        // a mirror, a turn or a scale that changes nothing (and the reset to it) is harmless;
+        // anything else changes what is drawn and ignoring it draws a wrong layer
+        let value = cmd.get(2..).unwrap_or("");
+        let number = |neutral: f64| value.parse::<f64>().is_ok_and(|v| v == neutral);
+        let harmless = match cmd.get(..2) {
+            Some("LM") => value == "N",
+            Some("LR") => number(0.0),
+            Some("LS") => number(1.0),
+            _ => false,
+        };
+        if harmless {
+            st.diag(
+                line,
+                Severity::Warning,
+                codes::COMMAND_UNSUPPORTED,
+                format!(
+                    "{} is not supported and was ignored",
+                    cmd.get(..2).unwrap_or(cmd)
+                ),
+            );
+        } else {
+            st.diag(
+                line,
+                Severity::Error,
+                codes::GEOMETRY_COMMAND_UNSUPPORTED,
+                format!(
+                    "{} changes the geometry and is not supported",
+                    cmd.chars().take(12).collect::<String>()
+                ),
+            );
+        }
     } else if ["IP", "OF", "SF", "AS", "IN", "LN", "MI", "IR", "KO", "PF"]
         .iter()
         .any(|k| cmd.starts_with(k))
@@ -1012,13 +1063,8 @@ fn function_block(st: &mut State, block: &str, line: usize) {
 
 /// The point a draw starts from: the point before this block's coordinates were applied.
 fn current_point(st: &mut State, line: usize, _words: &[(char, String)]) -> Option<Point> {
-    // The previous operation that carried a coordinate left its end point in `last_end`.
-    let last = st.file.commands.iter().rev().find_map(|c| match &c.op {
-        Operation::Move { to } => Some(*to),
-        Operation::Flash { at } => Some(*at),
-        Operation::Line { to, .. } | Operation::Arc { to, .. } => Some(*to),
-        _ => None,
-    });
+    // The previous operation that carried a coordinate left its end point in `last_point`.
+    let last = st.last_point;
     if last.is_none() {
         st.diag(
             line,

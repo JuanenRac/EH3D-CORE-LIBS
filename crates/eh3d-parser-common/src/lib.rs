@@ -79,6 +79,7 @@ pub mod codes {
         COMMAND_IGNORED = "command-ignored",
         TEXT_AFTER_END = "text-after-end",
         INPUT_NOT_UTF8 = "input-not-utf8",
+        TOO_MANY_DIAGNOSTICS = "too-many-diagnostics",
         COMMAND_UNSUPPORTED = "command-unsupported",
         UNKNOWN_COMMAND = "unknown-command",
         GEOMETRY_COMMAND_UNSUPPORTED = "geometry-command-unsupported",
@@ -335,6 +336,55 @@ impl std::fmt::Display for InputError {
 }
 
 impl std::error::Error for InputError {}
+
+/// Why a file was not read by [`read_file_limited`].
+#[derive(Debug)]
+pub enum ReadError {
+    /// The file is larger than the limit; it was not read.
+    TooLarge(InputError),
+    /// The file could not be opened or read.
+    Io(std::io::Error),
+}
+
+impl std::fmt::Display for ReadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadError::TooLarge(e) => e.fmt(f),
+            ReadError::Io(e) => e.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for ReadError {}
+
+/// Reads a file, refusing it when it is larger than `limits.max_bytes` **before** it is read
+/// into memory (by its size on disk, and by reading at most one byte more than the limit in
+/// case the file grows or its size is not reported).
+pub fn read_file_limited(
+    path: &std::path::Path,
+    limits: &InputLimits,
+) -> Result<Vec<u8>, ReadError> {
+    use std::io::Read;
+    let file = std::fs::File::open(path).map_err(ReadError::Io)?;
+    let size = file.metadata().map_err(ReadError::Io)?.len();
+    if size > limits.max_bytes as u64 {
+        return Err(ReadError::TooLarge(InputError::TooLarge {
+            size: usize::try_from(size).unwrap_or(usize::MAX),
+            limit: limits.max_bytes,
+        }));
+    }
+    let mut bytes = Vec::with_capacity(size as usize);
+    file.take(limits.max_bytes as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(ReadError::Io)?;
+    if bytes.len() > limits.max_bytes {
+        return Err(ReadError::TooLarge(InputError::TooLarge {
+            size: bytes.len(),
+            limit: limits.max_bytes,
+        }));
+    }
+    Ok(bytes)
+}
 
 /// Bytes turned into text.
 #[derive(Debug, Clone, PartialEq, Eq)]

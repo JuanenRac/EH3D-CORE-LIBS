@@ -120,3 +120,30 @@ fn the_tool_goes_clockwise_round_the_copper() {
     orient_climb(&g, &mut turned);
     assert_eq!(turned, path);
 }
+
+#[test]
+fn a_path_between_two_pieces_of_copper_goes_the_way_of_the_nearer_one() {
+    // the copper is a point at (10, 5): the longest edge, along y = 5, is as far on one side as on the other
+    let (res, w, h) = (0.05, 240usize, 240usize);
+    let dist: Vec<f32> = (0..w * h)
+        .map(|i| {
+            let (x, y) = (((i % w) as f64 + 0.5) * res, ((i / w) as f64 + 0.5) * res);
+            (x - 10.0).hypot(y - 5.0) as f32
+        })
+        .collect();
+    let g = Grid {
+        dist: &dist,
+        w,
+        h,
+        res,
+        x0: 0.0,
+        y0: 0.0,
+    };
+    let path = vec![(2.0, 3.0), (2.0, 5.0), (8.0, 5.0), (8.0, 3.0)];
+    let mut again = path.clone();
+    orient_climb(&g, &mut again);
+    assert_eq!(again, path, "the nearer sides are on its right: it stays");
+    let mut turned: Vec<(f64, f64)> = path.iter().rev().cloned().collect();
+    orient_climb(&g, &mut turned);
+    assert_eq!(turned, path);
+}

@@ -18,7 +18,9 @@
 #![warn(missing_docs)]
 #![warn(clippy::string_slice)]
 
-pub use eh3d_parser_common::{codes, Diagnostic, InputError, InputLimits, Severity};
+pub use eh3d_parser_common::{
+    codes, read_file_limited, Diagnostic, InputError, InputLimits, ReadError, Severity,
+};
 use eh3d_parser_common::{decode_input, parse_number, NumberError};
 
 /// The flavour of G-code of a program.

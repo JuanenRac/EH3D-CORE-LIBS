@@ -26,11 +26,13 @@ impl Bitmap {
         }
         let m = margin_mm.max(0.0);
         let (x0, y0) = (bounds.min_x - m, bounds.min_y - m);
-        let w = ((bounds.width() + 2.0 * m) / res).ceil() as usize + 1;
-        let h = ((bounds.height() + 2.0 * m) / res).ceil() as usize + 1;
-        if w.saturating_mul(h) > MAX_CELLS {
-            return Err(format!("{w} x {h} cells is more than the {MAX_CELLS} allowed: use a larger cell or a smaller board"));
+        // counted as numbers first: a size out of range must not wrap on its way to a count
+        let wf = ((bounds.width() + 2.0 * m) / res).ceil() + 1.0;
+        let hf = ((bounds.height() + 2.0 * m) / res).ceil() + 1.0;
+        if !(wf.is_finite() && hf.is_finite()) || wf * hf > MAX_CELLS as f64 {
+            return Err(format!("{wf} x {hf} cells is more than the {MAX_CELLS} allowed: use a larger cell or a smaller board"));
         }
+        let (w, h) = (wf as usize, hf as usize);
         Ok(Bitmap {
             w,
             h,
@@ -121,6 +123,35 @@ impl Bitmap {
         }
     }
 
+    /// Like `fill`, for a convex shape: every row only looks at the cells between the ends of the
+    /// shape on that row (`span` gives them for the height of the row), so a long thin diagonal
+    /// track costs its length and width, not the area of its box.
+    fn fill_spans(
+        &mut self,
+        y_min: f64,
+        y_max: f64,
+        span: impl Fn(f64) -> Option<(f64, f64)>,
+        inside: impl Fn(f64, f64) -> bool,
+    ) {
+        let cell = |v: f64, o: f64| ((v - o) / self.res - 0.5).floor().max(0.0) as usize;
+        let (iy0, iy1) = (
+            cell(y_min, self.y0),
+            (cell(y_max, self.y0) + 1).min(self.h.saturating_sub(1)),
+        );
+        for iy in iy0..=iy1 {
+            let (_, y) = self.centre(0.0, iy as f64);
+            let Some((lo, hi)) = span(y) else { continue };
+            let ix0 = cell(lo, self.x0).saturating_sub(1);
+            let ix1 = (cell(hi, self.x0) + 2).min(self.w.saturating_sub(1));
+            for ix in ix0..=ix1 {
+                let (x, y) = self.centre(ix as f64, iy as f64);
+                if inside(x, y) {
+                    self.on[iy * self.w + ix] = true;
+                }
+            }
+        }
+    }
+
     /// Draws the shapes of a scene.
     pub fn draw(&mut self, scene: &Scene) {
         for s in &scene.shapes {
@@ -143,21 +174,19 @@ impl Bitmap {
                     } else {
                         (*x, y - half, *x, y + half)
                     };
-                    self.fill(
-                        x - w / 2.0,
-                        x + w / 2.0,
+                    self.fill_spans(
                         y - h / 2.0,
                         y + h / 2.0,
+                        |row| capsule_span(row, (ax, ay), (bx, by), r),
                         |px, py| capsule_distance(px, py, ax, ay, bx, by) <= r,
                     )
                 }
                 Shape::Stroke { x0, y0, x1, y1, w } => {
                     let r = w / 2.0;
-                    self.fill(
-                        x0.min(*x1) - r,
-                        x0.max(*x1) + r,
+                    self.fill_spans(
                         y0.min(*y1) - r,
                         y0.max(*y1) + r,
+                        |row| capsule_span(row, (*x0, *y0), (*x1, *y1), r),
                         |px, py| capsule_distance(px, py, *x0, *y0, *x1, *y1) <= r,
                     )
                 }
@@ -179,6 +208,46 @@ impl Bitmap {
             }
         }
     }
+}
+
+/// The ends, on the row at height `y`, of the capsule that is every point within `r` of the segment from `a` to `b`; `None` when the row does not meet it.
+pub fn capsule_span(y: f64, a: (f64, f64), b: (f64, f64), r: f64) -> Option<(f64, f64)> {
+    let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
+    // the two round ends
+    for c in [a, b] {
+        let dy = y - c.1;
+        if dy.abs() <= r {
+            let s = (r * r - dy * dy).max(0.0).sqrt();
+            lo = lo.min(c.0 - s);
+            hi = hi.max(c.0 + s);
+        }
+    }
+    // the strip between them
+    let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+    let len = dx.hypot(dy);
+    if len > 0.0 {
+        let (nx, ny) = (-dy / len * r, dx / len * r);
+        let c = [
+            (a.0 + nx, a.1 + ny),
+            (b.0 + nx, b.1 + ny),
+            (b.0 - nx, b.1 - ny),
+            (a.0 - nx, a.1 - ny),
+        ];
+        for i in 0..4 {
+            let (p, q) = (c[i], c[(i + 1) % 4]);
+            if (p.1 <= y && y <= q.1) || (q.1 <= y && y <= p.1) {
+                if p.1 == q.1 {
+                    lo = lo.min(p.0).min(q.0);
+                    hi = hi.max(p.0).max(q.0);
+                } else {
+                    let x = p.0 + (y - p.1) * (q.0 - p.0) / (q.1 - p.1);
+                    lo = lo.min(x);
+                    hi = hi.max(x);
+                }
+            }
+        }
+    }
+    (lo <= hi).then_some((lo, hi))
 }
 
 pub fn capsule_distance(px: f64, py: f64, ax: f64, ay: f64, bx: f64, by: f64) -> f64 {

@@ -20,8 +20,9 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `incremental-unsupported` | all | Error | Incremental coordinates (`G91`, `ICI`, `FS ... I`) are not supported. |
 | `deprecated-command` | Gerber | Info or Warning | A deprecated command that was ignored or read as its replacement. |
 | `command-ignored` | Gerber, Excellon | Info | A known command with no effect on the result was ignored. |
-| `command-unsupported` | Gerber | Warning | A known command (`LM`, `LR`, `LS`, `AB`) that is not supported and was ignored. |
-| `geometry-command-unsupported` | Gerber | Error | A deprecated command that changes the geometry (negative image, offset, scale, mirror, turn) and is not supported. |
+| `too-many-diagnostics` | Gerber | Error | The file has more diagnostics than the reader keeps (100000); the rest are dropped. |
+| `command-unsupported` | Gerber | Warning | A known command with no effect on the geometry (`LM`, `LR` or `LS` with the value that changes nothing) that was ignored. |
+| `geometry-command-unsupported` | Gerber | Error | A command that changes the geometry and is not supported: a deprecated one (negative image, offset, scale, mirror, turn), a layer transform of the apertures (`LM`, `LR`, `LS` with a value that changes something) or an aperture block (`AB`). |
 | `unknown-command` | Gerber | Warning | An extended command the reader does not know. |
 | `input-not-utf8` | all (`parse_bytes`) | Warning | The bytes are not UTF-8 and were read as Latin-1. |
 | `extended-unclosed` | Gerber | Error | An extended command starting with `%` is never closed. |

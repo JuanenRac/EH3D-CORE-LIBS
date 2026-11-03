@@ -8,13 +8,14 @@ All three readers (`eh3d-parser-gerber`, `eh3d-parser-excellon`, `eh3d-parser-gc
 * **No guess.** A value that does not fit its declared format is refused (`diagnostic`), not rounded or truncated into something that looks right.
 * **Diagnostics.** Each problem is a `Diagnostic { line, severity, code, message }`: `Info` (worth knowing), `Warning` (probably still right) or `Error` (something was lost). `is_clean()` is true when there is no `Error`. The `code` is a stable identifier of the kind of notice (see [DIAGNOSTICS.md](DIAGNOSTICS.md)): filter on it, not on the text.
 * **Shared code.** `Severity`, `Diagnostic`, `Units`, the decoding of coordinates and the limits on numbers live in the internal crate `eh3d-parser-common`; the readers re-export them, so a program only depends on the reader it uses.
+* **Files.** ead_file_limited refuses a file above the limit by its size on disk, before it is read into memory.
 * **Bytes.** `parse_bytes` reads a file from its bytes with a size limit (256 MiB by default) and reads text that is not UTF-8 as Latin-1, with an `input-not-utf8` warning.
 * **Units.** A Gerber or Excellon file that does not declare its units is read in millimetres, with a `units-missing` warning.
 * **Bounded.** The G-code reader cuts a line at 512 characters and says so. A number above 1e15 is refused with `number-too-large`.
 
 ## Gerber (RS-274X)
 
-Units, the coordinate format (integer and decimal digits, leading or trailing zero suppression), apertures (circle, rectangle, obround, polygon) and macros, regions, and the drawing commands. A coordinate with more digits than its format allows is an error.
+Units, the coordinate format (integer and decimal digits, leading or trailing zero suppression), apertures (circle, rectangle, obround, polygon) and macros, regions, and the drawing commands. A coordinate with more digits than its format allows is an error. A turn, a mirror or a scale of the apertures (LR, LM, LS) and aperture blocks (AB) are not applied, and are an error when they would change the drawing. The reader keeps at most 100000 diagnostics per file.
 
 ## Excellon
 

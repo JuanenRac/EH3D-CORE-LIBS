@@ -1,5 +1,6 @@
 use eh3d_geometry::scene::{
-    arc_points, from_excellon, from_gerber, swept_rectangle, Bounds, Scene, Shape,
+    arc_points, from_excellon, from_gerber, from_gerber_with, swept_rectangle, Bounds, Scene,
+    SceneOptions, Shape,
 };
 use eh3d_parser_gerber::QuadrantMode;
 
@@ -237,4 +238,98 @@ fn drill_files_in_inches_give_discs_in_millimetres_and_an_empty_file_gives_an_em
     assert!(from_gerber(&eh3d_parser_gerber::parse(""))
         .shapes
         .is_empty());
+}
+
+// ---- macro apertures and the tolerance of arcs ----
+
+const ROUND_RECT: &str = "%FSLAX24Y24*%\n%MOMM*%\n%AMRoundRect*\n0 Rectangle with rounded corners*\n0 $1 Rounding radius*\n4,1,4,$2,$3,$4,$5,$6,$7,$8,$9,$2,$3,0*\n1,1,$1+$1,$2,$3*\n1,1,$1+$1,$4,$5*\n1,1,$1+$1,$6,$7*\n1,1,$1+$1,$8,$9*\n20,1,$1+$1,$2,$3,$4,$5,0*\n20,1,$1+$1,$4,$5,$6,$7,0*\n20,1,$1+$1,$6,$7,$8,$9,0*\n20,1,$1+$1,$8,$9,$2,$3,0*%\n%ADD12RoundRect,0.25X0.5X0.25X-0.5X0.25X-0.5X-0.25X0.5X-0.25*%\nD12*\nX100000Y50000D03*\nM02*\n";
+
+#[test]
+fn a_rounded_rectangle_macro_is_drawn_where_it_is_flashed() {
+    let s = from_gerber(&eh3d_parser_gerber::parse(ROUND_RECT));
+    assert!(!s.shapes.is_empty());
+    assert!(
+        s.notes.iter().all(|n| !n.contains("macro")),
+        "{:?}",
+        s.notes
+    );
+    let b = s.bounds();
+    // the pad is 1.5 x 1.0 mm around (10, 5)
+    assert!(
+        (b.min_x - 9.25).abs() < 1e-9 && (b.max_x - 10.75).abs() < 1e-9,
+        "{b:?}"
+    );
+    assert!(
+        (b.min_y - 4.5).abs() < 1e-9 && (b.max_y - 5.5).abs() < 1e-9,
+        "{b:?}"
+    );
+}
+
+#[test]
+fn a_macro_with_a_variable_a_rotation_and_a_polygon_is_drawn() {
+    let text = "%FSLAX24Y24*%\n%MOMM*%\n%AMTWICE*\n$2=$1x2*\n1,1,$2,0,0*\n21,1,2,1,0,0,90*\n5,1,6,5,0,1,0*%\n%ADD10TWICE,0.5*%\nD10*\nX0Y0D03*\nM02*\n";
+    let s = from_gerber(&eh3d_parser_gerber::parse(text));
+    assert!(s.notes.is_empty(), "{:?}", s.notes);
+    assert!(matches!(s.shapes[0], Shape::Disc { r, .. } if (r - 0.5).abs() < 1e-9));
+    // the 2 x 1 bar centred on the origin turned by 90 degrees is 1 wide and 2 high
+    let Shape::Region { pts } = &s.shapes[1] else {
+        panic!("{:?}", s.shapes[1])
+    };
+    let mut b = Bounds::empty();
+    pts.iter().for_each(|(x, y)| b.include(*x, *y));
+    assert!(
+        (b.width() - 1.0).abs() < 1e-9 && (b.height() - 2.0).abs() < 1e-9,
+        "{b:?}"
+    );
+    assert!(matches!(&s.shapes[2], Shape::Region { pts } if pts.len() == 6));
+}
+
+#[test]
+fn a_macro_primitive_that_cannot_be_drawn_is_still_said() {
+    for body in [
+        "7,0,0,1,0.8,0.1,0",
+        "1,0,1,0,0",
+        "6,0,0,1,0.1,0.05,2,0.1,1.2,0",
+    ] {
+        let text = format!(
+            "%FSLAX24Y24*%\n%MOMM*%\n%AMODD*\n{body}*%\n%ADD10ODD,1*%\nD10*\nX0Y0D03*\nM02*\n"
+        );
+        let s = from_gerber(&eh3d_parser_gerber::parse(&text));
+        assert!(
+            s.notes.iter().any(|n| n.contains("macro aperture")),
+            "{body}: {:?}",
+            s.notes
+        );
+    }
+}
+
+fn full_circle(radius_mm: f64) -> String {
+    let r = (radius_mm * 10_000.0) as i64;
+    format!("%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0.1*%\nD10*\nG75*\nX{r}Y0D02*\nG03*\nX{r}Y0I-{r}J0D01*\nM02*\n")
+}
+
+#[test]
+fn a_big_arc_stays_within_the_tolerance_of_the_true_circle() {
+    let s = from_gerber(&eh3d_parser_gerber::parse(&full_circle(25.0)));
+    assert!(s.shapes.len() > 32, "{} pieces", s.shapes.len());
+    for shape in &s.shapes {
+        let Shape::Stroke { x0, y0, x1, y1, .. } = shape else {
+            panic!("{shape:?}")
+        };
+        assert!((x0.hypot(*y0) - 25.0).abs() < 1e-6);
+        // the middle of each chord is the farthest the polygon gets from the arc
+        let gap = 25.0 - ((x0 + x1) / 2.0).hypot((y0 + y1) / 2.0);
+        assert!(gap <= 0.005 + 1e-9, "the chord is {gap} mm inside the arc");
+    }
+}
+
+#[test]
+fn the_tolerance_of_arcs_is_an_option_and_a_small_arc_keeps_its_32_pieces() {
+    let tight = SceneOptions {
+        arc_tolerance_mm: 0.001,
+    };
+    let file = eh3d_parser_gerber::parse(&full_circle(25.0));
+    assert!(from_gerber_with(&file, &tight).shapes.len() > from_gerber(&file).shapes.len());
+    let small = from_gerber(&eh3d_parser_gerber::parse(&full_circle(0.5)));
+    assert_eq!(small.shapes.len(), 32);
 }

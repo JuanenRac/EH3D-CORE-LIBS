@@ -3,8 +3,31 @@
 use eh3d_parser_excellon::ExcellonFile;
 use eh3d_parser_gerber::{Aperture, GerberFile, Operation, Point, Polarity, QuadrantMode, Units};
 
-/// The segments an arc is cut in when it is drawn.
+/// The fewest segments an arc is cut in when it is drawn.
 const ARC_STEPS: usize = 32;
+/// The most segments an arc is cut in.
+const ARC_STEPS_MAX: usize = 20_000;
+
+/// The largest distance, in millimetres, between a drawn arc and the true one when nothing else
+/// is asked for.
+pub const DEFAULT_ARC_TOLERANCE_MM: f64 = 0.005;
+
+/// How a layer is turned into shapes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SceneOptions {
+    /// The largest distance, in millimetres, between a drawn arc and the true one (the polygon that
+    /// replaces an arc lies inside it): a larger radius gets more segments. An arc never has fewer
+    /// than 32 segments.
+    pub arc_tolerance_mm: f64,
+}
+
+impl Default for SceneOptions {
+    fn default() -> Self {
+        SceneOptions {
+            arc_tolerance_mm: DEFAULT_ARC_TOLERANCE_MM,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Bounds {
@@ -190,6 +213,25 @@ pub fn arc_points(
     clockwise: bool,
     quadrant: QuadrantMode,
 ) -> Vec<(f64, f64)> {
+    arc_points_with(
+        from,
+        to,
+        offset,
+        clockwise,
+        quadrant,
+        DEFAULT_ARC_TOLERANCE_MM,
+    )
+}
+
+/// Like [`arc_points`] with the largest distance between the polygon and the true arc given in millimetres.
+pub fn arc_points_with(
+    from: (f64, f64),
+    to: (f64, f64),
+    offset: (f64, f64),
+    clockwise: bool,
+    quadrant: QuadrantMode,
+    tolerance_mm: f64,
+) -> Vec<(f64, f64)> {
     let candidates: Vec<(f64, f64)> = match quadrant {
         QuadrantMode::Multi => vec![(from.0 + offset.0, from.1 + offset.1)],
         // in single quadrant mode the offsets have no sign: the centre is the one of the four that fits
@@ -221,10 +263,23 @@ pub fn arc_points(
             a1 += 2.0 * std::f64::consts::PI;
         }
     }
-    (0..=ARC_STEPS)
-        .map(|i| a0 + (a1 - a0) * i as f64 / ARC_STEPS as f64)
+    let steps = arc_steps(r, (a1 - a0).abs(), tolerance_mm);
+    (0..=steps)
+        .map(|i| a0 + (a1 - a0) * i as f64 / steps as f64)
         .map(|a| (best.0 + r * a.cos(), best.1 + r * a.sin()))
         .collect()
+}
+
+/// The segments an arc of radius `r` and sweep `sweep` (radians) needs so that the sagitta stays within `tolerance`.
+fn arc_steps(r: f64, sweep: f64, tolerance: f64) -> usize {
+    if tolerance <= 0.0 || !tolerance.is_finite() || tolerance >= r {
+        return ARC_STEPS;
+    }
+    let step = 2.0 * (1.0 - tolerance / r).acos();
+    if step <= 0.0 || step.is_nan() {
+        return ARC_STEPS_MAX;
+    }
+    ((sweep / step).ceil() as usize).clamp(ARC_STEPS, ARC_STEPS_MAX)
 }
 
 fn mismatch(c: (f64, f64), from: (f64, f64), to: (f64, f64)) -> f64 {
@@ -232,8 +287,13 @@ fn mismatch(c: (f64, f64), from: (f64, f64), to: (f64, f64)) -> f64 {
     (d(from) - d(to)).abs()
 }
 
-/// The shapes of a Gerber layer. Dark drawing only: clear polarity, step and repeat, macro apertures and regions made of arcs are noted, not drawn.
+/// The shapes of a Gerber layer. Dark drawing only: clear polarity, step and repeat and the macro primitives that clear or have a shape of their own (moire, thermal) are noted, not drawn. Macro apertures made of circles, lines, outlines and polygons (the rounded pads of KiCad, for one) are drawn.
 pub fn from_gerber(file: &GerberFile) -> Scene {
+    from_gerber_with(file, &SceneOptions::default())
+}
+
+/// Like [`from_gerber`] with the options given.
+pub fn from_gerber_with(file: &GerberFile, options: &SceneOptions) -> Scene {
     let k = file.units.unwrap_or(Units::Millimetres).to_mm(1.0);
     let mut scene = Scene::default();
     let mut aperture: Option<&Aperture> = None;
@@ -295,7 +355,16 @@ pub fn from_gerber(file: &GerberFile) -> Scene {
                             r: diameter * k / 2.0,
                         });
                     }
-                    Some(Aperture::Macro { .. }) => scene.note("a macro aperture is not drawn"),
+                    Some(Aperture::Macro { name, params }) => match file.macros.get(name) {
+                        Some(def) => {
+                            let drawn = crate::macros::draw(def, params, (x, y), k);
+                            if drawn.shapes.is_empty() || !drawn.skipped.is_empty() {
+                                scene.note("a macro aperture is not drawn");
+                            }
+                            scene.shapes.extend(drawn.shapes);
+                        }
+                        None => scene.note("a macro aperture is not drawn"),
+                    },
                     None => scene.note("a flash with no aperture selected is not drawn"),
                 }
             }
@@ -337,12 +406,13 @@ pub fn from_gerber(file: &GerberFile) -> Scene {
                 clockwise,
                 quadrant,
             } => {
-                let pts = arc_points(
+                let pts = arc_points_with(
                     p(from),
                     p(to),
                     (center_offset.0 * k, center_offset.1 * k),
                     *clockwise,
                     *quadrant,
+                    options.arc_tolerance_mm,
                 );
                 if let Some(r) = region.as_mut() {
                     if r.is_empty() {

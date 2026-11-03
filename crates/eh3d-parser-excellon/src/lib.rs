@@ -23,7 +23,7 @@ pub use eh3d_parser_common::{
     codes, decode_coordinate, Diagnostic, Severity, Units, ZeroSuppression,
 };
 use eh3d_parser_common::{coordinate_error_code, decode_input, parse_f64, resolve_units};
-pub use eh3d_parser_common::{InputError, InputLimits};
+pub use eh3d_parser_common::{read_file_limited, InputError, InputLimits, ReadError};
 
 /// A point in the units of the file.
 #[derive(Debug, Clone, Copy, PartialEq)]
