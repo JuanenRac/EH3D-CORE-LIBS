@@ -85,6 +85,7 @@ Como as partes deste repositório se encaixam: quem o usa, o que contém e de qu
 * **Cada comando conhece a sua linha:** as operações Gerber, os furos Excellon e os blocos G-code levam a linha do ficheiro de onde vêm.
 * **Arcos bem feitos:** o intérprete de G-code trata arcos com `I`/`J` ou com `R`, círculos completos, centros de arco absolutos, e comunica um arco que não pode existir desenhando-o reto.
 * **Honesto sobre o que salta:** as funções não suportadas (compensação do raio, ciclos fixos) são erros e o bloco não move nada; os comandos de sistema `$` do GRBL são saltados com uma nota.
+* **Pequenas coisas de que leitores e escritores precisavam:** um furo de uma ferramenta sem definir não se guarda com diâmetro 0, `parse_with_units` lê um ficheiro de furação com as unidades dadas por quem chama, `interpret_with` lê `M3 S0` como laser desligado quando se pede, o módulo `emit` escreve um número e o cabeçalho padrão de um ficheiro G-code de uma só maneira, `resolution_warning` avisa de uma grelha demasiado grossa para a ferramenta e `Scene::is_lossy` diz que algo de um ficheiro não está na cena.
 
 ## 🔒 Segurança e proteção
 

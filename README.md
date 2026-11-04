@@ -85,6 +85,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **Every command knows its line:** the Gerber operations, the Excellon hits and the G-code blocks carry the line of the file they came from.
 * **Arcs done right:** the G-code interpreter handles arcs with `I`/`J` or with `R`, full circles, absolute arc centres, and reports and draws straight an arc that cannot exist.
 * **Honest about what it skips:** unsupported features (cutter compensation, canned cycles) are errors and the block moves nothing; `$` system commands of GRBL are skipped with a note.
+* **Smaller things readers and writers needed:** a hole of an undefined tool is not kept with a diameter of 0, `parse_with_units` reads a drill file with the units the caller gives, `interpret_with` reads `M3 S0` as the laser off when asked, the `emit` module writes a number and the standard header of a G-code file in one way, `resolution_warning` tells a grid too coarse for the tool, and `Scene::is_lossy` says that something of a file is not in the scene.
 
 ## 🔒 Security & Safety
 

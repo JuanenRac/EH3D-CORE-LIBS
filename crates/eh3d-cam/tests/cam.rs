@@ -177,3 +177,14 @@ fn the_memory_of_a_grid_is_told_before_it_is_made_and_the_limit_is_the_callers()
     };
     assert!(from_scene_with_limit(&scene, 0.0, 0.02, 1000).is_err());
 }
+
+#[test]
+fn a_cell_larger_than_a_quarter_of_the_tool_is_warned_about() {
+    use eh3d_cam::bitmap::resolution_warning;
+    assert!(resolution_warning(0.02, 0.2).is_none());
+    assert!(resolution_warning(0.05, 0.2).is_none());
+    let warning = resolution_warning(0.1, 0.2).expect("a coarse cell is warned about");
+    assert!(warning.contains("0.05"), "{warning}");
+    assert!(resolution_warning(f64::NAN, 0.2).is_none());
+    assert!(resolution_warning(0.1, 0.0).is_none());
+}

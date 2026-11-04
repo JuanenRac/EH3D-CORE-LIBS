@@ -85,6 +85,7 @@ Come si incastrano le parti di questo repository: chi lo usa, che cosa contiene 
 * **Ogni comando conosce la sua riga:** le operazioni Gerber, i fori Excellon e i blocchi G-code portano la riga del file da cui vengono.
 * **Archi fatti bene:** l'interprete G-code gestisce archi con `I`/`J` o con `R`, cerchi completi, centri d'arco assoluti, e segnala un arco che non può esistere disegnandolo dritto.
 * **Onesto su ciò che salta:** le funzioni non supportate (compensazione del raggio, cicli fissi) sono errori e il blocco non muove nulla; i comandi di sistema `$` di GRBL vengono saltati con una nota.
+* **Piccole cose che servivano a lettori e scrittori:** un foro di un utensile non definito non viene tenuto con diametro 0, `parse_with_units` legge un file di foratura con le unità date dal chiamante, `interpret_with` legge `M3 S0` come laser spento quando richiesto, il modulo `emit` scrive un numero e l'intestazione standard di un file G-code in un solo modo, `resolution_warning` segnala una griglia troppo grossolana per l'utensile e `Scene::is_lossy` dice che qualcosa di un file non è nella scena.
 
 ## 🔒 Sicurezza e protezione
 

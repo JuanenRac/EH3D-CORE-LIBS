@@ -3,6 +3,12 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **A hole of an undefined tool is not kept:** the Excellon reader reports the tool and no longer keeps the hole with a diameter of 0.
+- **The units of a drill file can be given:** `parse_with_units` reads a file with the units the caller gives (the notices about missing or suspect units go, a file that says other units gets `units-forced`).
+- **The laser mode of GRBL can be read:** `interpret_with` with `s0_is_off` reads `M3` or `M4` with `S0` as the laser being off.
+- **One way to write a number and a header:** the `emit` module of the G-code crate writes numbers (a value that is not finite is an error, no `-0`), the SHA-256 of a file and the standard header of a G-code file, with the units as a parameter.
+- **A grid too coarse for the tool is told:** `resolution_warning` warns when the cell is larger than a quarter of the tool, and the documentation says that the paths follow the copper with a noise of up to half a cell.
+- **A scene says that it is incomplete:** `Scene::is_lossy` is true when something of the file was left out.
 - **Brand:** Add the application icon and the logos of the program.
 
 ## [0.0.6] - Readers accept the largest size limit without overflowing

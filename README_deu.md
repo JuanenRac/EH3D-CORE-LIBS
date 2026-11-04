@@ -85,6 +85,7 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 * **Jeder Befehl kennt seine Zeile:** Die Gerber-Operationen, Excellon-Bohrungen und G-Code-Blöcke tragen die Zeile der Datei, aus der sie stammen.
 * **Bögen richtig:** Der G-Code-Interpreter behandelt Bögen mit `I`/`J` oder mit `R`, Vollkreise und absolute Bogenmittelpunkte und meldet einen Bogen, der nicht existieren kann, und zeichnet ihn gerade.
 * **Ehrlich bei Übersprungenem:** Nicht unterstützte Funktionen (Fräserradiuskorrektur, Bearbeitungszyklen) sind Fehler, und der Block bewegt nichts; die `$`-Systembefehle von GRBL werden mit einem Hinweis übersprungen.
+* **Kleinigkeiten, die Leser und Schreiber brauchten:** ein Loch eines undefinierten Werkzeugs wird nicht mit Durchmesser 0 behalten, `parse_with_units` liest eine Bohrdatei mit den vom Aufrufer genannten Einheiten, `interpret_with` liest auf Wunsch `M3 S0` als ausgeschalteten Laser, das Modul `emit` schreibt eine Zahl und den Standardkopf einer G-Code-Datei auf eine einzige Art, `resolution_warning` meldet ein für das Werkzeug zu grobes Raster, und `Scene::is_lossy` sagt, dass etwas aus einer Datei nicht in der Szene ist.
 
 ## 🔒 Sicherheit und Schutz
 

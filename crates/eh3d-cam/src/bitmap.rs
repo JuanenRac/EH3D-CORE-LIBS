@@ -32,6 +32,20 @@ pub struct GridEstimate {
     pub bytes: u64,
 }
 
+/// A warning when the cell is too coarse for the tool: the paths follow the copper with a noise of up to half a cell, so a cell larger than a quarter of the tool puts the
+/// paths visibly off. `None` when the cell is fine enough (or one of the numbers is not usable, which the other checks refuse).
+pub fn resolution_warning(res: f64, tool_mm: f64) -> Option<String> {
+    if res.is_finite() && tool_mm.is_finite() && tool_mm > 0.0 && res > tool_mm / 4.0 {
+        Some(format!(
+            "the cell is {res} mm and the tool {tool_mm} mm: the paths can be off by up to {} mm; use a cell of {} mm or less",
+            res / 2.0,
+            tool_mm / 4.0
+        ))
+    } else {
+        None
+    }
+}
+
 /// The grid a layer would have, without making it: the cells and the memory they would need.
 pub fn estimate(bounds: &Bounds, margin_mm: f64, res: f64) -> Result<GridEstimate, String> {
     if !(res.is_finite() && (0.002..=1.0).contains(&res)) {

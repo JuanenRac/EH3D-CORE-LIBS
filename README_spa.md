@@ -85,6 +85,7 @@ Cómo encajan las partes de este repositorio: quién lo usa, qué contiene y de 
 * **Cada comando conoce su línea:** las operaciones de Gerber, los taladros de Excellon y los bloques de G-code llevan la línea del fichero de la que vienen.
 * **Arcos bien hechos:** el intérprete de G-code maneja arcos con `I`/`J` o con `R`, círculos completos, centros de arco absolutos, y avisa de un arco que no puede existir y lo dibuja recto.
 * **Honesto con lo que omite:** las funciones no soportadas (compensación de radio, ciclos fijos) son errores y el bloque no mueve nada; los comandos de sistema `$` de GRBL se omiten con una nota.
+* **Pequeñas cosas que necesitaban lectores y escritores:** un agujero de una herramienta sin definir no se guarda con diámetro 0, `parse_with_units` lee un fichero de taladros con las unidades que da quien llama, `interpret_with` lee `M3 S0` como láser apagado cuando se pide, el módulo `emit` escribe un número y la cabecera estándar de un fichero G-code de una sola manera, `resolution_warning` avisa de una rejilla demasiado gruesa para la herramienta y `Scene::is_lossy` dice que algo de un fichero no está en la escena.
 
 ## 🔒 Seguridad y protección
 

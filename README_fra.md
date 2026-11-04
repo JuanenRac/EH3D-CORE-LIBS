@@ -85,6 +85,7 @@ Comment les parties de ce dépôt s'articulent : qui l'utilise, ce qu'il contien
 * **Chaque commande connaît sa ligne :** les opérations Gerber, les trous Excellon et les blocs G-code portent la ligne du fichier d'où ils viennent.
 * **Des arcs bien faits :** l'interpréteur G-code gère les arcs avec `I`/`J` ou avec `R`, les cercles complets, les centres d'arc absolus, et signale un arc qui ne peut pas exister en le traçant droit.
 * **Honnête sur ce qu'il saute :** les fonctions non prises en charge (compensation de rayon, cycles fixes) sont des erreurs et le bloc ne déplace rien ; les commandes système `$` de GRBL sont sautées avec une note.
+* **De petites choses dont lecteurs et écrivains avaient besoin :** un trou d'un outil non défini n'est pas gardé avec un diamètre de 0, `parse_with_units` lit un fichier de perçage avec les unités données par l'appelant, `interpret_with` lit `M3 S0` comme un laser éteint quand on le demande, le module `emit` écrit un nombre et l'en-tête standard d'un fichier G-code d'une seule façon, `resolution_warning` signale une grille trop grossière pour l'outil, et `Scene::is_lossy` dit que quelque chose d'un fichier n'est pas dans la scène.
 
 ## 🔒 Sécurité et protection
 
