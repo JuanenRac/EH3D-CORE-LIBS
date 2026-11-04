@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+
+## [0.0.7] - Laser mode, one way to write a number and the header of a G-code file, units given by the caller and a warning for a grid too coarse
+
 - **A hole of an undefined tool is not kept:** the Excellon reader reports the tool and no longer keeps the hole with a diameter of 0.
 - **The units of a drill file can be given:** `parse_with_units` reads a file with the units the caller gives (the notices about missing or suspect units go, a file that says other units gets `units-forced`).
 - **The laser mode of GRBL can be read:** `interpret_with` with `s0_is_off` reads `M3` or `M4` with `S0` as the laser being off.
