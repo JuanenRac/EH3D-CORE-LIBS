@@ -18,6 +18,8 @@
 #![warn(missing_docs)]
 #![warn(clippy::string_slice)]
 
+pub mod emit;
+
 pub use eh3d_parser_common::{
     codes, read_file_limited, Diagnostic, InputError, InputLimits, ReadError, Severity,
 };
@@ -461,10 +463,24 @@ struct State {
     seen_move: bool,
     /// False after G18 or G19: arcs are not interpreted.
     plane_xy: bool,
+    /// A spindle speed of 0 means off (the laser mode of GRBL: `M3 S0` and `M4 S0` do not burn).
+    s0_is_off: bool,
+}
+
+/// How [`interpret_with`] reads the state of the spindle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct InterpretOptions {
+    /// With `true`, `M3` or `M4` with a spindle speed of 0 do not count as the spindle (or laser) being on: in the laser mode of GRBL the power is the S word. The default is `false`.
+    pub s0_is_off: bool,
 }
 
 /// Walks a program, keeping the modal state, and returns its motions.
 pub fn interpret(program: &Program) -> Trace {
+    interpret_with(program, &InterpretOptions::default())
+}
+
+/// Like [`interpret`] with the options of your own.
+pub fn interpret_with(program: &Program, options: &InterpretOptions) -> Trace {
     let mut state = State {
         inches: false,
         absolute: true,
@@ -477,6 +493,7 @@ pub fn interpret(program: &Program) -> Trace {
         motion: None,
         seen_move: false,
         plane_xy: true,
+        s0_is_off: options.s0_is_off,
     };
     let mut trace = Trace {
         diagnostics: program.diagnostics.clone(),
@@ -813,7 +830,7 @@ fn push(block: &Block, st: &State, trace: &mut Trace, motion: Motion, from: Poin
         to,
         feed: st.feed,
         spindle_speed: st.speed,
-        spindle_on: st.spindle_on,
+        spindle_on: st.spindle_on && !(st.s0_is_off && st.speed == 0.0),
         tool: st.tool,
     };
     let length = match motion {

@@ -296,3 +296,21 @@ fn a_line_with_only_a_percent_sign_is_the_start_and_end_of_the_program_and_says_
         .iter()
         .any(|d| d.code == codes::CHARACTER_IGNORED));
 }
+
+#[test]
+fn m3_with_a_speed_of_zero_is_off_only_when_the_laser_mode_asks_for_it() {
+    use eh3d_parser_gcode::{interpret_with, InterpretOptions};
+    let program = parse(
+        "G21 G90\nM3 S0\nG1 X10 F100\nM4 S0\nG1 X20\nM3 S500\nG1 X30\nM5\nM2\n",
+        Dialect::Grbl,
+    );
+    let normal = interpret(&program);
+    assert!(
+        normal.segments.iter().all(|s| s.spindle_on),
+        "{:?}",
+        normal.segments
+    );
+    let laser = interpret_with(&program, &InterpretOptions { s0_is_off: true });
+    let on: Vec<bool> = laser.segments.iter().map(|s| s.spindle_on).collect();
+    assert_eq!(on, vec![false, false, true]);
+}
