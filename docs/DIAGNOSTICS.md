@@ -90,6 +90,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `arc-radius-mismatch` | G-code | Error | An arc given by its centre (`I`/`J`) whose radius at the start and at the end differ by more than a controller accepts (0.005 mm and 0.1 % of the radius, or 0.5 mm). |
 | `program-too-long` | G-code | Error | The program has more blocks than the reader keeps (5000000 by default); the rest were not read. |
 | `units-suspect` | Excellon | Warning | The file declares no units and the holes span less than 5 units: it may be in inches. |
+| `units-forced` | Excellon | Warning | The caller gave units (`parse_with_units`) and the file declares other ones: the ones given are used. |
 | `arc-centre-missing` | G-code | Error | An arc without centre and radius was drawn as a line. |
 | `feed-missing` | G-code | Warning | A cutting move was made with no feed rate set. |
 

@@ -167,6 +167,26 @@ pub fn parse_bytes_with(bytes: &[u8], limits: &InputLimits) -> Result<ExcellonFi
     Ok(file)
 }
 
+/// Reads an Excellon file whose units the caller knows: the units given win over the ones the file declares (or does not declare).
+/// The notices about missing or suspect units are dropped, and a file that declares other units gets a warning `units-forced`.
+pub fn parse_with_units(text: &str, units: Units) -> ExcellonFile {
+    let mut file = parse(text);
+    if let Some(declared) = file.units {
+        if declared != units {
+            file.diagnostics.push(Diagnostic::new(
+                1,
+                Severity::Warning,
+                codes::UNITS_FORCED,
+                "the file declares other units than the ones given: the ones given are used",
+            ));
+        }
+    }
+    file.diagnostics
+        .retain(|d| d.code != codes::UNITS_MISSING && d.code != codes::UNITS_SUSPECT);
+    file.units = Some(units);
+    file
+}
+
 /// Reads an Excellon file. Never fails: problems are in [`ExcellonFile::diagnostics`].
 pub fn parse(text: &str) -> ExcellonFile {
     let mut st = State {
@@ -576,7 +596,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                 codes::TOOL_UNDEFINED,
                 format!("a hole uses the undefined tool T{tool}"),
             );
-            st.file.drills.push(Hit { line, tool, at });
+            // the hole is not kept: with no tool it would have a diameter of 0 and be drilled as a point
         }
         None => st.diag(
             line,

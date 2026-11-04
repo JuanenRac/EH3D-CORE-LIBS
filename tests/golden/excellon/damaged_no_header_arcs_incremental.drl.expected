@@ -1,7 +1,7 @@
 units: None  zeros: None  ended: false
-drills: 3  slots: 0  routes: 1 (1 points)
-box: x 1.0000..5.0000  y 1.0000..5.0000
-diagnostics: 13
+drills: 0  slots: 0  routes: 1 (1 points)
+box: x 5.0000..5.0000  y 5.0000..5.0000
+diagnostics: 12
   line 1 Error tool-undefined
   line 1 Warning unknown-word
   line 3 Error incremental-unsupported
@@ -13,5 +13,4 @@ diagnostics: 13
   line 9 Error tool-undefined
   line 10 Error tool-undefined
   line 1 Warning units-missing
-  line 1 Warning units-suspect
   line 10 Warning end-missing

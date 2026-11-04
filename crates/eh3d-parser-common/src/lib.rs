@@ -153,6 +153,7 @@ pub mod codes {
         ARC_RADIUS_MISMATCH = "arc-radius-mismatch",
         PROGRAM_TOO_LONG = "program-too-long",
         UNITS_SUSPECT = "units-suspect",
+        UNITS_FORCED = "units-forced",
         FEED_MISSING = "feed-missing",
     }
 }

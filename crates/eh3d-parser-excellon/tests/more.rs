@@ -99,3 +99,46 @@ fn a_file_with_no_units_whose_holes_are_tiny_may_be_in_inches() {
         );
     }
 }
+
+#[test]
+fn a_hole_of_a_tool_that_was_never_defined_is_not_kept_with_a_diameter_of_zero() {
+    let f = parse("M48\nMETRIC\nT1C0.8\n%\nT9\nX1.0Y1.0\nT1\nX2.0Y2.0\nM30\n");
+    assert!(f
+        .diagnostics
+        .iter()
+        .any(|d| d.code == codes::TOOL_UNDEFINED));
+    assert!(f.drills.iter().all(|h| f.tools.contains_key(&h.tool)));
+    assert_eq!(f.drills.len(), 1);
+}
+
+#[test]
+fn units_given_by_the_caller_win_and_silence_the_notices_about_them() {
+    use eh3d_parser_excellon::parse_with_units;
+    let text = "M48\nT1C0.03\n%\nT1\nX0.5Y0.5\nX2.5Y1.5\nM30\n";
+    let guessed = parse(text);
+    assert!(guessed
+        .diagnostics
+        .iter()
+        .any(|d| d.code == codes::UNITS_SUSPECT));
+    let forced = parse_with_units(text, Units::Inches);
+    assert_eq!(forced.units, Some(Units::Inches));
+    assert!(forced
+        .diagnostics
+        .iter()
+        .all(|d| d.code != codes::UNITS_SUSPECT && d.code != codes::UNITS_MISSING));
+    // a file that says millimetres is read as the units given, with a warning
+    let declared = parse_with_units("M48\nMETRIC\nT1C0.8\n%\nT1\nX1.0Y1.0\nM30\n", Units::Inches);
+    assert_eq!(declared.units, Some(Units::Inches));
+    assert!(declared
+        .diagnostics
+        .iter()
+        .any(|d| d.code == codes::UNITS_FORCED));
+    let same = parse_with_units(
+        "M48\nMETRIC\nT1C0.8\n%\nT1\nX1.0Y1.0\nM30\n",
+        Units::Millimetres,
+    );
+    assert!(same
+        .diagnostics
+        .iter()
+        .all(|d| d.code != codes::UNITS_FORCED));
+}

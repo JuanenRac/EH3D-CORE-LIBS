@@ -155,6 +155,11 @@ impl Scene {
         b
     }
 
+    /// Whether something of the file is not in the scene (a shape, a command or a hole that was left out): the output made from a lossy scene is missing parts of the work.
+    pub fn is_lossy(&self) -> bool {
+        !self.notes.is_empty()
+    }
+
     fn note(&mut self, text: &str) {
         if !self.notes.iter().any(|n| n == text) {
             self.notes.push(text.to_string());
@@ -444,6 +449,12 @@ pub fn from_excellon(file: &ExcellonFile) -> Scene {
     let k = file.units.map(|u| u.to_mm(1.0)).unwrap_or(1.0);
     let mut scene = Scene::default();
     let diameter = |tool: u32| file.tools.get(&tool).map(|t| t.diameter * k).unwrap_or(0.0);
+    // the reader does not keep a hole of a tool that was never defined: the scene says that it is not all there
+    if file.diagnostics.iter().any(|d| {
+        d.code == eh3d_parser_excellon::codes::TOOL_UNDEFINED && d.message.starts_with("a hole")
+    }) {
+        scene.note("a hole with a tool that is not defined was left out");
+    }
     for h in &file.drills {
         if !file.tools.contains_key(&h.tool) {
             scene.note("a hole with a tool that is not defined has no diameter");

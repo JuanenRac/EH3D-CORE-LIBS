@@ -339,7 +339,9 @@ fn a_hole_with_a_tool_that_was_never_defined_is_said() {
     let s = from_excellon(&eh3d_parser_excellon::parse(
         "M48\nMETRIC\nT1C0.8\n%\nT1\nX1Y1\nT2\nX2Y2\nM30\n",
     ));
-    assert_eq!(s.shapes.len(), 2);
+    // the hole of the tool that is not defined is not kept as a disc of no size: it is left out and the scene says so
+    assert_eq!(s.shapes.len(), 1);
+    assert!(s.is_lossy());
     assert!(
         s.notes.iter().any(|n| n.contains("not defined")),
         "{:?}",
@@ -347,4 +349,13 @@ fn a_hole_with_a_tool_that_was_never_defined_is_said() {
     );
     let ok = from_excellon(&eh3d_parser_excellon::parse(DRILL));
     assert!(ok.notes.is_empty(), "{:?}", ok.notes);
+}
+
+#[test]
+fn a_scene_is_lossy_exactly_when_something_was_left_out() {
+    let whole = from_gerber(&eh3d_parser_gerber::parse(COPPER));
+    assert!(!whole.is_lossy(), "{:?}", whole.notes);
+    let text =
+        "%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0.5*%\nD10*\n%LPC*%\nX0Y0D02*\nX10000Y0D01*\nM02*\n";
+    assert!(from_gerber(&eh3d_parser_gerber::parse(text)).is_lossy());
 }
