@@ -93,6 +93,10 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `units-forced` | Excellon | Warning | The caller gave units (`parse_with_units`) and the file declares other ones: the ones given are used. |
 | `arc-centre-missing` | G-code | Error | An arc without centre and radius was drawn as a line. |
 | `feed-missing` | G-code | Warning | A cutting move was made with no feed rate set. |
+| `reference-position-unset` | G-code | Warning | `G28` or `G30` was read by `interpret_coordinates` and no reference position is configured for it: the block moves nothing and the position is not tracked. |
+| `g53-motion-unsupported` | G-code | Error | `G53` was read with a motion other than `G0` or `G1`: the block moves nothing. |
+| `g92-axes-missing` | G-code | Warning | `G92` was read with no axis word: the offset is unchanged. |
+| `offset-out-of-range` | G-code | Error | A `G92` offset would be larger than the configured limit (`max_offset_mm`): the offset of that axis was not changed. |
 
 ## When the file does not declare its units
 

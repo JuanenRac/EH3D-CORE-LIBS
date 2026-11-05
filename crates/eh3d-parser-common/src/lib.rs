@@ -155,6 +155,10 @@ pub mod codes {
         UNITS_SUSPECT = "units-suspect",
         UNITS_FORCED = "units-forced",
         FEED_MISSING = "feed-missing",
+        REFERENCE_POSITION_UNSET = "reference-position-unset",
+        G53_MOTION_UNSUPPORTED = "g53-motion-unsupported",
+        G92_AXES_MISSING = "g92-axes-missing",
+        OFFSET_OUT_OF_RANGE = "offset-out-of-range",
     }
 }
 
