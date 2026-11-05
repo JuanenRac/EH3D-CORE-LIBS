@@ -187,12 +187,73 @@ pub fn parse_with_units(text: &str, units: Units) -> ExcellonFile {
     file
 }
 
+/// What to assume about a file that does not say it itself: the coordinate format, the zero
+/// suppression and the units.
+///
+/// Every field is optional (`None` assumes nothing, which is what [`parse`] does). A value is used
+/// only when the file does not declare the same thing: `FILE_FORMAT=i:d`, `INCH,TZ,00.0000`,
+/// `METRIC`, `M71` or `M72` in the file win over it, wherever they are. Write it with
+/// `ExcellonDefaults { default_format: Some((2, 4)), ..Default::default() }`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ExcellonDefaults {
+    /// The digits before and after the point of a coordinate written without one, as
+    /// `(integer, decimal)`: the integer digits go from 1 to 8 and the decimal ones from 0 to 8,
+    /// as in the `FILE_FORMAT` comment. Anything else is ignored with a `defaults-invalid` warning.
+    pub default_format: Option<(u8, u8)>,
+    /// The zero suppression of a file that does not say it.
+    pub default_zeros: Option<ZeroSuppression>,
+    /// The units of a file that does not say them (the `units-missing` and `units-suspect`
+    /// notices are then not given, and [`ExcellonFile::units`] is these units).
+    pub default_units: Option<Units>,
+}
+
+impl ExcellonDefaults {
+    /// True when `default_format` is empty or inside the limits the reader accepts in a file.
+    pub fn is_valid(&self) -> bool {
+        match self.default_format {
+            Some((i, d)) => (1..=8).contains(&i) && d <= 8,
+            None => true,
+        }
+    }
+}
+
+/// Reads an Excellon file whose format, zeros and units are assumed when the file does not declare
+/// them (see [`ExcellonDefaults`]). What the file declares always wins, the lines of the
+/// diagnostics are those of the text, and `ExcellonDefaults::default()` reads exactly as [`parse`].
+/// A format of the defaults that is out of range is ignored and told in a `defaults-invalid`
+/// warning at line 1.
+pub fn parse_with_format(text: &str, defaults: &ExcellonDefaults) -> ExcellonFile {
+    parse_inner(text, defaults)
+}
+
+/// Like [`parse_bytes`] with the assumptions of [`parse_with_format`].
+pub fn parse_bytes_with_format(
+    bytes: &[u8],
+    defaults: &ExcellonDefaults,
+) -> Result<ExcellonFile, InputError> {
+    let input = decode_input(bytes, &InputLimits::default())?;
+    let mut file = parse_inner(&input.text, defaults);
+    file.diagnostics.splice(0..0, input.diagnostics);
+    Ok(file)
+}
+
 /// Reads an Excellon file. Never fails: problems are in [`ExcellonFile::diagnostics`].
 pub fn parse(text: &str) -> ExcellonFile {
+    parse_inner(text, &ExcellonDefaults::default())
+}
+
+fn parse_inner(text: &str, defaults: &ExcellonDefaults) -> ExcellonFile {
+    let format = if defaults.is_valid() {
+        defaults
+            .default_format
+            .map(|(i, d)| (u32::from(i), u32::from(d)))
+    } else {
+        None
+    };
     let mut st = State {
         file: ExcellonFile {
-            units: None,
-            zeros: None,
+            units: defaults.default_units,
+            zeros: defaults.default_zeros,
             tools: BTreeMap::new(),
             drills: Vec::new(),
             slots: Vec::new(),
@@ -200,7 +261,7 @@ pub fn parse(text: &str) -> ExcellonFile {
             ended: false,
             diagnostics: Vec::new(),
         },
-        format: None,
+        format,
         header: false,
         tool: None,
         x: 0.0,
@@ -209,6 +270,14 @@ pub fn parse(text: &str) -> ExcellonFile {
         route_down: false,
         current_route: None,
     };
+    if !defaults.is_valid() {
+        st.diag(
+            1,
+            Severity::Warning,
+            codes::DEFAULTS_INVALID,
+            "the default format is out of range (1..=8 integer digits, 0..=8 decimal digits) and was ignored",
+        );
+    }
     let mut started = false;
     for (index, raw) in text.lines().enumerate() {
         let line = index + 1;

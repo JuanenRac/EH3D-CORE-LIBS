@@ -59,6 +59,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `start-point-missing` | Gerber | Error | A draw starts before any move gave a start point. |
 | `header-missing` | Excellon | Warning | The file has no `M48` header. |
 | `format-comment-invalid` | Excellon | Warning | A `FILE_FORMAT=` comment is not understood. |
+| `defaults-invalid` | Excellon | Warning | The default format given to `parse_with_format` is out of range (1 to 8 integer digits, 0 to 8 decimal digits) and was ignored. |
 | `option-unknown` | Excellon | Warning | An unknown option after `METRIC` / `INCH`. |
 | `unknown-header-line` | Excellon | Warning | A header line the reader does not know. |
 | `tool-number-missing` | Excellon | Error | A tool definition has no number. |

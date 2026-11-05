@@ -21,6 +21,8 @@ Units, the coordinate format (integer and decimal digits, leading or trailing ze
 
 Tools with diameter, feed and speed; drill hits; slots with `G85`; simple routes (`M15`, `G01`, `M16`); metric or inch; `TZ` (leading zeros suppressed) or `LZ` (trailing zeros suppressed); coordinates with a decimal point are read as they are. `FILE_FORMAT=i:d` comments are honoured.
 
+A file that does not declare its format can be read with the assumptions of the caller: `parse_with_format(text, &ExcellonDefaults { default_format: Some((2, 4)), default_zeros: Some(ZeroSuppression::Leading), default_units: Some(Units::Inches) })` (`parse_bytes_with_format` takes bytes). Every field is optional and `ExcellonDefaults::default()` reads exactly as `parse`. What the file declares always wins (the `FILE_FORMAT` comment, `INCH,TZ,00.0000`, `METRIC`, `M71`, `M72`), the lines of the diagnostics are those of the text, and when the units come from the defaults there is no `units-missing` or `units-suspect` notice. A default format outside 1 to 8 integer digits and 0 to 8 decimal digits is ignored with the warning `defaults-invalid` at line 1 (`ExcellonDefaults::is_valid` tells it beforehand).
+
 ## G-code
 
 Dialects: GRBL, Marlin (line numbers and checksums, verified; `M117`, `M118`, `M23` and the like with text are kept as one line) and PlanetCNC. `interpret` walks the program the way a controller does: `G20`/`G21`, `G90`/`G91`, `G90.1`/`G91.1`, `G0`..`G3` (arcs with `I`/`J` or `R`), `F`, `S`, `T`, `M3`/`M4`/`M5`, `M2`/`M30`. Every motion comes out in absolute millimetres, with the feed in millimetres per minute.

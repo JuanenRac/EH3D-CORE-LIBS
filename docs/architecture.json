@@ -95,7 +95,8 @@
         "or inches"
       ],
       "code": [
-        "crates/eh3d-parser-excellon/src/lib.rs::pub fn parse"
+        "crates/eh3d-parser-excellon/src/lib.rs::pub fn parse",
+        "crates/eh3d-parser-excellon/src/lib.rs::pub fn parse_with_format"
       ]
     },
     {

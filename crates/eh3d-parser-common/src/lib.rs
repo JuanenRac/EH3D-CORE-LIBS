@@ -122,6 +122,7 @@ pub mod codes {
         // Excellon
         HEADER_MISSING = "header-missing",
         FORMAT_COMMENT_INVALID = "format-comment-invalid",
+        DEFAULTS_INVALID = "defaults-invalid",
         OPTION_UNKNOWN = "option-unknown",
         TOOL_NUMBER_MISSING = "tool-number-missing",
         TOOL_DIAMETER_INVALID = "tool-diameter-invalid",
