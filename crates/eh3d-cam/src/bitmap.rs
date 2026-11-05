@@ -65,11 +65,13 @@ pub fn estimate(bounds: &Bounds, margin_mm: f64, res: f64) -> Result<GridEstimat
         ));
     }
     let (w, h) = (wf as usize, hf as usize);
+    // a grid just under the largest count still has a memory that does not fit in 64 bits: saturate instead of wrapping
+    let cells = w.saturating_mul(h);
     Ok(GridEstimate {
         w,
         h,
-        cells: w * h,
-        bytes: (w * h) as u64 * BYTES_PER_CELL as u64,
+        cells,
+        bytes: (cells as u64).saturating_mul(BYTES_PER_CELL as u64),
     })
 }
 

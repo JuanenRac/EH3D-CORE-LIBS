@@ -188,3 +188,26 @@ fn a_cell_larger_than_a_quarter_of_the_tool_is_warned_about() {
     assert!(resolution_warning(f64::NAN, 0.2).is_none());
     assert!(resolution_warning(0.1, 0.0).is_none());
 }
+
+#[test]
+fn a_board_of_any_size_gives_an_error_or_a_saturated_memory_and_never_overflows() {
+    use eh3d_cam::bitmap::{estimate, Bitmap};
+    let board = |size: f64| {
+        let mut b = eh3d_geometry::scene::Bounds::empty();
+        b.include(0.0, 0.0);
+        b.include(size, size);
+        b
+    };
+    // 1e15 mm at 0.002 mm is far more cells than a count can hold
+    let message = estimate(&board(1e15), 0.0, 0.002).unwrap_err();
+    assert!(message.contains("more than any grid"), "{message}");
+    assert!(Bitmap::new(&board(1e15), 0.0, 0.002).is_err());
+    // about 9e18 cells fit in a count, but their memory does not fit in 64 bits
+    #[cfg(target_pointer_width = "64")]
+    {
+        let e = estimate(&board(6e6), 0.0, 0.002).unwrap();
+        assert_eq!(e.bytes, u64::MAX);
+        let message = Bitmap::new(&board(6e6), 0.0, 0.002).unwrap_err();
+        assert!(message.contains("more than the"), "{message}");
+    }
+}
