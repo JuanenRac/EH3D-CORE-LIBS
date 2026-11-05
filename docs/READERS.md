@@ -25,11 +25,22 @@ Tools with diameter, feed and speed; drill hits; slots with `G85`; simple routes
 
 Dialects: GRBL, Marlin (line numbers and checksums, verified; `M117`, `M118`, `M23` and the like with text are kept as one line) and PlanetCNC. `interpret` walks the program the way a controller does: `G20`/`G21`, `G90`/`G91`, `G90.1`/`G91.1`, `G0`..`G3` (arcs with `I`/`J` or `R`), `F`, `S`, `T`, `M3`/`M4`/`M5`, `M2`/`M30`. Every motion comes out in absolute millimetres, with the feed in millimetres per minute.
 
+## Coordinate offsets (opt in)
+
+`interpret_coordinates(&program, &InterpretOptions, &CoordinateOptions)` walks a program like `interpret_with` and also follows the commands that move the origin. A program that uses none of them gives the same trace as `interpret_with`; `interpret` and `interpret_with` themselves are unchanged. The positions of the trace are machine coordinates in millimetres, and the machine starts at X0 Y0 Z0.
+
+* `G92` makes the work position of the axes written the value given, without moving (the offset is recomputed, not added up); `G92.1` cancels it, `G92.2` suspends it and `G92.3` applies it again. The result has `state.offset` (what is added to a work coordinate), `state.g92_offset` and `state.g92_active`.
+* `G54`..`G59` select a work coordinate system whose origin is `CoordinateOptions::work_offsets` (all zero by default); `state.work_system` and `state.work_offset` say which one is active.
+* `G53` makes the move of its own block (`G0` or `G1`) in machine coordinates, absolute, with no offset; with an arc it is the error `g53-motion-unsupported` and the block moves nothing.
+* `G28` and `G30` go through the point of the block (not in Marlin, where the axes only name what goes home) and then to `reference_g28` / `reference_g30` with rapids, all axes when none is written. Nothing is invented: when the position is not configured the block moves nothing and is told with `reference-position-unset`.
+* A `G92` offset larger than `max_offset_mm` (100000 by default) is refused with `offset-out-of-range`; `G92` with no axis word is `g92-axes-missing`.
+* Every value (reference positions, work origins, the limit) belongs in the machine configuration of the program that calls the reader; none is in this crate.
+
 ## What is not done
 
 * Cutter radius compensation (`G41`/`G42`) and canned cycles (`G81`..`G89`) are errors, and the block moves nothing.
-* Tool length offsets, probing cycles, `G28`/`G30` and work coordinate systems are read but their effect on the position is not tracked.
-* The position before the first move is taken as X0 Y0 Z0 of the work coordinate system the program uses; the reader cannot know where the machine really is, so a table limit is only as good as that assumption. `G92`, `G28`, `G30`, `G53`, `G10` and the probing cycles leave the position as it was and are told with the warning `position-untracked`.
+* Tool length offsets and probing cycles are read but their effect on the position is not tracked.
+* The position before the first move is taken as X0 Y0 Z0 of the work coordinate system the program uses; the reader cannot know where the machine really is, so a table limit is only as good as that assumption. `G92`, `G28`, `G30`, `G53`, `G10` and the probing cycles leave the position as it was and are told with the warning `position-untracked`, unless the program is walked with `interpret_coordinates` (next section).
 * Planes other than XY for arcs (`G18` and `G19` are an error and the arc is drawn as a line).
 * HP-GL and the Bungard format, and the 2D geometry (offsets and booleans), are planned.
 * None of this has been tried on a collection of real production files, and nothing here decides whether a program is safe to run on a machine.
