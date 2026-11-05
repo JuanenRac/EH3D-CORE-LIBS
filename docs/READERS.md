@@ -29,6 +29,7 @@ Dialects: GRBL, Marlin (line numbers and checksums, verified; `M117`, `M118`, `M
 
 * Cutter radius compensation (`G41`/`G42`) and canned cycles (`G81`..`G89`) are errors, and the block moves nothing.
 * Tool length offsets, probing cycles, `G28`/`G30` and work coordinate systems are read but their effect on the position is not tracked.
+* The position before the first move is taken as X0 Y0 Z0 of the work coordinate system the program uses; the reader cannot know where the machine really is, so a table limit is only as good as that assumption. `G92`, `G28`, `G30`, `G53`, `G10` and the probing cycles leave the position as it was and are told with the warning `position-untracked`.
 * Planes other than XY for arcs (`G18` and `G19` are an error and the arc is drawn as a line).
 * HP-GL and the Bungard format, and the 2D geometry (offsets and booleans), are planned.
 * None of this has been tried on a collection of real production files, and nothing here decides whether a program is safe to run on a machine.

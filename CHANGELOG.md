@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **The origin the G-code reader assumes is written down:** the position before the first move is X0 Y0 Z0, and the codes that move the origin are told, not followed.
 - **A grid that no count can hold no longer overflows:** the memory of a grid just under the largest count is saturated instead of wrapping, and a board of 1e15 mm at the finest cell is refused with a message.
 
 ## [0.0.7] - Laser mode, one way to write a number and the header of a G-code file, units given by the caller and a warning for a grid too coarse
