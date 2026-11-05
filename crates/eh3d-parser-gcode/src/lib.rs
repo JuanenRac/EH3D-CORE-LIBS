@@ -11,6 +11,9 @@
 //! Nothing here panics on any input. A line that cannot be understood becomes a [`Diagnostic`] with its line number and the
 //! reading goes on with the next one.
 //!
+//! [`interpret_coordinates`] also follows `G92`, `G28`, `G30`, `G53` and `G54`..`G59` with the positions and limits of a
+//! [`CoordinateOptions`]; [`interpret`] leaves them untracked and says so.
+//!
 //! Not done: cutter-radius compensation (G41/G42), canned cycles (G81..G89), tool length offsets and
 //! the Z-probing cycles; they are reported as unsupported.
 
@@ -465,6 +468,81 @@ struct State {
     plane_xy: bool,
     /// A spindle speed of 0 means off (the laser mode of GRBL: `M3 S0` and `M4 S0` do not burn).
     s0_is_off: bool,
+    /// True only for [`interpret_coordinates`]: `G92`, `G28`, `G30`, `G53` and `G54`..`G59` are followed.
+    track: bool,
+    coord: CoordinateOptions,
+    /// The index of the active work coordinate system (0 is G54).
+    work: usize,
+    /// The stored `G92` offset, in millimetres.
+    g92: Point3,
+    /// Whether the stored `G92` offset is applied (`G92.2` suspends it, `G92.3` applies it again).
+    g92_on: bool,
+}
+
+/// The largest offset of `G92` that [`CoordinateOptions::default`] accepts, in millimetres.
+pub const DEFAULT_MAX_OFFSET_MM: f64 = 100_000.0;
+
+/// What [`interpret_coordinates`] needs to follow `G92`, `G28`, `G30`, `G53` and `G54`..`G59`.
+///
+/// Nothing here is invented: the default has no reference position and every work coordinate system at the machine
+/// origin. Fill it from the machine configuration of your program. All positions are machine coordinates in millimetres.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CoordinateOptions {
+    /// Where `G28` goes (`None`: not configured, `G28` is told with `reference-position-unset` and moves nothing).
+    pub reference_g28: Option<Point3>,
+    /// Where `G30` goes (`None`: not configured).
+    pub reference_g30: Option<Point3>,
+    /// The origin of each work coordinate system `G54`..`G59` in machine coordinates.
+    pub work_offsets: [Point3; 6],
+    /// The largest absolute value a `G92` offset may take, in millimetres (`offset-out-of-range` above it).
+    pub max_offset_mm: f64,
+}
+
+impl Default for CoordinateOptions {
+    fn default() -> Self {
+        CoordinateOptions {
+            reference_g28: None,
+            reference_g30: None,
+            work_offsets: [Point3::default(); 6],
+            max_offset_mm: DEFAULT_MAX_OFFSET_MM,
+        }
+    }
+}
+
+/// The coordinate offsets in force at the end of a program walked by [`interpret_coordinates`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CoordinateState {
+    /// The active work coordinate system: 54 for `G54`, up to 59.
+    pub work_system: u8,
+    /// The origin of the active work coordinate system in machine coordinates.
+    pub work_offset: Point3,
+    /// The stored `G92` offset (zero after `G92.1`).
+    pub g92_offset: Point3,
+    /// Whether the `G92` offset is applied (it is not after `G92.2`).
+    pub g92_active: bool,
+    /// What is added to a work coordinate to get the machine coordinate: the work offset plus the `G92` offset when applied.
+    pub offset: Point3,
+}
+
+impl Default for CoordinateState {
+    fn default() -> Self {
+        CoordinateState {
+            work_system: 54,
+            work_offset: Point3::default(),
+            g92_offset: Point3::default(),
+            g92_active: false,
+            offset: Point3::default(),
+        }
+    }
+}
+
+/// The result of [`interpret_coordinates`]: the trace, with its positions in machine coordinates, and the offsets at the end.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CoordinateTrace {
+    /// The motions and the notices, as [`interpret`] gives them.
+    pub trace: Trace,
+    /// The offsets in force at the end of the program.
+    pub state: CoordinateState,
 }
 
 /// How [`interpret_with`] reads the state of the spindle.
@@ -481,6 +559,30 @@ pub fn interpret(program: &Program) -> Trace {
 
 /// Like [`interpret`] with the options of your own.
 pub fn interpret_with(program: &Program, options: &InterpretOptions) -> Trace {
+    walk(program, options, None).0
+}
+
+/// Like [`interpret_with`], and also follows the commands that move the origin: `G92` (and `G92.1`, `G92.2`, `G92.3`), `G28` and
+/// `G30` (to the reference positions of `coordinates`), `G53` (machine coordinates for that block) and `G54`..`G59` (the
+/// work offsets of `coordinates`).
+///
+/// The positions of the trace are machine coordinates in millimetres; the machine starts at X0 Y0 Z0. A program that uses none
+/// of these commands gives the same trace as [`interpret_with`]. What cannot be followed is told with a diagnostic
+/// (`reference-position-unset`, `g53-motion-unsupported`, `g92-axes-missing`, `offset-out-of-range`).
+pub fn interpret_coordinates(
+    program: &Program,
+    options: &InterpretOptions,
+    coordinates: &CoordinateOptions,
+) -> CoordinateTrace {
+    let (trace, state) = walk(program, options, Some(coordinates));
+    CoordinateTrace { trace, state }
+}
+
+fn walk(
+    program: &Program,
+    options: &InterpretOptions,
+    coordinates: Option<&CoordinateOptions>,
+) -> (Trace, CoordinateState) {
     let mut state = State {
         inches: false,
         absolute: true,
@@ -494,6 +596,11 @@ pub fn interpret_with(program: &Program, options: &InterpretOptions) -> Trace {
         seen_move: false,
         plane_xy: true,
         s0_is_off: options.s0_is_off,
+        track: coordinates.is_some(),
+        coord: coordinates.copied().unwrap_or_default(),
+        work: 0,
+        g92: Point3::default(),
+        g92_on: false,
     };
     let mut trace = Trace {
         diagnostics: program.diagnostics.clone(),
@@ -511,7 +618,219 @@ pub fn interpret_with(program: &Program, options: &InterpretOptions) -> Trace {
         }
         run_block(block, &mut state, &mut trace, program.dialect);
     }
-    trace
+    let end = coordinate_state(&state);
+    (trace, end)
+}
+
+fn add(a: Point3, b: Point3) -> Point3 {
+    Point3 {
+        x: a.x + b.x,
+        y: a.y + b.y,
+        z: a.z + b.z,
+    }
+}
+
+/// What is added to a work coordinate to get the machine one (zero when the coordinates are not followed).
+fn active_offset(st: &State) -> Point3 {
+    if !st.track {
+        return Point3::default();
+    }
+    let work = st.coord.work_offsets[st.work];
+    if st.g92_on {
+        add(work, st.g92)
+    } else {
+        work
+    }
+}
+
+fn coordinate_state(st: &State) -> CoordinateState {
+    CoordinateState {
+        work_system: 54 + st.work as u8,
+        work_offset: st.coord.work_offsets[st.work],
+        g92_offset: st.g92,
+        g92_active: st.g92_on,
+        offset: active_offset(st),
+    }
+}
+
+/// A coordinate shifted by an offset; a zero offset leaves it as it is (a negative zero stays one).
+fn shifted(value: f64, offset: f64) -> f64 {
+    if offset == 0.0 {
+        value
+    } else {
+        value + offset
+    }
+}
+
+/// What a G word does to the coordinates when they are followed.
+enum CoordWord {
+    /// Not a word about coordinates: the usual rules read it.
+    Unhandled,
+    /// Done.
+    Handled,
+    /// Done, and the axis words of the block are not a move.
+    SkipMotion,
+    /// `G53`: the move of this block is in machine coordinates.
+    Machine,
+    /// `G28` (false) or `G30` (true): go to its reference position after the move through the point of the block.
+    Reference(bool),
+}
+
+fn word_mm(st: &State, v: f64) -> f64 {
+    if st.inches {
+        v * MM_PER_INCH
+    } else {
+        v
+    }
+}
+
+fn coordinate_word(code: i64, block: &Block, st: &mut State, trace: &mut Trace) -> CoordWord {
+    match code {
+        540 | 550 | 560 | 570 | 580 | 590 => {
+            st.work = ((code - 540) / 10) as usize;
+            CoordWord::Handled
+        }
+        920 => {
+            set_g92(block, st, trace);
+            CoordWord::SkipMotion
+        }
+        921 => {
+            st.g92 = Point3::default();
+            st.g92_on = false;
+            CoordWord::SkipMotion
+        }
+        922 => {
+            st.g92_on = false;
+            CoordWord::SkipMotion
+        }
+        923 => {
+            st.g92_on = true;
+            CoordWord::SkipMotion
+        }
+        530 => CoordWord::Machine,
+        280 | 300 => {
+            let reference = if code == 280 {
+                st.coord.reference_g28
+            } else {
+                st.coord.reference_g30
+            };
+            let usable =
+                reference.is_some_and(|p| p.x.is_finite() && p.y.is_finite() && p.z.is_finite());
+            if usable {
+                CoordWord::Reference(code == 300)
+            } else {
+                diag(
+                    trace,
+                    block.line,
+                    Severity::Warning,
+                    codes::REFERENCE_POSITION_UNSET,
+                    format!(
+                        "G{} was read but no reference position is configured for it: it moved nothing and the positions after it may be wrong",
+                        code / 10
+                    ),
+                );
+                CoordWord::SkipMotion
+            }
+        }
+        _ => CoordWord::Unhandled,
+    }
+}
+
+/// `G92`: the work position of the axes written becomes the value given, without moving.
+fn set_g92(block: &Block, st: &mut State, trace: &mut Trace) {
+    let work = st.coord.work_offsets[st.work];
+    let limit = st.coord.max_offset_mm;
+    let axes = [
+        ('X', st.position.x, work.x),
+        ('Y', st.position.y, work.y),
+        ('Z', st.position.z, work.z),
+    ];
+    let mut next = [st.g92.x, st.g92.y, st.g92.z];
+    let mut any_axis = false;
+    let mut accepted = false;
+    for (slot, (letter, position, origin)) in next.iter_mut().zip(axes) {
+        let Some(v) = block.get(letter) else {
+            continue;
+        };
+        any_axis = true;
+        let candidate = position - origin - word_mm(st, v);
+        if candidate.abs() > limit {
+            diag(
+                trace,
+                block.line,
+                Severity::Error,
+                codes::OFFSET_OUT_OF_RANGE,
+                format!("the G92 offset of {letter} would be {candidate:.3} mm, more than the limit of {limit} mm: it was not changed"),
+            );
+        } else {
+            *slot = candidate;
+            accepted = true;
+        }
+    }
+    st.g92 = Point3 {
+        x: next[0],
+        y: next[1],
+        z: next[2],
+    };
+    if accepted {
+        st.g92_on = true;
+    } else if !any_axis
+        && !block
+            .words
+            .iter()
+            .any(|w| matches!(w.letter, 'A' | 'B' | 'C' | 'E' | 'U' | 'V' | 'W'))
+    {
+        diag(
+            trace,
+            block.line,
+            Severity::Warning,
+            codes::G92_AXES_MISSING,
+            "G92 has no axis word: the offset was not changed",
+        );
+    }
+}
+
+/// `G28` / `G30`: the move through the point of the block (not in Marlin, where the axes only say which ones go home), then the
+/// axes written (all of them when there is none) go to the reference position.
+fn run_reference(
+    block: &Block,
+    st: &mut State,
+    trace: &mut Trace,
+    g30: bool,
+    dialect: Dialect,
+    scale: impl Fn(&State, f64) -> f64,
+) {
+    let reference = if g30 {
+        st.coord.reference_g30
+    } else {
+        st.coord.reference_g28
+    };
+    let Some(home) = reference else {
+        return;
+    };
+    let listed = |letter: char| block.get(letter).is_some();
+    let any_listed = listed('X') || listed('Y') || listed('Z');
+    if any_listed && dialect != Dialect::Marlin {
+        run_motion(block, st, trace, 0, false, scale);
+    }
+    let from = st.position;
+    let pick = |letter: char, current: f64, target: f64| {
+        if any_listed && !listed(letter) {
+            current
+        } else {
+            target
+        }
+    };
+    let to = Point3 {
+        x: pick('X', from.x, home.x),
+        y: pick('Y', from.y, home.y),
+        z: pick('Z', from.z, home.z),
+    };
+    if to != from {
+        st.seen_move = true;
+        st.position = to;
+        push(block, st, trace, Motion::Rapid, from, to);
+    }
 }
 
 fn diag(
@@ -550,13 +869,37 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
             }
         }
     }
-    let mut skip_motion = false; // a block with a feature that is not supported does not move anything
-                                 // 1. the modal words, in the order of the block
+    // a block with a feature that is not supported does not move anything
+    let mut skip_motion = false;
+    // G53: the move of this block is in machine coordinates
+    let mut machine = false;
+    // G28 (false) or G30 (true) with a reference position
+    let mut reference: Option<bool> = None;
+    // 1. the modal words, in the order of the block
     for word in &block.words {
         let v = word.value;
         match word.letter {
             'G' => {
                 let code = (v * 10.0).round() as i64; // G91.1 -> 911
+                if st.track {
+                    match coordinate_word(code, block, st, trace) {
+                        CoordWord::Unhandled => {}
+                        CoordWord::Handled => continue,
+                        CoordWord::SkipMotion => {
+                            skip_motion = true;
+                            continue;
+                        }
+                        CoordWord::Machine => {
+                            machine = true;
+                            continue;
+                        }
+                        CoordWord::Reference(g30) => {
+                            skip_motion = true;
+                            reference = Some(g30);
+                            continue;
+                        }
+                    }
+                }
                 match code {
                     0 | 10 | 20 | 30 => {
                         st.motion = Some((code / 10) as u32);
@@ -692,6 +1035,10 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
         }
     }
     // 2. the motion of the block
+    if let Some(g30) = reference {
+        run_reference(block, st, trace, g30, dialect, scale);
+        return;
+    }
     let has_axis = block
         .words
         .iter()
@@ -715,7 +1062,17 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
             0
         }
     };
-    run_motion(block, st, trace, code, scale);
+    if machine && code > 1 {
+        diag(
+            trace,
+            block.line,
+            Severity::Error,
+            codes::G53_MOTION_UNSUPPORTED,
+            "G53 moves only with G0 or G1: the block moved nothing",
+        );
+        return;
+    }
+    run_motion(block, st, trace, code, machine, scale);
 }
 
 fn run_motion(
@@ -723,16 +1080,23 @@ fn run_motion(
     st: &mut State,
     trace: &mut Trace,
     code: u32,
+    machine: bool,
     scale: impl Fn(&State, f64) -> f64,
 ) {
     st.seen_move = true;
     let from = st.position;
-    let target = |letter: char, current: f64, st: &State| -> f64 {
+    // G53 is in machine coordinates, and then so is the distance mode of the block: absolute
+    let offset = if machine {
+        Point3::default()
+    } else {
+        active_offset(st)
+    };
+    let target = |letter: char, current: f64, shift: f64, st: &State| -> f64 {
         match block.get(letter) {
             Some(v) => {
                 let mm = scale(st, v);
-                if st.absolute {
-                    mm
+                if st.absolute || machine {
+                    shifted(mm, shift)
                 } else {
                     current + mm
                 }
@@ -741,9 +1105,9 @@ fn run_motion(
         }
     };
     let to = Point3 {
-        x: target('X', from.x, st),
-        y: target('Y', from.y, st),
-        z: target('Z', from.z, st),
+        x: target('X', from.x, offset.x, st),
+        y: target('Y', from.y, offset.y, st),
+        z: target('Z', from.z, offset.z, st),
     };
     let motion = match code {
         0 => Motion::Rapid,
@@ -763,7 +1127,7 @@ fn run_motion(
                 let i_mm = scale(st, i.unwrap_or(0.0));
                 let j_mm = scale(st, j.unwrap_or(0.0));
                 let c = if st.absolute_arc_centre {
-                    (i_mm, j_mm)
+                    (shifted(i_mm, offset.x), shifted(j_mm, offset.y))
                 } else {
                     (from.x + i_mm, from.y + j_mm)
                 };
