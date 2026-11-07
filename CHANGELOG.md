@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The validator checks the file tree:** `tools/ci_validate.py` (tools 5) runs the check of the tree of files of the eight READMEs and of the Repository Structure picture against `docs/structure.json` and the files of the repository, so the validation on its own tells when the tree went stale; `tools/make_structure.py` (tools 3) gives it as `run_in_ci`.
 ## [0.0.8] - Coordinate offsets of G92, G28, G30, G53 and G54 to G59, a default format for Excellon files and the grid overflow fix
 
 - **A drill file without a declared format can be read with a format of the caller:** `parse_with_format` and `parse_bytes_with_format` take an `ExcellonDefaults` (`default_format`, `default_zeros`, `default_units`, all optional) that is used only when the file does not declare the same thing, so a program no longer has to write a `FILE_FORMAT` comment into the text and shift its line numbers. What the file declares wins, an empty `ExcellonDefaults` reads as `parse`, and a format out of range is ignored with the new warning `defaults-invalid`. `parse`, `parse_bytes` and `parse_with_units` are unchanged.
