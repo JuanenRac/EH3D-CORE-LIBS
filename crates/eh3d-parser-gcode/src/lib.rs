@@ -22,6 +22,9 @@
 #![warn(clippy::string_slice)]
 
 pub mod emit;
+pub mod modal;
+
+pub use modal::ModalState;
 
 pub use eh3d_parser_common::{
     codes, read_file_limited, Diagnostic, InputError, InputLimits, ReadError, Severity,
