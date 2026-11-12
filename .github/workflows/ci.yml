@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     name: Validate the repository
@@ -30,6 +34,7 @@ jobs:
   rust:
     name: Rust (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -119,6 +124,7 @@ jobs:
     needs: consumers-list
     if: needs.consumers-list.outputs.repos != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
