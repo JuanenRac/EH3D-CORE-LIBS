@@ -38,14 +38,25 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          path: EH3D-CORE-LIBS
+      # the test that compares the readers of this repository with the ones of EH3D-COMMON takes that crate as a development dependency
+      - name: Check out the sibling EH3D-COMMON (a development dependency of the comparison test)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          repository: JuanenRac/EH3D-COMMON
+          path: EH3D-COMMON
       - name: Rust toolchain
         run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
       - name: Format
         run: cargo fmt --check
+        working-directory: EH3D-CORE-LIBS
       - name: Lints
         run: cargo clippy --all-targets -- -D warnings
+        working-directory: EH3D-CORE-LIBS
       - name: Tests
         run: cargo test --all-targets
+        working-directory: EH3D-CORE-LIBS
 
   consumers-list:
     name: Repositories that depend on this one

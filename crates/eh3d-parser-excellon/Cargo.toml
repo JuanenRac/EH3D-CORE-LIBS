@@ -11,3 +11,7 @@ readme = "../../README.md"
 
 [dependencies]
 eh3d-parser-common = { path = "../eh3d-parser-common", version = ">=0.0.2" }
+
+[dev-dependencies]
+# the readers of the Bungard machines, compared with this one on the same files (tests/differential.rs)
+eh3d-bungard-formats = { path = "../../../EH3D-COMMON/crates/formats", version = ">=0.0.1" }
