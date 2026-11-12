@@ -146,4 +146,76 @@ mod tests {
             .restore_lines(true)
             .is_empty());
     }
+
+    /// A small generator with a fixed seed: the same programs on every run.
+    struct Rng(u64);
+
+    impl Rng {
+        fn below(&mut self, n: usize) -> usize {
+            self.0 = self
+                .0
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            ((self.0 >> 33) % n as u64) as usize
+        }
+    }
+
+    #[test]
+    fn what_is_given_back_puts_the_same_state_in_force_again() {
+        const LINES: &[&str] = &[
+            "G20",
+            "G21",
+            "G90",
+            "G91",
+            "G17",
+            "G18",
+            "G19",
+            "G54",
+            "G55",
+            "G56",
+            "G57",
+            "G58",
+            "G59",
+            "G94",
+            "G95",
+            "M3 S1000",
+            "M4 S2500.5",
+            "M5",
+            "M7",
+            "M8",
+            "M9",
+            "F100",
+            "F0.25",
+            "S18000",
+            "G1 X5 Y5",
+            "G0 Z5",
+            "(note)",
+            "; x",
+            "G4 P1",
+        ];
+        let mut rng = Rng(0x00C0_FFEE);
+        for _ in 0..2_000 {
+            let n = 1 + rng.below(12);
+            let text: Vec<&str> = (0..n).map(|_| LINES[rng.below(LINES.len())]).collect();
+            let first = state_of(&text.join(
+                "
+",
+            ));
+            let given = first.restore_lines(true);
+            let again = state_of(&given.join(
+                "
+",
+            ));
+            // the second state gives back exactly the same lines (a spindle that was stopped is not part of what is given back)
+            assert_eq!(again.restore_lines(true), given, "{text:?}");
+            // and without the outputs nothing starts a spindle or a coolant
+            assert!(
+                first
+                    .restore_lines(false)
+                    .iter()
+                    .all(|l| !l.starts_with('M')),
+                "{text:?}"
+            );
+        }
+    }
 }
