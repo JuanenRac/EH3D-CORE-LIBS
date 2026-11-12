@@ -54,6 +54,10 @@ impl Diagnostic {
 }
 
 /// The stable codes of the diagnostics. Each one is documented in `docs/DIAGNOSTICS.md`.
+pub mod limits;
+
+pub use limits::{SizeVerdict, TextLimitError, TextLimits};
+
 pub mod codes {
     macro_rules! codes {
         ($($name:ident = $text:literal,)*) => {

@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The size limits of the text are in a configuration file, with the lines and a warning:** `eh3d_parser_common::TextLimits` reads `crates/eh3d-parser-common/input_limits.cfg` (a hard and a warning limit for the bytes and for the lines; the hard limit of the bytes is the one the readers already had) and `check` says whether a text is inside, big (`SizeVerdict::Warn`, to be said to the person) or refused (`TextLimitError`, with the number that went past). A program may carry its own copy and read it with `TextLimits::from_config`, which refuses a bad file with its line. Three tests check the shipped values, the three verdicts and the refusals of a bad configuration.
 - **The validator checks the file tree:** `tools/ci_validate.py` (tools 5) runs the check of the tree of files of the eight READMEs and of the Repository Structure picture against `docs/structure.json` and the files of the repository, so the validation on its own tells when the tree went stale; `tools/make_structure.py` (tools 3) gives it as `run_in_ci`.
 ## [0.0.8] - Coordinate offsets of G92, G28, G30, G53 and G54 to G59, a default format for Excellon files and the grid overflow fix
 
