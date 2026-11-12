@@ -33,3 +33,7 @@ The crates added since this page was written (`eh3d-geometry`, `eh3d-cam`, `eh3d
 * The Bungard files are not a variant of the standard ones: a coordinate there may be whole mils with no point and no format line. The adapter has to take the unit and the digits from the machine file, never guess them.
 * The result of drilling must not change for a file that is already read correctly: the corpus includes the files the programs use as examples, and their holes are compared before and after.
 * These crates stay free of dependencies: the dependency goes from the formats crate to them, never the other way round.
+
+## Decision: both readers stay
+
+The plan above is **not carried out**. The owner of the suite decided to keep both pairs of readers, the ones of these crates and the ones of the Bungard formats crate of `EH3D-COMMON`, and to make sure they agree where they must with a test instead of joining them: no dependency from the formats crate to these crates and no new crate. The comparison of step 1 exists and runs in the CI of this repository: `crates/eh3d-parser-excellon/tests/differential.rs` (the same number of holes with the same tools in the same order, and how far apart the positions are) and `crates/eh3d-parser-gerber/tests/differential.rs` (every end of the outline lies inside the box of the path the other reader makes). The two crates of the formats are therefore development dependencies of the tests here (the CI checks `EH3D-COMMON` out next to this repository). A new difference between the readers is found by those tests, not by a person.

@@ -52,7 +52,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Geometrie und HP-GL | 🔴 | Die 2D-Geometrie (Offsets, Boolesche Operationen) und die Leser für HP-GL und Bungard sind geplant und nicht gebaut. |
 | Nutzung durch andere Programme | 🟡 | Vier Programme der Suite hängen von den Lesern ab (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); keines lief auf einer Maschine. |
 | Echte Hardware | 🟡 | Nicht zutreffend: Dateileser, nichts hier spricht mit einer Maschine. |
-| Dokumentation | 🟡 | README in acht Sprachen und `docs/READERS.md`, das sagt, was jeder Leser verspricht und was er nicht tut; `docs/UNIFICATION.md` ist der Plan (nicht umgesetzt), die zwei Leserpaare der Suite zu beenden. |
+| Dokumentation | 🟡 | README in acht Sprachen und `docs/READERS.md`, das sagt, was jeder Leser verspricht und was er nicht tut; `docs/UNIFICATION.md` ist der Plan, die zwei Leserpaare der Suite zu beenden, der nicht umgesetzt wurde: beide Paare bleiben und zwei Differenztests halten sie in Übereinstimmung. |
 
 ## 🎯 Überblick
 
@@ -222,7 +222,7 @@ README und Texte gibt es auf Englisch, Spanisch, Französisch, Italienisch, Deut
 ## 📚 Dokumentation
 
 * [Was jeder Leser verspricht](docs/READERS.md): die Zusagen, die Diagnosen und was nicht getan wird.
-* [Ein Leser für Gerber und einer für Excellon](docs/UNIFICATION.md): ein Plan, nicht umgesetzt: wie die Leser dieses Repositorys und die von EH3D-COMMON zu einem würden.
+* [Ein Leser für Gerber und einer für Excellon](docs/UNIFICATION.md): der Plan, die Leser dieses Repositorys und die von EH3D-COMMON zu einem zu machen, nicht umgesetzt: beide bleiben, durch Differenztests geprüft.
 * [Änderungsprotokoll](CHANGELOG.md)
 
 ## 🤝 Mitwirken und Community
