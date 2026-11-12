@@ -186,6 +186,7 @@ EH3D-CORE-LIBS/
 ├── .github/                                     CI 与发布工作流、Issue 和 PR 模板
 ├── eh3d.project.json                            清单：版本、角色、成熟度和构建命令
 ├── Cargo.toml Cargo.lock                        工作区及其锁定的依赖
+├── rust-toolchain.toml                          固定的 Rust 工具链
 ├── CHANGELOG.md                                 每个版本的变更
 ├── SECURITY.md SUPPORT.md                       如何报告漏洞及在哪里提问
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   参与贡献、行为准则和许可证

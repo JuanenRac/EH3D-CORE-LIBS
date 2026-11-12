@@ -186,6 +186,7 @@ EH3D-CORE-LIBS/
 ├── .github/                                     workflow di CI e di rilascio, modelli di issue e pull request
 ├── eh3d.project.json                            manifesto: versione, ruolo, maturità e comando di compilazione
 ├── Cargo.toml Cargo.lock                        il workspace e le sue dipendenze bloccate
+├── rust-toolchain.toml                          la toolchain Rust fissata
 ├── CHANGELOG.md                                 cosa è cambiato in ogni versione
 ├── SECURITY.md SUPPORT.md                       come segnalare una vulnerabilità e dove chiedere
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   come contribuire, codice di condotta e licenza
