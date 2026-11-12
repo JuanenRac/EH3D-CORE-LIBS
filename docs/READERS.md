@@ -46,3 +46,7 @@ Dialects: GRBL, Marlin (line numbers and checksums, verified; `M117`, `M118`, `M
 * Planes other than XY for arcs (`G18` and `G19` are an error and the arc is drawn as a line).
 * HP-GL and the Bungard format, and the 2D geometry (offsets and booleans), are planned.
 * None of this has been tried on a collection of real production files, and nothing here decides whether a program is safe to run on a machine.
+
+## The modal codes of a program
+
+`eh3d_parser_gcode::ModalState` is the one tracker of the codes that stay in force (the unit, the distance mode, the plane, the work coordinate system, the feed mode, the feed, the spindle with its speed and the coolant), and the one that gives them back as lines to take a program up again from the middle. EH3D-SERVER uses it for that. The other programs of the suite do not need a second tracker: EH3D-CAM-DEBUGGER reads the position and the offsets with `interpret` and `interpret_coordinates` of this crate, and EH3D-AUTOLEVEL does not follow modes at all, because it refuses what it cannot rewrite (relative distances, inches and arcs) with the number of the line. A program that is not in this workspace (the machine program on the controller) keeps its own and is not part of the suite.
