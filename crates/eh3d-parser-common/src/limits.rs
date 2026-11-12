@@ -11,11 +11,13 @@ pub const DEFAULT_CONFIG: &str = include_str!("../input_limits.cfg");
 /// The limits of the size of a text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextLimits {
-    /// The most bytes and a warning from where the text is big.
+    /// The most bytes a text may have.
     pub input: InputLimits,
+    /// From how many bytes the text is read with a warning.
     pub warn_bytes: usize,
-    /// The most lines and a warning from where the text is big.
+    /// The most lines a text may have.
     pub max_lines: usize,
+    /// From how many lines the text is read with a warning.
     pub warn_lines: usize,
 }
 
@@ -34,7 +36,12 @@ pub enum TextLimitError {
     /// More bytes than the limit.
     Bytes(InputError),
     /// More lines than the limit.
-    TooManyLines { lines: usize, limit: usize },
+    TooManyLines {
+        /// The lines the text has.
+        lines: usize,
+        /// The limit that applied.
+        limit: usize,
+    },
 }
 
 impl fmt::Display for TextLimitError {
@@ -53,7 +60,9 @@ impl std::error::Error for TextLimitError {}
 /// A line of the configuration that cannot be used (`line` is 0 for a fault of the whole file).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigError {
+    /// The line of the file, counted from 1.
     pub line: usize,
+    /// What is wrong with it.
     pub text: String,
 }
 

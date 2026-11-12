@@ -54,6 +54,7 @@ impl Diagnostic {
 }
 
 /// The stable codes of the diagnostics. Each one is documented in `docs/DIAGNOSTICS.md`.
+/// The size limits of the text, kept in a configuration file.
 pub mod limits;
 
 pub use limits::{SizeVerdict, TextLimitError, TextLimits};
