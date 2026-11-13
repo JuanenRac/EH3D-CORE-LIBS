@@ -1,0 +1,7 @@
+{
+ "_comment": "Known workflow findings; only findings not listed here fail the check. Regenerate with workflow_hygiene.py --write-baseline.",
+ "findings": {
+  "dashboard-dispatch.yml|no-timeout|job 'notify' without timeout-minutes": 1,
+  "rust.yml|no-timeout|job 'consumers-list' without timeout-minutes": 1
+ }
+}
