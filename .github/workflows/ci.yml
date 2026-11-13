@@ -17,7 +17,7 @@ jobs:
   # The checks every repository of the suite runs, held once in EH3D-DOCS as a reusable workflow; the reference is a full
   # commit, so a change there reaches this repository only when this line is moved.
   validate:
-    uses: JuanenRac/EH3D-DOCS/.github/workflows/validate.yml@4610941ddec34b44f54073f0f0acf1ccd1b9ae48
+    uses: JuanenRac/EH3D-DOCS/.github/workflows/validate.yml@57c9da353c0ad0e59905e54ce8c44a31bf8b0ec6
     with:
       python-version: "3.12"
       check-pictures: true
