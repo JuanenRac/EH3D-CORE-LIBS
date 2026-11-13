@@ -163,8 +163,8 @@ fn count_with_union_find(on: &[bool], w: usize, h: usize) -> usize {
         }
     }
     let mut roots = std::collections::BTreeSet::new();
-    for i in 0..w * h {
-        if on[i] {
+    for (i, lit) in on.iter().enumerate() {
+        if *lit {
             let r = find(&mut parent, i);
             roots.insert(r);
         }
