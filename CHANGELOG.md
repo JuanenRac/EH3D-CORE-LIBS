@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The validation of the CI is the reusable one of the documentation hub:** the job `validate` calls `validate.yml` of EH3D-DOCS (pinned by commit) and the check of the CHANGELOG is a job of its own.
 - **The CI is split in two workflows:** the validation of the repository (manifest, documentation, pictures, tools) stays in `ci.yml` and the Rust jobs move to `rust.yml`, which does not run for a change that only touches the READMEs, the CHANGELOG or pictures, so a change of the documentation no longer builds the code on two systems, and they keep a cache of the build. The names of the jobs are the same.
 - **Tests of the isolation of the CAM:** `crates/eh3d-cam/tests/isolate.rs` checks that every parameter out of range is refused, the reach of the passes, the closed paths of each pass, the labelling of pieces against a union-find on random grids of a fixed seed, the close places and the net of a point, and the back-and-forth lines of the removal of leftover copper (corners in any order, bad tools, overlaps and too many lines).
 ## [0.0.9] - One modal tracker of G-code, size limits in a file and more tests of the CAM
