@@ -12,13 +12,13 @@
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Stack-Rust-DEA584.svg" alt="Rust">
   <img src="https://img.shields.io/badge/Languages-8-00E5FF.svg" alt="Languages">
-  <img src="https://img.shields.io/badge/Version-0.0.9-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Version-0.1.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-scaffolding-FFB020.svg" alt="Maturity">
 </p>
 
 ---
 
-**Ehrlichkeitscheck - was heute tatsächlich läuft:** drei Rust-Bibliotheken ohne Abhängigkeiten, die Gerber-Ebenen (RS-274X), Excellon-Bohrdateien und G-Code lesen (ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC). 342 Tests laufen auf einem Computer, einschließlich beschädigter und feindlicher Eingaben. Zwei weitere Bibliotheken schreiben Gerber-X2- und Excellon-Dateien ohne Datum und Version, sodass gleicher Inhalt immer dieselben Bytes ergibt; sie werden durch Schreiben und Zurücklesen mit den Lesern getestet, und noch kein Betrachter und keine Maschine hat ihre Dateien geöffnet. Die Leser stürzen nie ab und melden, was sie nicht verstehen konnten, als Diagnosen mit Zeilennummern. Sie zeichnen nichts, berechnen keinen Werkzeugweg und wurden nicht mit einer Sammlung echter Produktionsdateien erprobt; vier Programme der Suite nutzen sie (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM), und nichts davon lief auf einer Maschine.
+**Ehrlichkeitscheck - was heute tatsächlich läuft:** drei Rust-Bibliotheken ohne Abhängigkeiten, die Gerber-Ebenen (RS-274X), Excellon-Bohrdateien und G-Code lesen (ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC). 358 Tests laufen auf einem Computer, einschließlich beschädigter und feindlicher Eingaben. Zwei weitere Bibliotheken schreiben Gerber-X2- und Excellon-Dateien ohne Datum und Version, sodass gleicher Inhalt immer dieselben Bytes ergibt; sie werden durch Schreiben und Zurücklesen mit den Lesern getestet, und noch kein Betrachter und keine Maschine hat ihre Dateien geöffnet. Die Leser stürzen nie ab und melden, was sie nicht verstehen konnten, als Diagnosen mit Zeilennummern. Sie zeichnen nichts, berechnen keinen Werkzeugweg und wurden nicht mit einer Sammlung echter Produktionsdateien erprobt; vier Programme der Suite nutzen sie (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM), und nichts davon lief auf einer Maschine.
 
 ---
 
@@ -28,9 +28,9 @@
 
 | | |
 |---|---|
-| Version | `0.0.9` |
+| Version | `0.1.0` |
 | Reifegrad | Gerüst |
-| Tests | 342 |
+| Tests | 358 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht zutreffend: Dateileser, nichts hier spricht mit einer Maschine |
 
@@ -47,7 +47,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Gerber-Leser | 🟡 | RS-274X: Einheiten, Koordinatenformat, Blenden, Makros, Regionen und Zeichenbefehle werden gelesen; bisher nur Testdateien, keine Sammlung echter Produktionsdateien. |
 | Excellon-Leser | 🟡 | Werkzeuge, Bohrungen, Langlöcher und einfache Fräswege in metrisch oder Zoll werden gelesen; bisher nur Testdateien. |
 | G-Code-Leser | 🟡 | Ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC liefert absolute Millimeter, Bögen eingeschlossen; Fräserradiuskorrektur und Bearbeitungszyklen werden als nicht unterstützt gemeldet. |
-| Tests | 🟡 | 342 Tests bestehen (`cargo test`): 43 für Gerber, 42 für Excellon, 79 für G-Code und 22 für das gemeinsame Crate, 17 für die Raster-Geometrie, 20 für die Formen, 93 für die reine CAM, 14 für den Gerber-Schreiber und 12 für den Excellon-Schreiber, mit beschädigten und feindlichen Eingaben und einem Korpus synthetischer Dateien. |
+| Tests | 🟡 | 358 Tests bestehen (`cargo test`): 43 für Gerber, 42 für Excellon, 79 für G-Code und 22 für das gemeinsame Crate, 17 für die Raster-Geometrie, 20 für die Formen, 109 für die reine CAM, 14 für den Gerber-Schreiber und 12 für den Excellon-Schreiber, mit beschädigten und feindlichen Eingaben und einem Korpus synthetischer Dateien. |
 | Sicherheit | 🟡 | Gebaut für Dateien, die andere Personen schicken: nichts stürzt ab, kein Wert wird geraten, und Probleme kommen als Diagnosen mit Zeilennummern zurück; keine unabhängige Prüfung, und nichts hier beurteilt, ob ein G-Code sicher ausführbar ist. |
 | Geometrie und HP-GL | 🔴 | Die 2D-Geometrie (Offsets, Boolesche Operationen) und die Leser für HP-GL und Bungard sind geplant und nicht gebaut. |
 | Nutzung durch andere Programme | 🟡 | Vier Programme der Suite hängen von den Lesern ab (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); keines lief auf einer Maschine. |
@@ -76,6 +76,14 @@ EH3D-CORE-LIBS verwandelt Dateien in Daten für die Programme der Suite (CAM fü
 </p>
 
 Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält und wovon es abhängt. Das Bild wird aus `docs/architecture.json` gezeichnet und gegen den Code geprüft.
+
+## 🖼️ Screenshots
+
+<p align="center">
+  <img src="images/screens/core-libs-01-tests.png" alt="Ein vollständiger Testlauf des Workspace, nach Testdatei aufgelistet" width="100%">
+</p>
+
+<p align="center"><em>Ein vollständiger Lauf von `cargo test --workspace`: 358 Tests der Leser, der Schreiber, der Raster- und Formgeometrie und des reinen CAM, nach Testdatei aufgelistet; alle bestehen.</em></p>
 
 ## ✨ Funktionen
 
@@ -152,7 +160,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Tests
 
-Die Suite hat 342 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt): 43 für Gerber, 42 für Excellon, 79 für G-Code und 22 für das gemeinsame Crate, 17 für die Raster-Geometrie, 20 für die Formen, 93 für die reine CAM, 14 für den Gerber-Schreiber und 12 für den Excellon-Schreiber. Ein Korpus aus 21 kleinen synthetischen Dateien (`tests/golden/`: Gerber in Zoll und Millimetern, Excellon mit `LZ`/`TZ`, Langlöchern und Fräsbahnen, G-Code für GRBL, Marlin und LinuxCNC, mit CRLF, Latin-1 und beschädigten Dateien) wird von den Lesern gelesen und mit einer neben jeder Datei gespeicherten Zusammenfassung verglichen; `EH3D_REGENERATE=1 cargo test` schreibt die Zusammenfassungen neu, damit die Änderung im Diff sichtbar ist, und dieselben Dateien werden vom Mutationstest auf tausendfache Weise beschädigt. Sie prüfen, dass eine typische Kupferebene und eine typische metrische Datei vollständig gelesen werden, ausgelassene Koordinaten, beide Nullunterdrückungen, Langlöcher, Fräswege, Zoll zu Millimeter, dass jeder Befehl seine Zeile kennt, Bögen nach Mittelpunkt und nach Radius, Vollkreise, modalen Vorschub und modale Bewegung, Marlin-Prüfsummen, nicht unterstützte Funktionen, die gemeldet statt geraten werden, und beschädigte Eingaben: Müll, abgeschnittene Präfixe und sehr lange Zeilen führen nie zum Absturz. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 358 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt): 43 für Gerber, 42 für Excellon, 79 für G-Code und 22 für das gemeinsame Crate, 17 für die Raster-Geometrie, 20 für die Formen, 109 für die reine CAM, 14 für den Gerber-Schreiber und 12 für den Excellon-Schreiber. Ein Korpus aus 21 kleinen synthetischen Dateien (`tests/golden/`: Gerber in Zoll und Millimetern, Excellon mit `LZ`/`TZ`, Langlöchern und Fräsbahnen, G-Code für GRBL, Marlin und LinuxCNC, mit CRLF, Latin-1 und beschädigten Dateien) wird von den Lesern gelesen und mit einer neben jeder Datei gespeicherten Zusammenfassung verglichen; `EH3D_REGENERATE=1 cargo test` schreibt die Zusammenfassungen neu, damit die Änderung im Diff sichtbar ist, und dieselben Dateien werden vom Mutationstest auf tausendfache Weise beschädigt. Sie prüfen, dass eine typische Kupferebene und eine typische metrische Datei vollständig gelesen werden, ausgelassene Koordinaten, beide Nullunterdrückungen, Langlöcher, Fräswege, Zoll zu Millimeter, dass jeder Befehl seine Zeile kennt, Bögen nach Mittelpunkt und nach Radius, Vollkreise, modalen Vorschub und modale Bewegung, Marlin-Prüfsummen, nicht unterstützte Funktionen, die gemeldet statt geraten werden, und beschädigte Eingaben: Müll, abgeschnittene Präfixe und sehr lange Zeilen führen nie zum Absturz. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
