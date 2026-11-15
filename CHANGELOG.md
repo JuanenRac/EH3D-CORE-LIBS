@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Simulation of the drill files that reach the reader:** add `crates/eh3d-writer-excellon/tests/simulation.rs`, a twin of a drilling program that writes jobs from a seeded generator, and the damage a file can suffer on its way: cut short, text after the end, a tool that is not defined, bytes that are not UTF-8, another end of line and bytes flipped at random. Eight tests check that the reader never panics, says what is wrong with a stable code, keeps the holes it can trust and gives the same answer every time, and that writing the model again gives the same clean file. Nothing has been opened by a machine.
+
 ## [0.1.0] - Shared validation tools, a split CI and tests of the isolation of the CAM
 
 - **The test counts and a picture of the test run in the README:** the eight READMEs now say 358 tests (109 on the pure CAM, after the tests of its isolation), the number a full `cargo test --workspace` gives, and show that run in `images/screens/core-libs-01-tests.png`.
