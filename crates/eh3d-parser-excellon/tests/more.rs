@@ -172,6 +172,9 @@ fn a_number_mask_in_the_header_has_the_limits_of_the_format_comment() {
         .diagnostics
         .iter()
         .all(|d| d.code != codes::FORMAT_COMMENT_INVALID));
+}
+
+#[test]
 fn a_repeat_is_an_error_and_never_a_false_hole() {
     let text = [
         "M48",
