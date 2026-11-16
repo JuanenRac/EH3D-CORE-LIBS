@@ -385,3 +385,18 @@ fn a_scene_is_lossy_exactly_when_something_was_left_out() {
         "%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0.5*%\nD10*\n%LPC*%\nX0Y0D02*\nX10000Y0D01*\nM02*\n";
     assert!(from_gerber(&eh3d_parser_gerber::parse(text)).is_lossy());
 }
+
+#[test]
+fn the_hole_of_a_standard_aperture_is_said_and_makes_the_scene_lossy() {
+    let with_hole = "%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,1.0X0.4*%\nD10*\nX10000Y10000D03*\nM02*\n";
+    let s = from_gerber(&eh3d_parser_gerber::parse(with_hole));
+    assert!(
+        s.notes.iter().any(|n| n.contains("hole of an aperture")),
+        "{:?}",
+        s.notes
+    );
+    assert!(s.is_lossy());
+    let solid = "%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,1.0*%\nD10*\nX10000Y10000D03*\nM02*\n";
+    let s = from_gerber(&eh3d_parser_gerber::parse(solid));
+    assert!(s.notes.is_empty(), "{:?}", s.notes);
+}

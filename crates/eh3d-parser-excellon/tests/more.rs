@@ -142,3 +142,34 @@ fn units_given_by_the_caller_win_and_silence_the_notices_about_them() {
         .iter()
         .all(|d| d.code != codes::UNITS_FORCED));
 }
+
+#[test]
+fn a_number_mask_in_the_header_has_the_limits_of_the_format_comment() {
+    let long = "0".repeat(400);
+    for mask in [
+        format!("0.{long}"),
+        ".000".to_string(),
+        format!("{long}.000"),
+    ] {
+        let f = parse(&format!(
+            "M48\nMETRIC,TZ,{mask}\nT1C0.8\n%\nT1\nX1.0Y1.0\nM30\n"
+        ));
+        assert!(
+            f.diagnostics
+                .iter()
+                .any(|d| d.code == codes::FORMAT_COMMENT_INVALID),
+            "{}",
+            &mask[..mask.len().min(12)]
+        );
+        assert_eq!(f.drills.len(), 1);
+        assert_ne!(
+            f.drills[0].at.x, 0.0,
+            "the coordinate must not collapse to zero"
+        );
+    }
+    let f = parse("M48\nMETRIC,TZ,000.000\nT1C0.8\n%\nT1\nX010500Y020250\nM30\n");
+    assert!(f
+        .diagnostics
+        .iter()
+        .all(|d| d.code != codes::FORMAT_COMMENT_INVALID));
+}

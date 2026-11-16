@@ -34,3 +34,21 @@ fn what_is_written_is_read_back_by_the_reader_of_the_same_crate() {
     assert_eq!(t.segments.len(), 1);
     assert_eq!((t.segments[0].to.x, t.segments[0].to.y), (1.5, -2.0));
 }
+
+#[test]
+fn a_name_cannot_put_a_real_time_command_of_grbl_in_the_header() {
+    let h = header(&Header {
+        generator: "g",
+        version: "1",
+        source: Some(("plate!.gtp job.nc~ cut?\u{18}\u{e9}\nM3", sha256_hex(b"x"))),
+        tools: "t",
+    });
+    for bad in ['!', '~', '?', '\u{18}', '\u{e9}'] {
+        assert!(!h.contains(bad), "{bad:?} in {h:?}");
+    }
+    assert!(
+        h.contains("; source: plate_.gtp job.nc_ cut___ M3 sha256:"),
+        "{h}"
+    );
+    assert_eq!(h.lines().count(), 5, "a name added a line: {h:?}");
+}

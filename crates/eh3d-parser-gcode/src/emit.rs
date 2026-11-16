@@ -104,7 +104,18 @@ pub fn header(h: &Header) -> String {
 
 /// Like [`header`] with the units line of your own (`"inch (G20)"`, for example).
 pub fn header_with_units(h: &Header, units: &str) -> String {
-    let one = |s: &str| s.replace(['\r', '\n'], " ");
+    // a line break is a space; the characters that GRBL takes as real-time commands anywhere in the stream, even inside a comment (`!` hold, `~` resume, `?` status, the
+    // soft reset and the bytes 0x80 and above of the extended commands, which every non-ASCII character holds), and any other control character, become an underscore
+    let one = |s: &str| {
+        s.chars()
+            .map(|c| match c {
+                '\r' | '\n' => ' ',
+                '!' | '~' | '?' => '_',
+                c if c == ' ' || c.is_ascii_graphic() => c,
+                _ => '_',
+            })
+            .collect::<String>()
+    };
     let mut out = format!(
         "; generator: {} {}\n; units: {}\n",
         one(h.generator),

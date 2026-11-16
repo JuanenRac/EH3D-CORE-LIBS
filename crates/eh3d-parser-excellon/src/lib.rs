@@ -394,7 +394,17 @@ fn header_line(st: &mut State, upper: &str, line: usize) {
                     other if other.chars().all(|c| c.is_ascii_digit() || c == '.') => {
                         // 000.000 or 00.0000: the number of digits before and after the point
                         if let Some((i, d)) = other.split_once('.') {
-                            st.format = Some((i.len() as u32, d.len() as u32));
+                            // the same limits as the format comment: a mask of hundreds of digits would make every coordinate zero
+                            if (1..=8).contains(&i.len()) && d.len() <= 8 {
+                                st.format = Some((i.len() as u32, d.len() as u32));
+                            } else {
+                                st.diag(
+                                    line,
+                                    Severity::Warning,
+                                    codes::FORMAT_COMMENT_INVALID,
+                                    "the number format of the header is not understood",
+                                );
+                            }
                         }
                     }
                     other => st.diag(
