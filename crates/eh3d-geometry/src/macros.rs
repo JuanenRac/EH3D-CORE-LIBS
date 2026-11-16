@@ -13,6 +13,12 @@ use eh3d_parser_gerber::MacroDefinition;
 const MAX_PRIMITIVES: usize = 4096;
 /// The most corners of an outline or a regular polygon.
 const MAX_VERTICES: usize = 4096;
+/// The deepest nesting of signs and parentheses in an expression: a deeper one is not read, so a hostile file cannot overflow the stack.
+const MAX_DEPTH: usize = 64;
+/// The longest expression (in characters) that is read.
+const MAX_EXPRESSION: usize = 1024;
+/// The most lines of a macro that are read at each flash.
+const MAX_LINES: usize = 4096;
 
 /// What a macro drew at a point and what it could not draw.
 #[derive(Debug, Default)]
@@ -26,6 +32,7 @@ struct Parser<'a> {
     chars: Vec<char>,
     pos: usize,
     vars: &'a [f64],
+    depth: usize,
 }
 
 impl Parser<'_> {
@@ -71,6 +78,16 @@ impl Parser<'_> {
         Some(v)
     }
     fn factor(&mut self) -> Option<f64> {
+        self.depth += 1;
+        let v = if self.depth > MAX_DEPTH {
+            None
+        } else {
+            self.factor_inside()
+        };
+        self.depth -= 1;
+        v
+    }
+    fn factor_inside(&mut self) -> Option<f64> {
         match self.peek()? {
             '-' => {
                 self.pos += 1;
@@ -121,10 +138,19 @@ impl Parser<'_> {
 
 /// The value of an arithmetic expression with variables, or `None` when it does not parse.
 pub(crate) fn eval(text: &str, vars: &[f64]) -> Option<f64> {
+    let chars: Vec<char> = text
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .take(MAX_EXPRESSION + 1)
+        .collect();
+    if chars.len() > MAX_EXPRESSION {
+        return None;
+    }
     let mut p = Parser {
-        chars: text.chars().filter(|c| !c.is_whitespace()).collect(),
+        chars,
         pos: 0,
         vars,
+        depth: 0,
     };
     let v = p.expr()?;
     (p.pos == p.chars.len() && v.is_finite()).then_some(v)
@@ -158,7 +184,11 @@ pub(crate) fn draw(def: &MacroDefinition, params: &[f64], at: (f64, f64), k: f64
                 .collect(),
         });
     };
-    for line in &def.body {
+    for (read, line) in def.body.iter().enumerate() {
+        if read >= MAX_LINES {
+            out.skipped.push("a macro with too many lines");
+            break;
+        }
         let text: String = line.chars().filter(|c| !c.is_whitespace()).collect();
         if text.is_empty() {
             continue;
