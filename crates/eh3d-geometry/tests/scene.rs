@@ -324,7 +324,7 @@ fn a_macro_with_hostile_nesting_or_length_is_said_and_does_not_overflow_the_stac
     // a nesting that is reasonable is still read
     let text = "%FSLAX24Y24*%\n%MOMM*%\n%AMOK*\n1,1,((((1))))x2,0,0*%\n%ADD10OK,1*%\nD10*\nX0Y0D03*\nM02*\n";
     assert_eq!(
-        from_gerber(&eh3d_parser_gerber::parse(&text)).shapes.len(),
+        from_gerber(&eh3d_parser_gerber::parse(text)).shapes.len(),
         1
     );
 }
