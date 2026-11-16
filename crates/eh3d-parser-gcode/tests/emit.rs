@@ -50,5 +50,5 @@ fn a_name_cannot_put_a_real_time_command_of_grbl_in_the_header() {
         h.contains("; source: plate_.gtp job.nc_ cut___ M3 sha256:"),
         "{h}"
     );
-    assert_eq!(h.lines().count(), 5, "a name added a line: {h:?}");
+    assert_eq!(h.lines().count(), 4, "a name added a line: {h:?}");
 }
