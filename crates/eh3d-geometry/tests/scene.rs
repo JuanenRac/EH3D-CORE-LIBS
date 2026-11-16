@@ -303,6 +303,32 @@ fn a_macro_primitive_that_cannot_be_drawn_is_still_said() {
     }
 }
 
+#[test]
+fn a_macro_with_hostile_nesting_or_length_is_said_and_does_not_overflow_the_stack() {
+    let nested = format!("1,1,{}1{},0,0", "(".repeat(100), ")".repeat(100));
+    let signs = format!("1,1,{}1,0,0", "-".repeat(100));
+    let huge = format!("1,1,{}1,0,0", "(".repeat(100_000));
+    let long_line = format!("1,1,{},0,0", "1+".repeat(2_000) + "1");
+    for body in [nested, signs, huge, long_line] {
+        let text = format!(
+            "%FSLAX24Y24*%\n%MOMM*%\n%AMDEEP*\n{body}*%\n%ADD10DEEP,1*%\nD10*\nX0Y0D03*\nX10000Y0D03*\nM02*\n"
+        );
+        let s = from_gerber(&eh3d_parser_gerber::parse(&text));
+        assert!(s.shapes.is_empty(), "{:?}", s.shapes.len());
+        assert!(
+            s.notes.iter().any(|n| n.contains("macro aperture")),
+            "{:?}",
+            s.notes
+        );
+    }
+    // a nesting that is reasonable is still read
+    let text = "%FSLAX24Y24*%\n%MOMM*%\n%AMOK*\n1,1,((((1))))x2,0,0*%\n%ADD10OK,1*%\nD10*\nX0Y0D03*\nM02*\n";
+    assert_eq!(
+        from_gerber(&eh3d_parser_gerber::parse(&text)).shapes.len(),
+        1
+    );
+}
+
 fn full_circle(radius_mm: f64) -> String {
     let r = (radius_mm * 10_000.0) as i64;
     format!("%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0.1*%\nD10*\nG75*\nX{r}Y0D02*\nG03*\nX{r}Y0I-{r}J0D01*\nM02*\n")
