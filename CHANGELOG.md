@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **An Excellon repeat is an error, not a false hole:** `R<n>X<step>` and `M02X<offset>` no longer make a single hole at the step; the line is reported as `geometry-command-unsupported` (Error) so that programs that filter by error do not take the file as complete.
+
 - **An aperture macro with deep or huge expressions can no longer overflow the stack:** the arithmetic of a macro is read only up to 64 levels of signs and parentheses and 1024 characters, and at most 4096 lines of a macro are read at each flash; what goes past a limit is left out and said, as a primitive that cannot be read. Tested with nested parentheses, a run of signs, a 100000-character expression and a long one, and a reasonable nesting is still drawn.
 
 - **Simulation of the drill files that reach the reader:** add `crates/eh3d-writer-excellon/tests/simulation.rs`, a twin of a drilling program that writes jobs from a seeded generator, and the damage a file can suffer on its way: cut short, text after the end, a tool that is not defined, bytes that are not UTF-8, another end of line and bytes flipped at random. Eight tests check that the reader never panics, says what is wrong with a stable code, keeps the holes it can trust and gives the same answer every time, and that writing the model again gives the same clean file. Nothing has been opened by a machine.

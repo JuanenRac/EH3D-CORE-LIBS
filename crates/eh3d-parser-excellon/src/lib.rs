@@ -631,7 +631,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                     return;
                 }
             },
-            'F' | 'S' | 'N' => {}
+            'F' | 'S' | 'N' | 'R' => {}
             other => st.diag(
                 line,
                 Severity::Warning,
@@ -639,6 +639,21 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                 format!("unknown word '{other}{digits}' was ignored"),
             ),
         }
+    }
+    // `R<n>X<step>` repeats the last hole and `M02X<offset>` moves a repeated pattern: neither is read, and the step must not become a hole of its own.
+    let repeats = words.iter().any(|(l, _)| *l == 'R');
+    let pattern_offset = (x.is_some() || y.is_some())
+        && words
+            .iter()
+            .any(|(l, d)| *l == 'M' && d.parse::<u32>() == Ok(2));
+    if repeats || pattern_offset {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::GEOMETRY_COMMAND_UNSUPPORTED,
+            "a repeat or a pattern offset (R, M02 with a coordinate) is not supported: the holes it makes are missing",
+        );
+        return;
     }
     if x.is_none() && y.is_none() {
         return;
