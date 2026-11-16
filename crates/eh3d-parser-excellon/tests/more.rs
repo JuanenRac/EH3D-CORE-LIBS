@@ -172,4 +172,27 @@ fn a_number_mask_in_the_header_has_the_limits_of_the_format_comment() {
         .diagnostics
         .iter()
         .all(|d| d.code != codes::FORMAT_COMMENT_INVALID));
+fn a_repeat_is_an_error_and_never_a_false_hole() {
+    let text = [
+        "M48",
+        "METRIC",
+        "T1C0.8",
+        "%",
+        "T1",
+        "X1.0Y1.0",
+        "R50X0.004",
+        "M02X1.0Y0.0",
+        "M30",
+        "",
+    ]
+    .join("\n");
+    let f = parse(&text);
+    assert_eq!(f.drills.len(), 1);
+    let errors: Vec<_> = f
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == codes::GEOMETRY_COMMAND_UNSUPPORTED)
+        .collect();
+    assert_eq!(errors.len(), 2);
+    assert!(f.diagnostics.iter().all(|d| d.code != codes::UNKNOWN_WORD));
 }

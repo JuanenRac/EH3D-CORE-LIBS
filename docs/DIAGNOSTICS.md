@@ -22,7 +22,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `command-ignored` | Gerber, Excellon | Info | A known command with no effect on the result was ignored. |
 | `too-many-diagnostics` | Gerber | Error | The file has more diagnostics than the reader keeps (100000); the rest are dropped. |
 | `command-unsupported` | Gerber | Warning | A known command with no effect on the geometry (`LM`, `LR` or `LS` with the value that changes nothing) that was ignored. |
-| `geometry-command-unsupported` | Gerber | Error | A command that changes the geometry and is not supported: a deprecated one (negative image, offset, scale, mirror, turn), a layer transform of the apertures (`LM`, `LR`, `LS` with a value that changes something) or an aperture block (`AB`). |
+| `geometry-command-unsupported` | Gerber, Excellon | Error | A command that changes the geometry and is not supported (in Excellon, a repeat `R<n>` or a pattern offset `M02` with a coordinate): a deprecated one (negative image, offset, scale, mirror, turn), a layer transform of the apertures (`LM`, `LR`, `LS` with a value that changes something) or an aperture block (`AB`). |
 | `unknown-command` | Gerber | Warning | An extended command the reader does not know. |
 | `input-not-utf8` | all (`parse_bytes`) | Warning | The bytes are not UTF-8 and were read as Latin-1. |
 | `extended-unclosed` | Gerber | Error | An extended command starting with `%` is never closed. |
