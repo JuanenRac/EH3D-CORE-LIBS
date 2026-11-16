@@ -330,6 +330,17 @@ pub fn from_gerber_with(file: &GerberFile, options: &SceneOptions) -> Scene {
             }
             Operation::Flash { at } => {
                 let (x, y) = p(at);
+                if let Some(
+                    Aperture::Circle { hole, .. }
+                    | Aperture::Rectangle { hole, .. }
+                    | Aperture::Obround { hole, .. }
+                    | Aperture::Polygon { hole, .. },
+                ) = aperture
+                {
+                    if hole.is_some_and(|h| h > 0.0) {
+                        scene.note("the hole of an aperture is not drawn");
+                    }
+                }
                 match aperture {
                     Some(Aperture::Circle { diameter, .. }) => scene.shapes.push(Shape::Disc {
                         x,

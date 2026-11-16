@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Three quiet failures of the readers and the writer are now said or closed:** a number mask in the Excellon header with no digits before the point or with more than eight digits on either side (hundreds of zeros made every coordinate zero) is reported as an invalid format and the default is kept, as for the format comment; the scene says "the hole of an aperture is not drawn" when a standard aperture has a hole, so a ring is no longer taken for an exact drawing; and the header of a G-code file turns `!`, `~`, `?`, control characters and every non-ASCII character of a name into an underscore, so a file name cannot send a real-time command to GRBL from inside a comment. Tested in the three crates.
 - **An Excellon repeat is an error, not a false hole:** `R<n>X<step>` and `M02X<offset>` no longer make a single hole at the step; the line is reported as `geometry-command-unsupported` (Error) so that programs that filter by error do not take the file as complete.
 
 - **An aperture macro with deep or huge expressions can no longer overflow the stack:** the arithmetic of a macro is read only up to 64 levels of signs and parentheses and 1024 characters, and at most 4096 lines of a macro are read at each flash; what goes past a limit is left out and said, as a primitive that cannot be read. Tested with nested parentheses, a run of signs, a 100000-character expression and a long one, and a reasonable nesting is still drawn.
