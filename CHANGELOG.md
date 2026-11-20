@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Union, intersection, difference and exclusive or of regions with holes, with no dependency:** `eh3d_geometry::boolean` works on the regions of `eh3d_geometry::polygon` (rings filled by the even-odd rule, so a ring inside a ring is a hole), moves the points to a grid, cuts the edges where they meet with exact integer arithmetic, keeps each piece by asking whether its middle is inside the other region and joins them into rings; the result is the same every time, with outer rings counterclockwise, holes clockwise and no corner on a straight line. The rounding, the limit of edges and the refusal of rings that cross are documented, and a board far from the origin keeps its digits. Tested against the area of random unions of rectangles counted cell by cell and against the identities between the four operations on random polygons, with a fixed seed.
+
+- **Offsets with a tolerance, thick lines and edge bands:** `eh3d_geometry::offset` grows or shrinks a region (growing rounds the corners that stick out, shrinking keeps the sharp ones and closes holes), draws the region a track of a given width covers along a path (round ends and corners, open or closed) and gives the band of a region along its edge; a circle is drawn as a polygon inscribed within the tolerance given.
+
+- **Area, centroid, orientation, point in polygon and Douglas-Peucker simplification:** `eh3d_geometry::polygon` adds them, summed from the first point so shapes far from the origin keep their digits; the simplification uses a stack, not recursion, and leaves every point at most the tolerance from the result.
+
+- **Arc recovery from chains of short lines:** `eh3d_geometry::arcfit::recover_arcs` finds the chains whose pieces have the same length and whose corners turn the same angle, takes the radius from `R = L / (2 sin(turn / 2))` (`radius_from_chain`), checks that every corner is on the circle, leaves out the turns of the common regular figures (45, 60, 90 and 120 degrees) and gives arcs and lines in order; its limits (pieces, tolerances, turn, radius) are the fields of `ArcRecovery` so a program can read them from its configuration file.
+
 - **The Excellon reader reads arcs in routes:** `G02` and `G03` with the radius `A` or the offsets `I` and `J` are kept in `Route::arcs` (the piece that ends at `points[to_index]`), the mode lasts until the next `G` code or the end of the route, an arc with no geometry is `arc-centre-missing` and an arc outside a route is `arc-unsupported`; the Excellon writer writes them back.
 
 - **The Excellon reader follows incremental coordinates and the repeat:** `G91`, `G90` and `ICI,ON`/`OFF` add or replace the position for holes, slots and route points, and `R<n>X<step>Y<step>` makes the n holes of the repeat (with a limit of 100000) instead of an error; the pattern offset `M02X..` stays an error so no hole is invented.
