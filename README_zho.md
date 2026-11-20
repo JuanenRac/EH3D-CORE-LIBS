@@ -18,7 +18,7 @@
 
 ---
 
-**诚实性核对 - 今天真正能运行的内容：** 三个没有依赖的 Rust 库，读取 Gerber（RS-274X）图层、Excellon 钻孔文件和 G 代码（针对 GRBL、Marlin 和 PlanetCNC 方言的模态解释器）。366 个测试在计算机上运行，包括损坏和恶意输入。另有两个库以确定的方式写出 Gerber X2 和 Excellon 文件，不含日期和版本，相同内容总是得到相同字节；它们通过写出再用读取器读回来测试，目前还没有任何查看器或机器打开过它们的文件。读取器不会 panic，并把无法理解的内容作为带行号的诊断报告出来。它们不绘图，不计算刀路，也没有在一批真实生产文件上试过；套件中有四个程序使用它们（EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM），这里的内容也从未在机床上运行过。
+**诚实性核对 - 今天真正能运行的内容：** 三个没有依赖的 Rust 库，读取 Gerber（RS-274X）图层、Excellon 钻孔文件和 G 代码（针对 GRBL、Marlin 和 PlanetCNC 方言的模态解释器）。510 个测试在计算机上运行，包括损坏和恶意输入。另有两个库以确定的方式写出 Gerber X2 和 Excellon 文件，不含日期和版本，相同内容总是得到相同字节；它们通过写出再用读取器读回来测试，目前还没有任何查看器或机器打开过它们的文件。读取器不会 panic，并把无法理解的内容作为带行号的诊断报告出来。它们不绘图，不计算刀路，也没有在一批真实生产文件上试过；套件中有四个程序使用它们（EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM），这里的内容也从未在机床上运行过。
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | 版本 | `0.1.1` |
 | 成熟度 | 可用 |
-| 测试 | 366 |
+| 测试 | 510 |
 | 技术栈 | Rust |
 | 真实硬件 | 不适用：文件读取库，不与机床通信 |
 
@@ -47,9 +47,9 @@
 | Gerber 读取器 | 🟡 | RS-274X：读取单位、坐标格式、光圈、宏、区域和绘图命令；目前只用测试文件试过，没有用真实生产文件集合。 |
 | Excellon 读取器 | 🟡 | 读取公制或英制的刀具、钻孔、槽孔和简单路径；目前只用测试文件试过。 |
 | G 代码读取器 | 🟡 | 针对 GRBL、Marlin 和 PlanetCNC 方言的模态解释器输出绝对毫米坐标（含圆弧）；刀具半径补偿和固定循环会被报告为不支持。 |
-| 测试 | 🟡 | 366 个测试通过（`cargo test`）：Gerber 43 个，Excellon 42 个，G 代码 79 个，共用 crate 22 个，栅格几何 17 个，形状 20 个，纯 CAM 109 个，Gerber 写入器 14 个，Excellon 写入器 20 个，包含损坏和恶意输入以及合成文件语料库。 |
+| 测试 | 🟡 | 510 个测试通过（`cargo test`）：Gerber 101 个，Excellon 60 个，G 代码 85 个，共用 crate 30 个，栅格几何 17 个，形状与 2D 几何 69 个，纯 CAM 109 个，Gerber 写入器 17 个，Excellon 写入器 22 个，包含损坏和恶意输入以及合成文件语料库。 |
 | 安全 | 🟡 | 为他人发来的文件而设计：不会 panic，不猜测任何值，问题以带行号的诊断返回；没有独立审查，这里也不判断某段 G 代码能否安全运行。 |
-| 几何与 HP-GL | 🔴 | 2D 几何（偏置、布尔运算）以及 HP-GL 和 Bungard 读取器已在计划中，尚未构建。 |
+| 几何与 HP-GL | 🟡 | 2D 几何（带孔区域的布尔运算、偏置、粗线、简化、圆弧恢复）已构建，并用固定种子的随机形状测试；HP-GL 和 Bungard 读取器已在计划中，尚未构建。 |
 | 被其他程序使用 | 🟡 | 套件中有四个程序依赖这些读取器（EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM），都还没有在机床上运行过。 |
 | 真实硬件 | 🟡 | 不适用：文件读取库，不与机床通信。 |
 | 文档 | 🟡 | 八种语言的 README 和 `docs/READERS.md`，说明每个读取器承诺什么、不做什么；`docs/UNIFICATION.md` 是结束套件中两套读取器的计划，但未实施：两套都保留，并用两个差异测试保持一致。 |
@@ -63,7 +63,8 @@
 * **图层的形状**（`eh3d-geometry`）：圆盘、矩形、长圆、走线和区域（毫米，y 向上）、它们的包围盒，以及把 Gerber 图层和 Excellon 钻孔文件转换为这些形状（对未绘制的内容都有说明）。
 * **纯 CAM**（`eh3d-cam`）：画在网格上的铜箔、带有刀具无法切削间隙检查的隔离路径、强制路径和填充路径、公差与设计规则检查、路径的排序与缩短、基准点对齐、电路板变换、阻焊开窗和旧式 Gerber。它不从磁盘读取文件，也不写 G 代码。
 * **用诊断代替失败：** 每个读取器返回带严重程度（信息、警告、错误）和文件行号的条目，并继续读取。
-* **计划中：** HP-GL 和 Bungard 读取器以及 2D 几何（偏置和布尔运算）。
+* **2D 几何**（`eh3d-geometry`，无依赖）：带孔区域、面积、质心和方向，并集、交集、差集和异或，带容差的偏置，粗线，Douglas-Peucker 简化，以及从短线段链恢复圆弧。
+* **计划中：** HP-GL 和 Bungard 读取器。
 
 ## 🧩 在 EH3D 中的角色
 
@@ -160,7 +161,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 测试
 
-测试共 366 个（`cargo test`，CI 中在 Windows 和 Linux 上运行）：Gerber 43 个、Excellon 42 个、G 代码 79 个、共用 crate 22 个，栅格几何 17 个，形状 20 个，纯 CAM 109 个、Gerber 写入器 14 个、Excellon 写入器 20 个。由 21 个小型合成文件组成的语料库（`tests/golden/`：英寸和毫米的 Gerber、带 `LZ`/`TZ`、槽孔和路径的 Excellon、面向 GRBL、Marlin 和 LinuxCNC 的 G 代码，含 CRLF、Latin-1 和损坏文件）由各读取器读取，并与每个文件旁保存的摘要比较；`EH3D_REGENERATE=1 cargo test` 会重写摘要，使变化在 diff 中可见，同样的文件还会被变异测试以数千种方式破坏。它们检查：典型的铜层和典型的公制文件能被完整读取、省略的坐标、两种零省略、槽孔、路径、英寸换算为毫米、每条命令都知道自己的行号、按圆心和按半径指定的圆弧、整圆、模态进给与运动、Marlin 校验和、不支持的功能被报告而不是猜测，以及损坏的输入：乱码、被截断的前缀和超长的行都不会 panic。CI 还运行 `cargo fmt --check`、将警告视为错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试共 510 个（`cargo test`，CI 中在 Windows 和 Linux 上运行）：Gerber 101 个、Excellon 60 个、G 代码 85 个、共用 crate 30 个，栅格几何 17 个，形状与 2D 几何 69 个，纯 CAM 109 个、Gerber 写入器 17 个、Excellon 写入器 22 个。由 21 个小型合成文件组成的语料库（`tests/golden/`：英寸和毫米的 Gerber、带 `LZ`/`TZ`、槽孔和路径的 Excellon、面向 GRBL、Marlin 和 LinuxCNC 的 G 代码，含 CRLF、Latin-1 和损坏文件）由各读取器读取，并与每个文件旁保存的摘要比较；`EH3D_REGENERATE=1 cargo test` 会重写摘要，使变化在 diff 中可见，同样的文件还会被变异测试以数千种方式破坏。它们检查：典型的铜层和典型的公制文件能被完整读取、省略的坐标、两种零省略、槽孔、路径、英寸换算为毫米、每条命令都知道自己的行号、按圆心和按半径指定的圆弧、整圆、模态进给与运动、Marlin 校验和、不支持的功能被报告而不是猜测，以及损坏的输入：乱码、被截断的前缀和超长的行都不会 panic。CI 还运行 `cargo fmt --check`、将警告视为错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。第二个语料库由测试写出，包含 14 块板（27 个文件，`tests/corpus/`），涵盖 Altium、Allegro、EAGLE 和 KiCad 的方言以及标准的每项功能，带有清单（来源、许可证、SHA-256）和每个文件的规范化读取结果快照；它是把套件中其他 Gerber 读取器迁移到这些读取器的安全网。2D 几何用不使用其代码的参照来检验（逐格统计的矩形并集面积、四种运算之间的恒等式、圆弧半径公式），三个读取器的 `tests/field_errors.rs` 覆盖其他 CAM 程序在现场出现过的故障。
 
 ## 🏗️ 构建与发布
 
@@ -187,7 +188,7 @@ EH3D-CORE-LIBS/
 │   ├── eh3d-cam/                                纯 CAM
 │   ├── eh3d-writer-gerber/                      Gerber X2 写入器
 │   └── eh3d-writer-excellon/                    Excellon 写入器
-├── docs/                                        READERS.md：每个读取器的承诺和不做的事，DIAGNOSTICS.md：诊断代码，以及两张图的数据
+├── docs/                                        READERS.md：每个读取器的承诺和不做的事，API.md：程序可以依赖的内容，MIGRATION.md：把其他 Gerber 读取器迁移到本库的计划，DIAGNOSTICS.md：诊断代码，以及两张图的数据
 ├── tests/                                       合成示例文件及其预期摘要
 ├── tools/                                       CI 和 README 检查及绘图工具
 ├── images/                                      横幅图以及架构和仓库结构图片
@@ -208,13 +209,13 @@ EH3D-CORE-LIBS/
 
 * 读取器只用测试文件试过，没有用一批真实生产文件试过。
 * 刀具半径补偿（`G41`/`G42`）和固定循环（`G81`..`G89`）是错误；刀具长度补偿和探测循环会被读取，但不跟踪它们对位置的影响；`G92`、`G28`/`G30`、`G53` 和 `G54`..`G59` 只由 `interpret_coordinates` 跟踪；圆弧仅限 XY 平面。
-* HP-GL、Bungard 格式和 2D 几何（偏置和布尔运算）尚未构建。
+* HP-GL 和 Bungard 格式尚未构建。
 * 套件中有四个程序使用这些读取器，都还没有在机床上运行过，读取器也未经独立审查。
 
 **下一步**
 
 * 用一批真实文件试用这三个读取器，并修复发现的问题。
-* 构建 2D 几何（偏置和布尔运算）以及 HP-GL 和 Bungard 读取器。
+* 以语料库快照为安全网，把 PHOENIX-PCB 和 EH3D-GERBERVIEWER 的 Gerber 读取器迁移到本库（`docs/MIGRATION.md`），并构建 HP-GL 和 Bungard 读取器。
 * 让 EH3D-DRILLPRO 和各 CAM 程序使用这些读取器，而不是各自的实现。
 
 ## 🌍 语言
@@ -231,6 +232,8 @@ README 和文本提供英语、西班牙语、法语、意大利语、德语、�
 ## 📚 文档
 
 * [每个读取器的承诺](docs/READERS.md)：保证、诊断以及不做的事。
+* [其他程序可以依赖的 API](docs/API.md)：两个步骤、公开项目和承诺。
+* [把其他 Gerber 读取器迁移到本库](docs/MIGRATION.md)：逐步计划，以及须先通过的快照测试。
 * [Gerber 和 Excellon 各用一个读取器](docs/UNIFICATION.md)：让本仓库与 EH3D-COMMON 的读取器合而为一的计划，未实施：两者都保留，并由差异测试核对。
 * [变更日志](CHANGELOG.md)
 

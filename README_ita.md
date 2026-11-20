@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** tre librerie Rust senza dipendenze che leggono livelli Gerber (RS-274X), file di foratura Excellon e G-code (un interprete modale dei dialetti GRBL, Marlin e PlanetCNC). 366 test girano su un computer, compresi input danneggiati e ostili. Altre due librerie scrivono file Gerber X2 ed Excellon senza date né versioni, così lo stesso contenuto dà sempre gli stessi byte; sono provate scrivendo e rileggendo con i lettori, e nessun visualizzatore né macchina ha ancora aperto i loro file. I lettori non vanno mai in panico e segnalano ciò che non hanno capito come diagnostiche con numero di riga. Non disegnano nulla, non calcolano alcun percorso utensile e non sono stati provati su una raccolta di file di produzione reali; quattro programmi della suite li usano (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) e nulla qui è stato eseguito su una macchina.
+**Verifica di onestà - cosa funziona oggi:** tre librerie Rust senza dipendenze che leggono livelli Gerber (RS-274X), file di foratura Excellon e G-code (un interprete modale dei dialetti GRBL, Marlin e PlanetCNC). 510 test girano su un computer, compresi input danneggiati e ostili. Altre due librerie scrivono file Gerber X2 ed Excellon senza date né versioni, così lo stesso contenuto dà sempre gli stessi byte; sono provate scrivendo e rileggendo con i lettori, e nessun visualizzatore né macchina ha ancora aperto i loro file. I lettori non vanno mai in panico e segnalano ciò che non hanno capito come diagnostiche con numero di riga. Non disegnano nulla, non calcolano alcun percorso utensile e non sono stati provati su una raccolta di file di produzione reali; quattro programmi della suite li usano (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) e nulla qui è stato eseguito su una macchina.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.1.1` |
 | Maturità | Funzionale |
-| Test | 366 |
+| Test | 510 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non applicabile: lettori di file, nulla qui parla con una macchina |
 
@@ -47,9 +47,9 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 | Lettore Gerber | 🟡 | RS-274X: unità, formato delle coordinate, aperture, macro, regioni e comandi di disegno vengono letti; finora solo file di prova, non una raccolta di file di produzione reali. |
 | Lettore Excellon | 🟡 | Vengono letti utensili, fori, asole e percorsi semplici in metrico o pollici; finora solo file di prova. |
 | Lettore G-code | 🟡 | Un interprete modale dei dialetti GRBL, Marlin e PlanetCNC dà millimetri assoluti, archi inclusi; compensazione del raggio e cicli fissi sono segnalati come non supportati. |
-| Test | 🟡 | Passano 366 test (`cargo test`): 43 su Gerber, 42 su Excellon, 79 su G-code e 22 sul crate condiviso, 17 sulla geometria raster, 20 sulle forme, 109 sul CAM puro, 14 sullo scrittore Gerber e 20 sullo scrittore Excellon, con input danneggiati e ostili e un corpus di file sintetici. |
+| Test | 🟡 | Passano 510 test (`cargo test`): 101 su Gerber, 60 su Excellon, 85 su G-code e 30 sul crate condiviso, 17 sulla geometria raster, 69 sulle forme e la geometria 2D, 109 sul CAM puro, 17 sullo scrittore Gerber e 22 sullo scrittore Excellon, con input danneggiati e ostili e un corpus di file sintetici. |
 | Sicurezza | 🟡 | Pensati per file inviati da altre persone: nulla va in panico, nessun valore viene indovinato e i problemi tornano come diagnostiche con numero di riga; nessuna revisione indipendente e nulla qui giudica se un G-code sia sicuro da eseguire. |
-| Geometria e HP-GL | 🔴 | La geometria 2D (offset, booleane) e i lettori HP-GL e Bungard sono previsti e non costruiti. |
+| Geometria e HP-GL | 🟡 | La geometria 2D (booleane di regioni con fori, offset, linee spesse, semplificazione, recupero di archi) è costruita e testata con forme casuali a seme fisso; i lettori HP-GL e Bungard sono previsti e non costruiti. |
 | Uso da altri programmi | 🟡 | Quattro programmi della suite dipendono dai lettori (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); nessuno è stato eseguito su una macchina. |
 | Hardware reale | 🟡 | Non applicabile: lettori di file, nulla qui parla con una macchina. |
 | Documentazione | 🟡 | README in otto lingue e `docs/READERS.md`, che dice cosa promette ogni lettore e cosa non fa; `docs/UNIFICATION.md` è il piano per chiudere le due coppie di lettori della suite, non realizzato: entrambe le coppie restano e due test differenziali le tengono d'accordo. |
@@ -63,7 +63,8 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * Le **forme di uno strato** (`eh3d-geometry`): dischi, rettangoli, oblunghi, piste e regioni in millimetri con y verso l'alto, il riquadro di un insieme di esse e la conversione di strati Gerber e file di foratura Excellon in forme, con una nota per tutto ciò che non viene disegnato.
 * Il **CAM puro** (`eh3d-cam`): il rame disegnato su una griglia, i passaggi di isolamento con i controlli degli spazi che l'utensile non può tagliare, i passaggi forzati e di riempimento, i controlli di tolleranza e delle regole di progetto, l'ordine e l'accorciamento dei percorsi, l'allineamento sui fiduciali, le trasformazioni della scheda, le aperture della maschera di saldatura e il Gerber vecchio stile. Non legge file dal disco e non scrive G-code.
 * **Diagnostiche invece di errori fatali:** ogni lettore restituisce righe con una gravità (informazione, avviso, errore) e il numero di riga del file, e continua a leggere.
-* **Previsto:** il lettore HP-GL e Bungard e la geometria 2D (offset e booleane).
+* La **geometria 2D** (`eh3d-geometry`, senza dipendenze): regioni con fori, area, baricentro e orientamento, unione, intersezione, differenza e or esclusivo, offset con tolleranza, linee spesse, la semplificazione di Douglas e Peucker e il recupero di archi da catene di segmenti brevi.
+* **Previsto:** il lettore HP-GL e Bungard.
 
 ## 🧩 Ruolo in EH3D
 
@@ -160,7 +161,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Test
 
-La suite ha 366 test (`cargo test`, eseguiti su Windows e Linux nella CI): 43 su Gerber, 42 su Excellon, 79 su G-code e 22 sul crate che condividono, 17 sulla geometria raster, 20 sulle forme, 109 sul CAM puro, 14 sullo scrittore Gerber e 20 sullo scrittore Excellon. Un corpus di 21 piccoli file sintetici (`tests/golden/`: Gerber in pollici e millimetri, Excellon con `LZ`/`TZ`, asole e percorsi, G-code per GRBL, Marlin e LinuxCNC, con CRLF, Latin-1 e file danneggiati) viene letto dai lettori e confrontato con un riepilogo conservato accanto a ogni file; `EH3D_REGENERATE=1 cargo test` riscrive i riepiloghi in modo che la modifica si veda nel diff, e gli stessi file vengono danneggiati in migliaia di modi dal test di mutazione. Verificano che un tipico livello di rame e un tipico file metrico siano letti per intero, le coordinate omesse, entrambe le soppressioni degli zeri, asole, percorsi, pollici in millimetri, ogni comando che conosce la sua riga, archi per centro e per raggio, cerchi completi, avanzamento e movimento modali, checksum Marlin, funzioni non supportate segnalate invece che indovinate, e input danneggiati: spazzatura, prefissi tagliati e righe lunghissime non vanno mai in panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 510 test (`cargo test`, eseguiti su Windows e Linux nella CI): 101 su Gerber, 60 su Excellon, 85 su G-code e 30 sul crate che condividono, 17 sulla geometria raster, 69 sulle forme e la geometria 2D, 109 sul CAM puro, 17 sullo scrittore Gerber e 22 sullo scrittore Excellon. Un corpus di 21 piccoli file sintetici (`tests/golden/`: Gerber in pollici e millimetri, Excellon con `LZ`/`TZ`, asole e percorsi, G-code per GRBL, Marlin e LinuxCNC, con CRLF, Latin-1 e file danneggiati) viene letto dai lettori e confrontato con un riepilogo conservato accanto a ogni file; `EH3D_REGENERATE=1 cargo test` riscrive i riepiloghi in modo che la modifica si veda nel diff, e gli stessi file vengono danneggiati in migliaia di modi dal test di mutazione. Verificano che un tipico livello di rame e un tipico file metrico siano letti per intero, le coordinate omesse, entrambe le soppressioni degli zeri, asole, percorsi, pollici in millimetri, ogni comando che conosce la sua riga, archi per centro e per raggio, cerchi completi, avanzamento e movimento modali, checksum Marlin, funzioni non supportate segnalate invece che indovinate, e input danneggiati: spazzatura, prefissi tagliati e righe lunghissime non vanno mai in panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`. Un secondo corpus di 14 schede (27 file, `tests/corpus/`) è scritto da un test nei dialetti di Altium, Allegro, EAGLE e KiCad e per ogni funzione dello standard, con un manifesto (origine, licenza, SHA-256) e la lettura normalizzata di ogni file come snapshot; è la rete di sicurezza per portare a questi lettori gli altri lettori Gerber della suite. La geometria 2D è verificata con oracoli che non usano il suo codice (l'area di un'unione di rettangoli contata cella per cella, le identità tra le quattro operazioni, la formula del raggio di un arco), e `tests/field_errors.rs` dei tre lettori copre difetti che altri programmi CAM hanno avuto sul campo.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -187,7 +188,7 @@ EH3D-CORE-LIBS/
 │   ├── eh3d-cam/                                CAM puro
 │   ├── eh3d-writer-gerber/                      scrittore Gerber X2
 │   └── eh3d-writer-excellon/                    scrittore Excellon
-├── docs/                                        READERS.md, cosa promette ogni lettore e cosa non fa, DIAGNOSTICS.md, i codici di avviso, e i dati delle due immagini
+├── docs/                                        READERS.md, cosa promette ogni lettore e cosa non fa, API.md, su cosa può contare un programma, MIGRATION.md, il piano per portare gli altri lettori Gerber a questo, DIAGNOSTICS.md, i codici di avviso, e i dati delle due immagini
 ├── tests/                                       file di esempio sintetici e i loro riepiloghi attesi
 ├── tools/                                       controllo della CI e del README e strumenti per le immagini
 ├── images/                                      banner e le immagini di Architettura e Struttura del repository
@@ -208,13 +209,13 @@ EH3D-CORE-LIBS/
 
 * I lettori sono stati provati solo con file di prova, non con una raccolta di file di produzione reali.
 * La compensazione del raggio utensile (`G41`/`G42`) e i cicli fissi (`G81`..`G89`) sono errori; le correzioni di lunghezza utensile e i cicli di tastatura vengono letti ma il loro effetto sulla posizione non è seguito; `G92`, `G28`/`G30`, `G53` e `G54`..`G59` sono seguiti solo da `interpret_coordinates`; archi solo nel piano XY.
-* HP-GL, il formato Bungard e la geometria 2D (offset e booleane) non sono costruiti.
+* HP-GL e il formato Bungard non sono costruiti.
 * Quattro programmi della suite usano i lettori, nessuno è stato eseguito su una macchina, e i lettori non hanno avuto una revisione indipendente.
 
 **Prossimi passi**
 
 * Provare i tre lettori su una raccolta di file reali e correggere ciò che mostrano.
-* Costruire la geometria 2D (offset e booleane) e i lettori HP-GL e Bungard.
+* Portare i lettori Gerber di PHOENIX-PCB e EH3D-GERBERVIEWER a questo, con gli snapshot del corpus come rete di sicurezza (`docs/MIGRATION.md`), e costruire i lettori HP-GL e Bungard.
 * Far usare i lettori a EH3D-DRILLPRO e ai programmi CAM al posto dei propri.
 
 ## 🌍 Lingue
@@ -231,6 +232,8 @@ Il README e i testi esistono in inglese, spagnolo, francese, italiano, tedesco, 
 ## 📚 Documentazione
 
 * [Cosa promette ogni lettore](docs/READERS.md): le garanzie, le diagnostiche e ciò che non viene fatto.
+* [L'API su cui costruire](docs/API.md): i due passi, il pubblico e le promesse.
+* [Portare gli altri lettori Gerber a questo](docs/MIGRATION.md): il piano passo per passo, con i test di snapshot da superare prima.
 * [Un lettore per Gerber e uno per Excellon](docs/UNIFICATION.md): il piano per rendere uno solo i lettori di questo repository e quelli di EH3D-COMMON, non realizzato: restano entrambi, verificati da test differenziali.
 * [Registro delle modifiche](CHANGELOG.md)
 

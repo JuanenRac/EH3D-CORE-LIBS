@@ -8,18 +8,20 @@ All three readers (`eh3d-parser-gerber`, `eh3d-parser-excellon`, `eh3d-parser-gc
 * **No guess.** A value that does not fit its declared format is refused (`diagnostic`), not rounded or truncated into something that looks right.
 * **Diagnostics.** Each problem is a `Diagnostic { line, severity, code, message }`: `Info` (worth knowing), `Warning` (probably still right) or `Error` (something was lost). `is_clean()` is true when there is no `Error`. The `code` is a stable identifier of the kind of notice (see [DIAGNOSTICS.md](DIAGNOSTICS.md)): filter on it, not on the text.
 * **Shared code.** `Severity`, `Diagnostic`, `Units`, the decoding of coordinates and the limits on numbers live in the internal crate `eh3d-parser-common`; the readers re-export them, so a program only depends on the reader it uses.
-* **Files.** ead_file_limited refuses a file above the limit by its size on disk, before it is read into memory.
+* **Files.** `read_file_limited` refuses a file above the limit by its size on disk, before it is read into memory.
 * **Bytes.** `parse_bytes` reads a file from its bytes with a size limit (256 MiB by default) and reads text that is not UTF-8 as Latin-1, with an `input-not-utf8` warning.
 * **Units.** A Gerber or Excellon file that does not declare its units is read in millimetres, with a `units-missing` warning.
 * **Bounded.** The G-code reader cuts a line at 512 characters and says so. A number above 1e15 is refused with `number-too-large`. A program keeps at most 5000000 blocks (`program-too-long`) and every reader at most 100000 diagnostics (`too-many-diagnostics`); `parse_with_limits` sets other limits.
 
 ## Gerber (RS-274X)
 
-Units, the coordinate format (integer and decimal digits, leading or trailing zero suppression), apertures (circle, rectangle, obround, polygon) and macros, regions, and the drawing commands. A coordinate with more digits than its format allows is an error. A turn, a mirror or a scale of the apertures (LR, LM, LS) and aperture blocks (AB) are not applied, and are an error when they would change the drawing. The reader keeps at most 100000 diagnostics per file.
+Units, the coordinate format (integer and decimal digits, leading or trailing zero suppression, absolute or incremental coordinates), apertures (circle, rectangle, obround, polygon, macro and block), regions with arcs in single and multi quadrant mode, step and repeat, the polarity, the mirror, turn and scale of the loaded apertures (`LM`, `LR`, `LS`), the deprecated parameters of the whole image (`IP`, `OF`, `SF`, `MI`, `IR`, `AS`, `IN`), the attributes of X2 and X3 (also those that KiCad writes as `G04 #@!` comments) and the drawing commands. A coordinate with more digits than its format allows is an error. A number written with a decimal comma is read as a point with a warning. The reader keeps at most 100000 diagnostics per file and stops at the limits of `ParseLimits` (commands, apertures, macros, attributes, nesting of blocks, copies of a repeat).
+
+`image::resolve` puts the file in place (blocks expanded, repeats made, transforms applied, arcs worked out, regions as contours), `macros::evaluate` evaluates a macro (the primitives 1, 2, 4, 5, 6, 7, 20, 21 and 22, variables and arithmetic), `attributes` types the attributes, `dialect::detect` recognises Altium, Allegro, EAGLE and KiCad, and `snapshot::normalize` writes the text the corpus compares. The list of what a program can rely on is in [API.md](API.md).
 
 ## Excellon
 
-Tools with diameter, feed and speed; drill hits; slots with `G85`; simple routes (`M15`, `G01`, `M16`); metric or inch; `TZ` (leading zeros suppressed) or `LZ` (trailing zeros suppressed); coordinates with a decimal point are read as they are. `FILE_FORMAT=i:d` comments are honoured.
+Tools with diameter, feed and speed; drill hits; slots with `G85`; routes (`M15`, `G00`, `G01`, `M16`) with arcs (`G02`/`G03` with the radius `A` or the offsets `I`/`J`); the repeat `R<n>X<step>Y<step>`; incremental coordinates (`G91`, `ICI,ON`); metric or inch; `TZ` (leading zeros suppressed) or `LZ` (trailing zeros suppressed); coordinates with a decimal point are read as they are, and so are those with a decimal comma (with a warning). `FILE_FORMAT=i:d` comments are honoured, the attributes of X2 written as `; #@! TF...` comments are kept, the `Holesize` comments of Allegro and `TYPE=PLATED` of Altium give the plating (`ExcellonFile::plating()`), and `ExcellonLimits` bounds the work.
 
 A file that does not declare its format can be read with the assumptions of the caller: `parse_with_format(text, &ExcellonDefaults { default_format: Some((2, 4)), default_zeros: Some(ZeroSuppression::Leading), default_units: Some(Units::Inches) })` (`parse_bytes_with_format` takes bytes). Every field is optional and `ExcellonDefaults::default()` reads exactly as `parse`. What the file declares always wins (the `FILE_FORMAT` comment, `INCH,TZ,00.0000`, `METRIC`, `M71`, `M72`), the lines of the diagnostics are those of the text, and when the units come from the defaults there is no `units-missing` or `units-suspect` notice. A default format outside 1 to 8 integer digits and 0 to 8 decimal digits is ignored with the warning `defaults-invalid` at line 1 (`ExcellonDefaults::is_valid` tells it beforehand).
 
@@ -44,7 +46,8 @@ Dialects: GRBL, Marlin (line numbers and checksums, verified; `M117`, `M118`, `M
 * Tool length offsets and probing cycles are read but their effect on the position is not tracked.
 * The position before the first move is taken as X0 Y0 Z0 of the work coordinate system the program uses; the reader cannot know where the machine really is, so a table limit is only as good as that assumption. `G92`, `G28`, `G30`, `G53`, `G10` and the probing cycles leave the position as it was and are told with the warning `position-untracked`, unless the program is walked with `interpret_coordinates` (next section).
 * Planes other than XY for arcs (`G18` and `G19` are an error and the arc is drawn as a line).
-* HP-GL and the Bungard format, and the 2D geometry (offsets and booleans), are planned.
+* HP-GL and the Bungard format are planned.
+* The pattern offset of Excellon (`M02X..`) and a drill file without a header whose format has to be guessed are not read: the first is an error so that no hole is invented, the second is read with the format of the caller (`ExcellonDefaults`).
 * None of this has been tried on a collection of real production files, and nothing here decides whether a program is safe to run on a machine.
 
 ## The modal codes of a program

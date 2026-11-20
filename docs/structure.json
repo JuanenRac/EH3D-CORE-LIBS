@@ -180,6 +180,32 @@
         },
         {
           "desc": {
+            "en": "the plan to move the other Gerber readers to this one",
+            "es": "el plan para pasar los otros lectores Gerber a este",
+            "de": "der Plan, die anderen Gerber-Leser umzustellen",
+            "fr": "le plan pour passer les autres lecteurs Gerber à celui-ci",
+            "it": "il piano per portare gli altri lettori Gerber a questo",
+            "ja": "他の Gerber リーダーをこれに移す計画",
+            "zh": "把其他 Gerber 读取器迁移到本库的计划",
+            "pt": "o plano para passar os outros leitores Gerber para este"
+          },
+          "name": "MIGRATION.md"
+        },
+        {
+          "desc": {
+            "en": "what a program can rely on",
+            "es": "en qué puede confiar un programa",
+            "de": "worauf sich ein Programm verlassen kann",
+            "fr": "ce sur quoi un programme peut compter",
+            "it": "su cosa può contare un programma",
+            "ja": "プログラムが頼れるもの",
+            "zh": "程序可以依赖的内容",
+            "pt": "no que um programa pode confiar"
+          },
+          "name": "API.md"
+        },
+        {
+          "desc": {
             "en": "the data of the Architecture picture",
             "es": "los datos de la imagen de Arquitectura",
             "de": "die Daten des Architekturbilds",
@@ -206,14 +232,14 @@
         }
       ],
       "tree": {
-        "en": "READERS.md, what every reader promises and what it does not do, DIAGNOSTICS.md, the diagnostic codes, and the data of the two pictures",
-        "es": "READERS.md, lo que promete cada lector y lo que no hace, DIAGNOSTICS.md, los códigos de aviso, y los datos de las dos imágenes",
-        "de": "READERS.md, was jeder Leser verspricht und was nicht, DIAGNOSTICS.md, die Hinweiscodes, und die Daten der beiden Bilder",
-        "fr": "READERS.md, ce que promet chaque lecteur et ce qu'il ne fait pas, DIAGNOSTICS.md, les codes d'avis, et les données des deux images",
-        "it": "READERS.md, cosa promette ogni lettore e cosa non fa, DIAGNOSTICS.md, i codici di avviso, e i dati delle due immagini",
-        "ja": "READERS.md：各リーダーの約束としないこと、DIAGNOSTICS.md：診断コード、2 つの図のデータ",
-        "zh": "READERS.md：每个读取器的承诺和不做的事，DIAGNOSTICS.md：诊断代码，以及两张图的数据",
-        "pt": "READERS.md, o que cada leitor promete e o que não faz, DIAGNOSTICS.md, os códigos de aviso, e os dados das duas imagens"
+        "en": "READERS.md, what every reader promises and what it does not do, API.md, what a program can rely on, MIGRATION.md, the plan to move the other Gerber readers to this one, DIAGNOSTICS.md, the diagnostic codes, and the data of the two pictures",
+        "es": "READERS.md, lo que promete cada lector y lo que no hace, API.md, en qué puede confiar un programa, MIGRATION.md, el plan para pasar los otros lectores Gerber a este, DIAGNOSTICS.md, los códigos de aviso, y los datos de las dos imágenes",
+        "de": "READERS.md, was jeder Leser verspricht und was nicht, API.md, worauf sich ein Programm verlassen kann, MIGRATION.md, der Plan, die anderen Gerber-Leser umzustellen, DIAGNOSTICS.md, die Hinweiscodes, und die Daten der beiden Bilder",
+        "fr": "READERS.md, ce que promet chaque lecteur et ce qu'il ne fait pas, API.md, ce sur quoi un programme peut compter, MIGRATION.md, le plan pour passer les autres lecteurs Gerber à celui-ci, DIAGNOSTICS.md, les codes d'avis, et les données des deux images",
+        "it": "READERS.md, cosa promette ogni lettore e cosa non fa, API.md, su cosa può contare un programma, MIGRATION.md, il piano per portare gli altri lettori Gerber a questo, DIAGNOSTICS.md, i codici di avviso, e i dati delle due immagini",
+        "ja": "READERS.md：各リーダーの約束としないこと、API.md：プログラムが頼れるもの、MIGRATION.md：他の Gerber リーダーをこれに移す計画、DIAGNOSTICS.md：診断コード、2 つの図のデータ",
+        "zh": "READERS.md：每个读取器的承诺和不做的事，API.md：程序可以依赖的内容，MIGRATION.md：把其他 Gerber 读取器迁移到本库的计划，DIAGNOSTICS.md：诊断代码，以及两张图的数据",
+        "pt": "READERS.md, o que cada leitor promete e o que não faz, API.md, no que um programa pode confiar, MIGRATION.md, o plano para passar os outros leitores Gerber para este, DIAGNOSTICS.md, os códigos de aviso, e os dados das duas imagens"
       }
     },
     {
