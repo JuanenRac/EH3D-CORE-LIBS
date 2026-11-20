@@ -1,0 +1,15 @@
+dialect: Eagle
+units: mm
+zeros: None
+plating: None
+ended: true
+attributes: 0
+tools: 2
+  T1 d=800000 holes=2 feed=-1 speed=-1
+  T2 d=300000 holes=1 feed=-1 speed=-1
+notes: 0
+holes: 3
+box: 1500000 2000000 5000000 10000000
+slots: 0
+routes: 0
+diagnostics: 0

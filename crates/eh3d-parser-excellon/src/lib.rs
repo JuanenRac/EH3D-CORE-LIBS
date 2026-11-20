@@ -24,6 +24,8 @@
 
 use std::collections::BTreeMap;
 
+pub mod snapshot;
+
 pub use eh3d_parser_common::dialect::Dialect;
 pub use eh3d_parser_common::{
     codes, decode_coordinate, Diagnostic, Severity, Units, ZeroSuppression,

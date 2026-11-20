@@ -1,0 +1,21 @@
+dialect: Eagle
+units: in
+format: Leading 2:4
+ended: true
+attributes: 0
+apertures: 4
+  D10 circle d=10000 hole=-1
+  D11 rectangle x=63000 y=63000 hole=-1
+  D12 macro OC8 params=[63000]
+  D13 obround x=94500 y=55100 hole=-1
+macros: 1
+  OC8 lines=1
+commands: select=6 move=2 flash=4 line=5 arc=1 region_start=1 region_end=1 polarity=1 step_repeat=0 mirror=0 rotation=0 scale=0
+drawing: flashes=4 strokes=2 arcs=0 regions=1 groups=0 hairlines=0
+contours: 1
+bounds: 165400 126000 1141700 551200
+diagnostics: 4
+  line 3 warning deprecated-command
+  line 4 info deprecated-command
+  line 6 info deprecated-command
+  line 14 info deprecated-command

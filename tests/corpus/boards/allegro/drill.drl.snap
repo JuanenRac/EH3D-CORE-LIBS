@@ -1,0 +1,17 @@
+dialect: Allegro
+units: mm
+zeros: Some(Leading)
+plating: Some(Plated)
+ended: true
+attributes: 0
+tools: 2
+  T1 d=300000 holes=1 feed=-1 speed=-1
+  T2 d=800000 holes=2 feed=-1 speed=-1
+notes: 2
+  T1 plated=Some(true) quantity=Some(1) tolerance=+50000/-50000
+  T2 plated=Some(true) quantity=Some(2) tolerance=+100000/-100000
+holes: 3
+box: 5000000 4000000 25000000 12000000
+slots: 0
+routes: 0
+diagnostics: 0

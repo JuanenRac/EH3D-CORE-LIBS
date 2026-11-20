@@ -1,0 +1,21 @@
+dialect: KiCad
+units: mm
+zeros: None
+plating: Some(Plated)
+ended: true
+attributes: 5
+  TF.CreationDate x
+  TF.GenerationSoftware KiCad,Pcbnew,8.0.1
+  TF.FileFunction Plated,1,2,PTH
+  TA.AperFunction Plated,PTH,ViaDrill
+  TA.AperFunction Plated,PTH,ComponentDrill
+tools: 2
+  T1 d=300000 holes=1 feed=-1 speed=-1
+  T2 d=800000 holes=2 feed=-1 speed=-1
+notes: 0
+holes: 3
+box: 5000000 4000000 25000000 12000000
+slots: 0
+routes: 0
+diagnostics: 1
+  line 7 info command-ignored

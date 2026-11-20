@@ -1,0 +1,16 @@
+dialect: Generic
+units: mm
+format: Leading 4:6
+ended: true
+attributes: 0
+apertures: 4
+  D10 circle d=100000 hole=-1
+  D11 rectangle x=1000000 y=1000000 hole=-1
+  D12 block commands=5
+  D13 block commands=4
+macros: 0
+commands: select=2 move=0 flash=2 line=0 arc=0 region_start=0 region_end=0 polarity=0 step_repeat=2 mirror=2 rotation=2 scale=2
+drawing: flashes=13 strokes=13 arcs=0 regions=0 groups=19 hairlines=0
+contours: 0
+bounds: 4950000 -10100000 60100000 22500000
+diagnostics: 0

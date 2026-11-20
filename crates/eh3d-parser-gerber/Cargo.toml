@@ -15,3 +15,6 @@ eh3d-parser-common = { path = "../eh3d-parser-common", version = ">=0.0.2" }
 [dev-dependencies]
 # the Gerber reader of the Bungard machines, compared with this one on the same files (tests/differential.rs)
 eh3d-bungard-formats = { path = "../../../EH3D-COMMON/crates/formats", version = ">=0.0.1" }
+# the readers of the other formats and the SHA-256 of the corpus manifest (tests/corpus.rs)
+eh3d-parser-excellon = { path = "../eh3d-parser-excellon", version = ">=0.0.2" }
+eh3d-parser-gcode = { path = "../eh3d-parser-gcode", version = ">=0.0.2" }

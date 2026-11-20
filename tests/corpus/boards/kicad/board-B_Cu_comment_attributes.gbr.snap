@@ -1,0 +1,19 @@
+dialect: KiCad
+units: mm
+format: Leading 4:6
+ended: true
+attributes: 3
+  TF.GenerationSoftware KiCad,Pcbnew,5.99
+  TF.FileFunction Copper,L2,Bot
+  TF.FilePolarity Positive
+apertures: 4
+  D10 circle d=250000 hole=-1
+  D11 rectangle x=1600000 y=1600000 hole=-1
+  D12 circle d=1600000 hole=-1
+  D13 obround x=2400000 y=1400000 hole=-1
+macros: 0
+commands: select=5 move=2 flash=4 line=5 arc=1 region_start=1 region_end=1 polarity=0 step_repeat=0 mirror=0 rotation=0 scale=0
+drawing: flashes=4 strokes=2 arcs=0 regions=1 groups=0 hairlines=0
+contours: 1
+bounds: 4200000 3200000 29000000 14000000
+diagnostics: 0

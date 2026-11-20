@@ -1,0 +1,14 @@
+dialect: Altium
+units: in
+zeros: Some(Trailing)
+plating: Some(NonPlated)
+ended: true
+attributes: 0
+tools: 1
+  T1 d=126000 holes=1 feed=0 speed=0
+notes: 0
+holes: 1
+box: 50000 50000 50000 50000
+slots: 0
+routes: 0
+diagnostics: 0

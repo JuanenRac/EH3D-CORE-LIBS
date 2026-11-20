@@ -1,0 +1,21 @@
+dialect: Generic
+units: in
+zeros: None
+plating: None
+ended: false
+attributes: 0
+tools: 1
+  T1 d=50000 holes=0 feed=-1 speed=-1
+notes: 0
+holes: 0
+box: none
+slots: 0
+routes: 0
+diagnostics: 7
+  line 4 warning tool-redefined
+  line 6 error tool-undefined
+  line 7 error tool-undefined
+  line 9 error arc-unsupported
+  line 10 error limit-exceeded
+  line 11 error number-too-large
+  line 11 warning end-missing

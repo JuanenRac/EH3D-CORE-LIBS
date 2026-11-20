@@ -1,0 +1,16 @@
+dialect: Generic
+units: mm
+zeros: None
+plating: None
+ended: true
+attributes: 0
+tools: 1
+  T1 d=800000 holes=1 feed=-1 speed=-1
+notes: 0
+holes: 1
+box: 12500000 3250000 12500000 3250000
+slots: 0
+routes: 0
+diagnostics: 2
+  line 3 warning decimal-comma
+  line 6 warning decimal-comma

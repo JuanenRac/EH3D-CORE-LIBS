@@ -1,0 +1,20 @@
+dialect: Generic
+units: mm
+zeros: None
+plating: None
+ended: true
+attributes: 0
+tools: 2
+  T1 d=800000 holes=6 feed=-1 speed=-1
+  T2 d=2000000 holes=0 feed=-1 speed=-1
+notes: 0
+holes: 6
+box: 1000000 10000000 16000000 21000000
+slots: 1
+  T1 30000000 10000000 -> 34000000 10000000
+routes: 1
+  tool=Some(2) points=5 arcs=2
+    arc to=2 cw=true radius=10000000 offset=None
+    arc to=3 cw=false radius=-1 offset=Some((-10000000, 0))
+diagnostics: 1
+  line 19 warning deprecated-command

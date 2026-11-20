@@ -1,0 +1,14 @@
+dialect: Generic
+units: mm
+format: Leading 4:6
+ended: true
+attributes: 0
+apertures: 1
+  D10 circle d=100000 hole=-1
+macros: 0
+commands: select=1 move=5 flash=0 line=10 arc=3 region_start=3 region_end=3 polarity=0 step_repeat=0 mirror=0 rotation=0 scale=0
+drawing: flashes=0 strokes=0 arcs=1 regions=3 groups=0 hairlines=0
+contours: 4
+bounds: -10000000 -3050000 60050000 40000000
+diagnostics: 1
+  line 28 warning deprecated-command

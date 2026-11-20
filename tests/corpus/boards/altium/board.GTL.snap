@@ -1,0 +1,21 @@
+dialect: Altium
+units: in
+format: Leading 2:4
+ended: true
+attributes: 0
+apertures: 4
+  D10 circle d=10000 hole=-1
+  D11 rectangle x=63000 y=63000 hole=-1
+  D12 circle d=63000 hole=-1
+  D13 obround x=94500 y=55100 hole=-1
+macros: 0
+commands: select=5 move=2 flash=4 line=5 arc=1 region_start=1 region_end=1 polarity=1 step_repeat=0 mirror=0 rotation=0 scale=0
+drawing: flashes=4 strokes=2 arcs=0 regions=1 groups=0 hairlines=0
+contours: 1
+bounds: 165400 126000 1141700 551200
+diagnostics: 5
+  line 11 info deprecated-command
+  line 15 info deprecated-command
+  line 17 info deprecated-command
+  line 19 info deprecated-command
+  line 32 info deprecated-command

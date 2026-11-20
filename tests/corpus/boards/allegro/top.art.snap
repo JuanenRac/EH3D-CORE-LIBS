@@ -1,0 +1,25 @@
+dialect: Allegro
+units: in
+format: Leading 2:5
+ended: true
+image: negative=false offset=(0,0) scale=(1000000,1000000) mirror=(false,false) rotation=0 swap=false name=top
+attributes: 0
+apertures: 4
+  D10 circle d=10000 hole=-1
+  D11 rectangle x=63000 y=63000 hole=-1
+  D12 circle d=63000 hole=-1
+  D13 obround x=94500 y=55100 hole=-1
+macros: 0
+commands: select=5 move=2 flash=4 line=5 arc=1 region_start=1 region_end=1 polarity=1 step_repeat=0 mirror=0 rotation=0 scale=0
+drawing: flashes=4 strokes=2 arcs=0 regions=1 groups=0 hairlines=0
+contours: 1
+bounds: 165350 125980 1141730 551180
+diagnostics: 8
+  line 5 info deprecated-command
+  line 6 info deprecated-command
+  line 7 info deprecated-command
+  line 14 info deprecated-command
+  line 18 info deprecated-command
+  line 20 info deprecated-command
+  line 22 info deprecated-command
+  line 35 info deprecated-command

@@ -1,0 +1,20 @@
+dialect: Generic
+units: mm
+format: Leading 2:4
+ended: true
+attributes: 0
+apertures: 2
+  D10 circle d=250000 hole=-1
+  D11 rectangle x=1500000 y=800000 hole=-1
+macros: 0
+commands: select=2 move=1 flash=1 line=1 arc=0 region_start=0 region_end=0 polarity=0 step_repeat=0 mirror=0 rotation=0 scale=0
+drawing: flashes=1 strokes=1 arcs=0 regions=0 groups=0 hairlines=0
+contours: 0
+bounds: 875000 375000 3750000 4400000
+diagnostics: 6
+  line 3 warning decimal-comma
+  line 4 warning decimal-comma
+  line 7 warning decimal-comma
+  line 7 warning decimal-comma
+  line 9 warning decimal-comma
+  line 9 warning decimal-comma

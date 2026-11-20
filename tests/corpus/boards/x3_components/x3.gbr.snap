@@ -1,0 +1,27 @@
+dialect: Generic
+units: mm
+format: Leading 4:6
+ended: true
+attributes: 13
+  TF.GenerationSoftware Example,Maker,1.0
+  TF.FileFunction Component,L1,Top
+  TF.FilePolarity Positive
+  TA.AperFunction ComponentMain
+  TA.AperFunction ComponentPin
+  TD 
+  TO.C U1
+  TO.CRot 90
+  TO.CMnt SMD
+  TO.CVal 74HC00
+  TO.P U1,1,A
+  TO.N SIG
+  TD 
+apertures: 2
+  D10 rectangle x=3000000 y=2000000 hole=-1
+  D11 circle d=400000 hole=-1
+macros: 0
+commands: select=2 move=0 flash=2 line=0 arc=0 region_start=0 region_end=0 polarity=0 step_repeat=0 mirror=0 rotation=0 scale=0
+drawing: flashes=2 strokes=0 arcs=0 regions=0 groups=0 hairlines=0
+contours: 0
+bounds: 3300000 4000000 6500000 6000000
+diagnostics: 0
