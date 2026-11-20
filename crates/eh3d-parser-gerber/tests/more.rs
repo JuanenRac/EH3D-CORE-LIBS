@@ -230,23 +230,37 @@ fn the_diagnostics_kept_are_limited_and_the_cut_is_said_once() {
 }
 
 #[test]
-fn a_layer_transform_that_changes_the_drawing_is_an_error_and_one_that_changes_nothing_is_not() {
-    use eh3d_parser_gerber::{codes, Severity};
-    for cmd in ["LR90", "LR-45.5", "LMX", "LMXY", "LS0.5", "LS2", "AB10"] {
+fn a_layer_transform_is_read_and_a_value_that_cannot_be_read_is_an_error() {
+    use eh3d_parser_gerber::{codes, Mirror, Severity};
+    for (cmd, op) in [
+        ("LR90", Operation::LoadRotation(90.0)),
+        ("LR-45.5", Operation::LoadRotation(-45.5)),
+        ("LMX", Operation::LoadMirror(Mirror::X)),
+        ("LMY", Operation::LoadMirror(Mirror::Y)),
+        ("LMXY", Operation::LoadMirror(Mirror::Xy)),
+        ("LMN", Operation::LoadMirror(Mirror::None)),
+        ("LS0.5", Operation::LoadScale(0.5)),
+        ("LS2", Operation::LoadScale(2.0)),
+        ("LR0", Operation::LoadRotation(0.0)),
+        ("LS1", Operation::LoadScale(1.0)),
+    ] {
+        let file = parse(&format!("{HEAD}%{cmd}*%\nM02*\n"));
+        assert!(file.is_clean(), "{cmd}: {:?}", file.diagnostics);
+        assert!(file.commands.iter().any(|c| c.op == op), "{cmd}");
+    }
+    for cmd in [
+        "LR", "LRx", "LMZ", "LM", "LS0", "LS-1", "LSabc", "AB10", "AB", "ABD5",
+    ] {
         let file = parse(&format!("{HEAD}%{cmd}*%\nM02*\n"));
         assert!(
             file.diagnostics
                 .iter()
                 .any(|d| d.severity == Severity::Error
-                    && d.code == codes::GEOMETRY_COMMAND_UNSUPPORTED),
+                    && (d.code == codes::LAYER_TRANSFORM_INVALID
+                        || d.code == codes::BLOCK_APERTURE_INVALID)),
             "{cmd}: {:?}",
             file.diagnostics
         );
-        assert!(!file.is_clean(), "{cmd}");
-    }
-    for cmd in ["LR0", "LR0.0", "LMN", "LS1", "LS1.0"] {
-        let file = parse(&format!("{HEAD}%{cmd}*%\nM02*\n"));
-        assert!(file.is_clean(), "{cmd}: {:?}", file.diagnostics);
     }
 }
 

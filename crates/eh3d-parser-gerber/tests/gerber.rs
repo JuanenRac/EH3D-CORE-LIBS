@@ -273,7 +273,12 @@ fn deprecated_and_unsupported_commands_do_not_stop_the_reading() {
         .diagnostics
         .iter()
         .any(|d| d.severity == Severity::Info && d.message.contains("IP")));
-    assert!(file.diagnostics.iter().any(|d| d.message.contains("LM")));
+    // the mirror is a command now, not a notice; the block aperture without a number is an error
+    assert!(file
+        .commands
+        .iter()
+        .any(|c| c.op == Operation::LoadMirror(eh3d_parser_gerber::Mirror::X)));
+    assert!(file.diagnostics.iter().any(|d| d.message.contains("AB")));
     assert!(file.diagnostics.iter().any(|d| d.message.contains("G70")));
 }
 
@@ -298,7 +303,7 @@ fn step_and_repeat_is_read() {
 #[test]
 fn incompatible_format_and_aperture_definitions_are_errors() {
     for text in [
-        "%FSLIX24Y24*%",
+        "%FSLQX24Y24*%",
         "%FSLAX77Y24*%",
         "%FSLAX2Y24*%",
         "%FSAAX24Y24*%",
@@ -389,14 +394,28 @@ fn coordinates_without_a_d_code_repeat_the_last_one() {
 }
 
 #[test]
-fn deprecated_commands_that_change_the_geometry_are_not_clean() {
-    for cmd in ["IPNEG", "OFA5B5", "SFA2B2", "MIA1B0", "IR90"] {
+fn deprecated_commands_that_change_the_geometry_are_read_and_a_bad_value_is_an_error() {
+    for cmd in ["IPNEG", "OFA5B5", "SFA2B2", "MIA1B0", "IR90", "ASAYBX"] {
         let f = parse(&format!("%FSLAX24Y24*%\n%MOMM*%\n%{cmd}*%\nM02*\n"));
-        assert!(!f.is_clean(), "{cmd}");
+        assert!(f.is_clean(), "{cmd}: {:?}", f.diagnostics);
+        assert!(!f.image.is_identity() || f.image.negative, "{cmd}");
+        assert!(
+            f.diagnostics
+                .iter()
+                .any(|d| d.code == eh3d_parser_gerber::codes::DEPRECATED_COMMAND),
+            "{cmd}"
+        );
     }
-    for cmd in ["IPPOS", "OFA0B0", "SFA1B1", "MIA0B0", "IR0"] {
+    for cmd in ["IPPOS", "OFA0B0", "SFA1B1", "MIA0B0", "IR0", "ASAXBY"] {
         let f = parse(&format!("%FSLAX24Y24*%\n%MOMM*%\n%{cmd}*%\nM02*\n"));
         assert!(f.is_clean(), "{cmd}");
+        assert!(f.image.is_identity() && !f.image.negative, "{cmd}");
+    }
+    for cmd in [
+        "IPXYZ", "OFAxB1", "SFA0B1", "MIA2B0", "IR45", "ASXX", "KO", "PF",
+    ] {
+        let f = parse(&format!("%FSLAX24Y24*%\n%MOMM*%\n%{cmd}*%\nM02*\n"));
+        assert!(!f.is_clean(), "{cmd}");
     }
 }
 

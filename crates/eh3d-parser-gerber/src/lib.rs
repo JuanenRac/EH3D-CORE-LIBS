@@ -7,16 +7,31 @@
 //! [`Command`]s (apertures selected, moves, flashes, lines, arcs, regions, polarity) with the
 //! coordinates already converted to numbers in the units of the file.
 //!
-//! What is **not** done: aperture macro bodies are kept as text and not interpreted, block
-//! apertures (`AB`) and the layer transforms `LM`/`LR`/`LS` are reported as unsupported (an
-//! error when they would change what is drawn), and no
-//! geometry is calculated (no arc flattening, no polygon union): that belongs to the CAM engine.
+//! What the reader gives besides the list of commands: block apertures (`AB`) as apertures that hold
+//! their commands, the layer transforms `LM`/`LR`/`LS` as operations, the image parameters (`IP`, `OF`, `SF`,
+//! `MI`, `IR`, `AS`), incremental coordinates, the attributes of X2 and X3 (also those written as `G04 #@!`
+//! comments), and the dialect of the program that wrote the file. [`macros`] evaluates the aperture macros,
+//! [`image`] puts the blocks, the step and repeat and the transforms in place and [`attributes`], [`dialect`],
+//! [`arc`] and [`snapshot`] are the typed attributes, the recognition of the CAD programs, the geometry of
+//! an arc and the normalised text that the tests of the corpus compare.
+//!
+//! What is **not** done: no geometry is calculated (no arc flattening, no polygon union): that belongs to
+//! the geometry crate and the CAM engine.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(clippy::string_slice)]
 
 use std::collections::BTreeMap;
+
+pub mod arc;
+pub mod attributes;
+pub mod dialect;
+pub mod image;
+pub mod macros;
+pub mod snapshot;
+
+pub use dialect::Dialect;
 
 pub use eh3d_parser_common::{codes, Diagnostic, Severity, Units};
 use eh3d_parser_common::{
@@ -99,6 +114,11 @@ pub enum Aperture {
         /// The parameters.
         params: Vec<f64>,
     },
+    /// A block aperture (`AB`): the commands between `%ABDnn*%` and `%AB*%`, drawn at each flash.
+    Block {
+        /// The commands of the block, in its own coordinates.
+        commands: Vec<Command>,
+    },
 }
 
 /// An aperture macro (`AM`): the text of its primitives, not interpreted.
@@ -126,6 +146,70 @@ pub enum QuadrantMode {
     Single,
     /// Arcs may span up to 360 degrees (`G75`).
     Multi,
+}
+
+/// The mirroring of the apertures that are flashed (`LM`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mirror {
+    /// No mirroring (`N`).
+    None,
+    /// Mirrored about the Y axis, so X changes sign (`X`).
+    X,
+    /// Mirrored about the X axis, so Y changes sign (`Y`).
+    Y,
+    /// Both (`XY`).
+    Xy,
+}
+
+/// The parameters that apply to the whole image: `IP`, `OF`, `SF`, `MI`, `IR`, `AS` and `IN`.
+///
+/// They are deprecated but old files still carry them. They are applied in this order by
+/// [`image::resolve`]: exchange of the axes, mirroring, scale, rotation and offset.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImageParams {
+    /// True for a negative image (`IPNEG`): the drawing is the clear part of the layer.
+    pub negative: bool,
+    /// Offset of the image (`OF`).
+    pub offset: (f64, f64),
+    /// Scale factors of the image (`SF`).
+    pub scale: (f64, f64),
+    /// Mirror of the A axis (`MIA1`), which changes the sign of X.
+    pub mirror_a: bool,
+    /// Mirror of the B axis (`MIB1`), which changes the sign of Y.
+    pub mirror_b: bool,
+    /// Rotation of the image in degrees: 0, 90, 180 or 270 (`IR`).
+    pub rotation: u32,
+    /// True when the axes are exchanged (`ASAYBX`).
+    pub swap_axes: bool,
+    /// The name of the image (`IN`).
+    pub name: Option<String>,
+}
+
+impl Default for ImageParams {
+    fn default() -> Self {
+        ImageParams {
+            negative: false,
+            offset: (0.0, 0.0),
+            scale: (1.0, 1.0),
+            mirror_a: false,
+            mirror_b: false,
+            rotation: 0,
+            swap_axes: false,
+            name: None,
+        }
+    }
+}
+
+impl ImageParams {
+    /// True when the parameters leave the geometry as it is (the polarity and the name do not move anything).
+    pub fn is_identity(&self) -> bool {
+        self.offset == (0.0, 0.0)
+            && self.scale == (1.0, 1.0)
+            && !self.mirror_a
+            && !self.mirror_b
+            && self.rotation == 0
+            && !self.swap_axes
+    }
 }
 
 /// A step-and-repeat block (`SR`).
@@ -184,6 +268,12 @@ pub enum Operation {
     Polarity(Polarity),
     /// Start (`Some`) or end (`None`) a step-and-repeat block.
     StepRepeat(Option<StepRepeat>),
+    /// Mirror the apertures that are flashed from here on (`LM`).
+    LoadMirror(Mirror),
+    /// Rotate the apertures that are flashed from here on, counterclockwise and in degrees (`LR`).
+    LoadRotation(f64),
+    /// Scale the apertures that are flashed from here on (`LS`).
+    LoadScale(f64),
 }
 
 /// An [`Operation`] and the line it came from.
@@ -223,8 +313,43 @@ pub struct GerberFile {
     pub commands: Vec<Command>,
     /// Whether the file ends with `M02`.
     pub ended: bool,
+    /// The parameters of the whole image (`IP`, `OF`, `SF`, `MI`, `IR`, `AS`, `IN`).
+    pub image: ImageParams,
+    /// The program that seems to have written the file, from its header.
+    pub dialect: Dialect,
     /// What the reader noticed.
     pub diagnostics: Vec<Diagnostic>,
+}
+
+/// The limits of one reading: what is past a limit is not kept, the reading stops with a
+/// `limit-exceeded` error and what was read until then is returned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseLimits {
+    /// The most commands (moves, flashes, lines, arcs and the like), counting those of the blocks.
+    pub max_commands: usize,
+    /// The most apertures, counting the block apertures.
+    pub max_apertures: usize,
+    /// The most aperture macros.
+    pub max_macros: usize,
+    /// The most attributes.
+    pub max_attributes: usize,
+    /// The deepest nesting of block apertures.
+    pub max_block_depth: usize,
+    /// The most copies a step and repeat may make (its repeats along X times along Y).
+    pub max_repeat_copies: u64,
+}
+
+impl Default for ParseLimits {
+    fn default() -> Self {
+        ParseLimits {
+            max_commands: 20_000_000,
+            max_apertures: 1_000_000,
+            max_macros: 100_000,
+            max_attributes: 1_000_000,
+            max_block_depth: 16,
+            max_repeat_copies: 1_000_000,
+        }
+    }
 }
 
 impl GerberFile {
@@ -261,6 +386,26 @@ struct State {
     last_point: Option<Point>,
     /// Whether the diagnostics were cut at [`MAX_DIAGNOSTICS`].
     diagnostics_cut: bool,
+    limits: ParseLimits,
+    /// True after a limit was reached: the reading stops.
+    stopped: bool,
+    total_commands: usize,
+    /// Coordinates are increments of the last point (`G91`, `FS... I`).
+    incremental: bool,
+    /// The block apertures that are open, the innermost last.
+    blocks: Vec<BlockBuild>,
+}
+
+/// A block aperture while it is read.
+struct BlockBuild {
+    number: u32,
+    commands: Vec<Command>,
+    saved_aperture: Option<u32>,
+    saved_x: Option<f64>,
+    saved_y: Option<f64>,
+    saved_last_d: Option<u32>,
+    saved_last_point: Option<Point>,
+    saved_in_region: bool,
 }
 
 /// The most diagnostics kept for one file: a damaged file of millions of bad blocks does not
@@ -299,14 +444,35 @@ impl State {
             .push(Diagnostic::new(line, severity, code, message));
     }
 
+    fn limit_hit(&mut self, line: usize, what: &str) {
+        if !self.stopped {
+            self.stopped = true;
+            self.diag(
+                line,
+                Severity::Error,
+                codes::LIMIT_EXCEEDED,
+                format!("{what}: the reading stops here"),
+            );
+        }
+    }
+
     fn push(&mut self, line: usize, op: Operation) {
+        if self.total_commands >= self.limits.max_commands {
+            self.limit_hit(line, "more commands than the limit");
+            return;
+        }
+        self.total_commands += 1;
         match &op {
             Operation::Move { to } => self.last_point = Some(*to),
             Operation::Flash { at } => self.last_point = Some(*at),
             Operation::Line { to, .. } | Operation::Arc { to, .. } => self.last_point = Some(*to),
             _ => {}
         }
-        self.file.commands.push(Command { line, op });
+        let command = Command { line, op };
+        match self.blocks.last_mut() {
+            Some(block) => block.commands.push(command),
+            None => self.file.commands.push(command),
+        }
     }
 }
 
@@ -318,14 +484,29 @@ pub fn parse_bytes(bytes: &[u8]) -> Result<GerberFile, InputError> {
 
 /// Like [`parse_bytes`] with a limit of your own.
 pub fn parse_bytes_with(bytes: &[u8], limits: &InputLimits) -> Result<GerberFile, InputError> {
+    parse_bytes_with_limits(bytes, limits, &ParseLimits::default())
+}
+
+/// Like [`parse_bytes`] with a limit on the size of the input and the limits of the reading of your own.
+pub fn parse_bytes_with_limits(
+    bytes: &[u8],
+    limits: &InputLimits,
+    parse_limits: &ParseLimits,
+) -> Result<GerberFile, InputError> {
     let input = decode_input(bytes, limits)?;
-    let mut file = parse(&input.text);
+    let mut file = parse_with_limits(&input.text, parse_limits);
     file.diagnostics.splice(0..0, input.diagnostics);
     Ok(file)
 }
 
 /// Reads a Gerber file. Never fails: problems are in [`GerberFile::diagnostics`].
 pub fn parse(text: &str) -> GerberFile {
+    parse_with_limits(text, &ParseLimits::default())
+}
+
+/// Reads a Gerber file with the limits given. Never fails and never panics: a limit that is reached stops
+/// the reading with a `limit-exceeded` error and what was read until then is returned.
+pub fn parse_with_limits(text: &str, limits: &ParseLimits) -> GerberFile {
     let mut st = State {
         file: GerberFile {
             units: None,
@@ -335,8 +516,15 @@ pub fn parse(text: &str) -> GerberFile {
             attributes: Vec::new(),
             commands: Vec::new(),
             ended: false,
+            image: ImageParams::default(),
+            dialect: dialect::detect(text),
             diagnostics: Vec::new(),
         },
+        limits: limits.clone(),
+        stopped: false,
+        total_commands: 0,
+        incremental: false,
+        blocks: Vec::new(),
         x: None,
         y: None,
         mode: Mode::Linear,
@@ -352,7 +540,7 @@ pub fn parse(text: &str) -> GerberFile {
     let bytes = text.as_bytes();
     let mut pos = 0;
     let mut line = 1usize;
-    while pos < bytes.len() {
+    while pos < bytes.len() && !st.stopped {
         let c = bytes[pos];
         if c == b'\n' {
             line += 1;
@@ -440,6 +628,14 @@ pub fn parse(text: &str) -> GerberFile {
             "a region (G36) is never closed by G37",
         );
     }
+    while let Some(block) = st.blocks.pop() {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::BLOCK_APERTURE_INVALID,
+            format!("the block aperture D{} is never closed by AB", block.number),
+        );
+    }
     let last = line;
     resolve_units(st.file.units, last, &mut st.file.diagnostics);
     st.file
@@ -462,6 +658,9 @@ fn extended(st: &mut State, body: &str, line: usize) {
                 codes::MACRO_NAME_MISSING,
                 "an aperture macro (AM) has no name",
             );
+        } else if st.file.macros.len() >= st.limits.max_macros && !st.file.macros.contains_key(name)
+        {
+            st.limit_hit(line, "more aperture macros than the limit");
         } else {
             st.file.macros.insert(
                 name.to_owned(),
@@ -512,78 +711,36 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
         .find_map(|k| cmd.strip_prefix(k).map(|r| (*k, r)))
     {
         let (kind, rest) = rest;
-        let mut parts = rest.split(',');
-        let name = parts.next().unwrap_or("").to_owned();
-        st.file.attributes.push(Attribute {
-            kind: kind.to_owned(),
-            name,
-            values: parts.map(str::to_owned).collect(),
-        });
-    } else if ["LM", "LR", "LS", "AB"].iter().any(|k| cmd.starts_with(k)) {
-        // a mirror, a turn or a scale that changes nothing (and the reset to it) is harmless;
-        // anything else changes what is drawn and ignoring it draws a wrong layer
-        let value = cmd.get(2..).unwrap_or("");
-        let number = |neutral: f64| value.parse::<f64>().is_ok_and(|v| v == neutral);
-        let harmless = match cmd.get(..2) {
-            Some("LM") => value == "N",
-            Some("LR") => number(0.0),
-            Some("LS") => number(1.0),
-            _ => false,
+        attribute(st, kind, rest, line);
+    } else if let Some(rest) = cmd.strip_prefix("AB") {
+        block_aperture(st, rest, line);
+    } else if let Some(rest) = cmd.strip_prefix("LM") {
+        let mirror = match rest {
+            "N" => Some(Mirror::None),
+            "X" => Some(Mirror::X),
+            "Y" => Some(Mirror::Y),
+            "XY" => Some(Mirror::Xy),
+            _ => None,
         };
-        if harmless {
-            st.diag(
-                line,
-                Severity::Warning,
-                codes::COMMAND_UNSUPPORTED,
-                format!(
-                    "{} is not supported and was ignored",
-                    cmd.get(..2).unwrap_or(cmd)
-                ),
-            );
-        } else {
-            st.diag(
-                line,
-                Severity::Error,
-                codes::GEOMETRY_COMMAND_UNSUPPORTED,
-                format!(
-                    "{} changes the geometry and is not supported",
-                    cmd.chars().take(12).collect::<String>()
-                ),
-            );
+        match mirror {
+            Some(m) => st.push(line, Operation::LoadMirror(m)),
+            None => layer_transform_invalid(st, line, cmd),
+        }
+    } else if let Some(rest) = cmd.strip_prefix("LR") {
+        match parse_f64(rest) {
+            Some(v) => st.push(line, Operation::LoadRotation(v)),
+            None => layer_transform_invalid(st, line, cmd),
+        }
+    } else if let Some(rest) = cmd.strip_prefix("LS") {
+        match parse_f64(rest) {
+            Some(v) if v > 0.0 => st.push(line, Operation::LoadScale(v)),
+            _ => layer_transform_invalid(st, line, cmd),
         }
     } else if ["IP", "OF", "SF", "AS", "IN", "LN", "MI", "IR", "KO", "PF"]
         .iter()
         .any(|k| cmd.starts_with(k))
     {
-        // the ones that change the geometry are not harmless when ignored: a negative image, an offset, a scale, a mirror or a turn
-        let harmless = matches!(
-            cmd,
-            "IPPOS" | "OFA0B0" | "OFA0.0B0.0" | "SFA1B1" | "SFA1.0B1.0" | "MIA0B0" | "IR0"
-        ) || ["AS", "IN", "LN", "KO", "PF"]
-            .iter()
-            .any(|k| cmd.starts_with(k))
-            || cmd.strip_prefix("IP") == Some("POS");
-        st.diag(
-            line,
-            if harmless {
-                Severity::Info
-            } else {
-                Severity::Error
-            },
-            if harmless {
-                codes::DEPRECATED_COMMAND
-            } else {
-                codes::GEOMETRY_COMMAND_UNSUPPORTED
-            },
-            if harmless {
-                format!(
-                    "the deprecated command {} was ignored",
-                    cmd.get(..2).unwrap_or(cmd)
-                )
-            } else {
-                format!("the deprecated command {cmd} changes the geometry and is not supported")
-            },
-        );
+        image_parameter(st, cmd, line);
     } else {
         st.diag(
             line,
@@ -595,6 +752,218 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
             ),
         );
     }
+}
+
+fn layer_transform_invalid(st: &mut State, line: usize, cmd: &str) {
+    st.diag(
+        line,
+        Severity::Error,
+        codes::LAYER_TRANSFORM_INVALID,
+        format!(
+            "{}: the value is not valid",
+            cmd.chars().take(12).collect::<String>()
+        ),
+    );
+}
+
+fn attribute(st: &mut State, kind: &str, rest: &str, line: usize) {
+    if st.file.attributes.len() >= st.limits.max_attributes {
+        st.limit_hit(line, "more attributes than the limit");
+        return;
+    }
+    let mut parts = rest.split(',');
+    let name = parts.next().unwrap_or("").to_owned();
+    if kind != "TD" && name.is_empty() {
+        st.diag(
+            line,
+            Severity::Warning,
+            codes::ATTRIBUTE_MALFORMED,
+            format!("{kind} has no attribute name"),
+        );
+    }
+    st.file.attributes.push(Attribute {
+        kind: kind.to_owned(),
+        name,
+        values: parts.map(str::to_owned).collect(),
+    });
+}
+
+/// `A<number>B<number>` in either order, each part optional.
+fn ab_pair(text: &str) -> Option<(Option<f64>, Option<f64>)> {
+    let (mut a, mut b) = (None, None);
+    let mut current = ' ';
+    let mut buffer = String::new();
+    for c in text.chars().chain(std::iter::once('\0')) {
+        if matches!(c, 'A' | 'B' | '\0') {
+            match current {
+                'A' => a = Some(parse_f64(&buffer)?),
+                'B' => b = Some(parse_f64(&buffer)?),
+                _ if !buffer.is_empty() => return None,
+                _ => {}
+            }
+            buffer.clear();
+            current = c;
+        } else {
+            buffer.push(c);
+        }
+    }
+    Some((a, b))
+}
+
+fn image_parameter(st: &mut State, cmd: &str, line: usize) {
+    let code = cmd.get(..2).unwrap_or(cmd);
+    let rest = cmd.get(2..).unwrap_or("");
+    let mut invalid = false;
+    match code {
+        "IP" => match rest {
+            "POS" => st.file.image.negative = false,
+            "NEG" => st.file.image.negative = true,
+            _ => invalid = true,
+        },
+        "OF" => match ab_pair(rest) {
+            Some((a, b)) => {
+                st.file.image.offset = (a.unwrap_or(0.0), b.unwrap_or(0.0));
+            }
+            None => invalid = true,
+        },
+        "SF" => match ab_pair(rest) {
+            Some((a, b)) if a.unwrap_or(1.0) != 0.0 && b.unwrap_or(1.0) != 0.0 => {
+                st.file.image.scale = (a.unwrap_or(1.0), b.unwrap_or(1.0));
+            }
+            _ => invalid = true,
+        },
+        "MI" => match ab_pair(rest) {
+            Some((a, b))
+                if [a, b]
+                    .iter()
+                    .all(|v| matches!(v, None | Some(0.0) | Some(1.0))) =>
+            {
+                st.file.image.mirror_a = a == Some(1.0);
+                st.file.image.mirror_b = b == Some(1.0);
+            }
+            _ => invalid = true,
+        },
+        "IR" => match rest {
+            "0" | "90" | "180" | "270" => st.file.image.rotation = rest.parse().unwrap_or(0),
+            _ => invalid = true,
+        },
+        "AS" => match rest {
+            "AXBY" => st.file.image.swap_axes = false,
+            "AYBX" => st.file.image.swap_axes = true,
+            _ => invalid = true,
+        },
+        "IN" => st.file.image.name = Some(rest.to_owned()),
+        // the name of a layer and the knock-out and the plot film are not geometry of the file
+        _ => {}
+    }
+    if invalid {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::IMAGE_PARAMETER_INVALID,
+            format!(
+                "the deprecated command {} has a value that cannot be read",
+                cmd.chars().take(12).collect::<String>()
+            ),
+        );
+    } else if matches!(code, "KO" | "PF") {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::GEOMETRY_COMMAND_UNSUPPORTED,
+            format!("the deprecated command {code} changes the geometry and is not supported"),
+        );
+    } else {
+        st.diag(
+            line,
+            Severity::Info,
+            codes::DEPRECATED_COMMAND,
+            format!("the deprecated command {code} was read"),
+        );
+    }
+}
+
+fn block_aperture(st: &mut State, rest: &str, line: usize) {
+    if rest.is_empty() {
+        let Some(block) = st.blocks.pop() else {
+            st.diag(
+                line,
+                Severity::Error,
+                codes::BLOCK_APERTURE_INVALID,
+                "AB closes a block aperture that was not opened",
+            );
+            return;
+        };
+        if st.in_region {
+            st.diag(
+                line,
+                Severity::Error,
+                codes::REGION_UNCLOSED,
+                "a region (G36) is never closed before the end of the block aperture",
+            );
+        }
+        st.aperture = block.saved_aperture;
+        st.x = block.saved_x;
+        st.y = block.saved_y;
+        st.last_d = block.saved_last_d;
+        st.last_point = block.saved_last_point;
+        st.in_region = block.saved_in_region;
+        if st.file.apertures.len() >= st.limits.max_apertures
+            && !st.file.apertures.contains_key(&block.number)
+        {
+            st.limit_hit(line, "more apertures than the limit");
+            return;
+        }
+        if st
+            .file
+            .apertures
+            .insert(
+                block.number,
+                Aperture::Block {
+                    commands: block.commands,
+                },
+            )
+            .is_some()
+        {
+            st.diag(
+                line,
+                Severity::Warning,
+                codes::APERTURE_REDEFINED,
+                format!(
+                    "AB: D{} is defined twice; the last definition wins",
+                    block.number
+                ),
+            );
+        }
+        return;
+    }
+    let number = rest
+        .strip_prefix('D')
+        .and_then(|d| d.parse::<u32>().ok())
+        .filter(|n| *n >= 10);
+    let Some(number) = number else {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::BLOCK_APERTURE_INVALID,
+            "AB: expected D followed by a number of 10 or more",
+        );
+        return;
+    };
+    if st.blocks.len() >= st.limits.max_block_depth {
+        st.limit_hit(line, "block apertures nested deeper than the limit");
+        return;
+    }
+    st.blocks.push(BlockBuild {
+        number,
+        commands: Vec::new(),
+        saved_aperture: st.aperture.take(),
+        saved_x: st.x.take(),
+        saved_y: st.y.take(),
+        saved_last_d: st.last_d.take(),
+        saved_last_point: st.last_point.take(),
+        saved_in_region: std::mem::replace(&mut st.in_region, false),
+    });
 }
 
 fn format_spec(st: &mut State, rest: &str, line: usize) {
@@ -622,17 +991,20 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
     }
     match bytes.get(1) {
         Some('A') => {}
-        Some('I') => st.diag(
-            line,
-            Severity::Error,
-            codes::INCREMENTAL_UNSUPPORTED,
-            "FS: incremental coordinates are not supported",
-        ),
+        Some('I') => {
+            st.incremental = true;
+            st.diag(
+                line,
+                Severity::Warning,
+                codes::DEPRECATED_COMMAND,
+                "FS: incremental coordinates are deprecated; each X and Y is added to the last point",
+            );
+        }
         _ => st.diag(
             line,
             Severity::Error,
             codes::FORMAT_MODE_INVALID,
-            "FS: the coordinate mode must be A (absolute)",
+            "FS: the coordinate mode must be A (absolute) or I (incremental)",
         ),
     }
     let tail: String = bytes.iter().skip(2).collect();
@@ -714,8 +1086,19 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
     let spec = rest.get(digits.len()..).unwrap_or("");
     let (template, params_text) = spec.split_once(',').unwrap_or((spec, ""));
     let mut params = Vec::new();
+    let mut comma_seen = false;
     for p in params_text.split('X').filter(|p| !p.is_empty()) {
-        match parse_f64(p) {
+        // a computer set to a language that writes the decimal point as a comma wrote some files that way
+        let value = parse_f64(p).or_else(|| {
+            let v = if p.contains(',') && !p.contains('.') {
+                parse_f64(&p.replace(',', "."))
+            } else {
+                None
+            };
+            comma_seen |= v.is_some();
+            v
+        });
+        match value {
             Some(v) => params.push(v),
             None => {
                 st.diag(
@@ -727,6 +1110,14 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
                 return;
             }
         }
+    }
+    if comma_seen {
+        st.diag(
+            line,
+            Severity::Warning,
+            codes::DECIMAL_COMMA,
+            "AD: a number uses a comma as the decimal point; it was read as a point",
+        );
     }
     let aperture = match template {
         "C" if !params.is_empty() => Aperture::Circle {
@@ -802,6 +1193,12 @@ fn aperture_definition(st: &mut State, rest: &str, line: usize) {
             format!("AD: D{number} has a negative size"),
         );
     }
+    if st.file.apertures.len() >= st.limits.max_apertures
+        && !st.file.apertures.contains_key(&number)
+    {
+        st.limit_hit(line, "more apertures than the limit");
+        return;
+    }
     if st.file.apertures.insert(number, aperture).is_some() {
         st.diag(
             line,
@@ -816,7 +1213,7 @@ fn aperture_has_bad_size(a: &Aperture) -> bool {
     match a {
         Aperture::Circle { diameter, .. } | Aperture::Polygon { diameter, .. } => *diameter < 0.0,
         Aperture::Rectangle { x, y, .. } | Aperture::Obround { x, y, .. } => *x < 0.0 || *y < 0.0,
-        Aperture::Macro { .. } => false,
+        Aperture::Macro { .. } | Aperture::Block { .. } => false,
     }
 }
 
@@ -859,6 +1256,20 @@ fn step_repeat(st: &mut State, rest: &str, line: usize) {
             }
         }
     }
+    if let (Some(x), Some(y)) = (x_repeats, y_repeats) {
+        if u64::from(x) * u64::from(y) > st.limits.max_repeat_copies {
+            st.diag(
+                line,
+                Severity::Error,
+                codes::LIMIT_EXCEEDED,
+                format!(
+                    "SR: {x} by {y} copies are more than the limit of {}; the repeat is not applied",
+                    st.limits.max_repeat_copies
+                ),
+            );
+            return;
+        }
+    }
     match (x_repeats, y_repeats, x_step, y_step) {
         (Some(x_repeats), Some(y_repeats), Some(x_step), Some(y_step)) => st.push(
             line,
@@ -892,6 +1303,16 @@ fn words(block: &str) -> Vec<(char, String)> {
 }
 
 fn function_block(st: &mut State, block: &str, line: usize) {
+    // some programs (KiCad before X2 was accepted everywhere) write the attributes as comments: G04 #@! TF.FileFunction,...
+    if let Some(rest) = block.strip_prefix("G04#@!") {
+        if let Some((kind, rest)) = ["TF", "TA", "TO", "TD"]
+            .iter()
+            .find_map(|k| rest.strip_prefix(k).map(|r| (*k, r)))
+        {
+            attribute(st, kind, rest, line);
+        }
+        return;
+    }
     if block.starts_with("G04") {
         return;
     }
@@ -958,10 +1379,18 @@ fn function_block(st: &mut State, block: &str, line: usize) {
         }
     }
     if let Some(v) = x {
-        st.x = Some(v);
+        st.x = Some(if st.incremental {
+            st.x.unwrap_or(0.0) + v
+        } else {
+            v
+        });
     }
     if let Some(v) = y {
-        st.y = Some(v);
+        st.y = Some(if st.incremental {
+            st.y.unwrap_or(0.0) + v
+        } else {
+            v
+        });
     }
     let d = match d {
         Some(d) => Some(d),
@@ -1153,13 +1582,16 @@ fn g_code(st: &mut State, digits: &str, line: usize) {
             codes::DEPRECATED_COMMAND,
             "G54/G55 are deprecated and were ignored",
         ),
-        Ok(90) => {}
-        Ok(91) => st.diag(
-            line,
-            Severity::Error,
-            codes::INCREMENTAL_UNSUPPORTED,
-            "G91 (incremental coordinates) is not supported",
-        ),
+        Ok(90) => st.incremental = false,
+        Ok(91) => {
+            st.incremental = true;
+            st.diag(
+                line,
+                Severity::Warning,
+                codes::DEPRECATED_COMMAND,
+                "G91 (incremental coordinates) is deprecated; each X and Y is added to the last point",
+            );
+        }
         _ => st.diag(
             line,
             Severity::Warning,
@@ -1179,6 +1611,20 @@ fn coordinate(st: &mut State, digits: &str, line: usize) -> Option<f64> {
         );
         return None;
     };
+    let with_point;
+    let mut digits = digits;
+    if digits.contains(',') && !digits.contains('.') {
+        with_point = digits.replace(',', ".");
+        if decode_coordinate(&with_point, format).is_some() {
+            st.diag(
+                line,
+                Severity::Warning,
+                codes::DECIMAL_COMMA,
+                format!("'{digits}' uses a comma as the decimal point; it was read as a point"),
+            );
+            digits = &with_point;
+        }
+    }
     match decode_coordinate(digits, format) {
         Some(v) => Some(v),
         None => {

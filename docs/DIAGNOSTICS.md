@@ -17,12 +17,12 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `unknown-word` | all | Warning | A letter and number the reader does not know; ignored. |
 | `end-missing` | Gerber, Excellon | Warning | The file does not end with `M02` / `M30`. |
 | `text-after-end` | Excellon, G-code | Warning | Text or blocks after the end of the program. |
-| `incremental-unsupported` | all | Error | Incremental coordinates (`G91`, `ICI`, `FS ... I`) are not supported. |
+| `incremental-unsupported` | Excellon, G-code | Error | Incremental coordinates (`G91`, `ICI`) that the reader cannot follow. The Gerber reader follows them (`G91`, `FS ... I`) with a `deprecated-command` warning. |
 | `deprecated-command` | Gerber | Info or Warning | A deprecated command that was ignored or read as its replacement. |
 | `command-ignored` | Gerber, Excellon | Info | A known command with no effect on the result was ignored. |
 | `too-many-diagnostics` | Gerber | Error | The file has more diagnostics than the reader keeps (100000); the rest are dropped. |
-| `command-unsupported` | Gerber | Warning | A known command with no effect on the geometry (`LM`, `LR` or `LS` with the value that changes nothing) that was ignored. |
-| `geometry-command-unsupported` | Gerber, Excellon | Error | A command that changes the geometry and is not supported (in Excellon, a repeat `R<n>` or a pattern offset `M02` with a coordinate): a deprecated one (negative image, offset, scale, mirror, turn), a layer transform of the apertures (`LM`, `LR`, `LS` with a value that changes something) or an aperture block (`AB`). |
+| `command-unsupported` | Gerber | Warning | A known command with no effect on the geometry that was ignored. |
+| `geometry-command-unsupported` | Gerber, Excellon | Error | A command that changes the geometry and is not supported (in Excellon, a repeat `R<n>` or a pattern offset `M02` with a coordinate): in Gerber, the deprecated knock-out (`KO`) and plot film (`PF`) commands. |
 | `unknown-command` | Gerber | Warning | An extended command the reader does not know. |
 | `input-not-utf8` | all (`parse_bytes`) | Warning | The bytes are not UTF-8 and were read as Latin-1. |
 | `extended-unclosed` | Gerber | Error | An extended command starting with `%` is never closed. |
@@ -57,6 +57,14 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `operation-missing` | Gerber | Error | Coordinates without an operation and none to repeat. |
 | `coordinate-missing` | Gerber | Error | An operation uses a coordinate that was never given. |
 | `start-point-missing` | Gerber | Error | A draw starts before any move gave a start point. |
+| `limit-exceeded` | Gerber | Error | A limit of the reading was reached (`ParseLimits`: commands, apertures, macros, attributes, nesting of block apertures, copies of a step and repeat); the reading stops there and returns what it has, except for a step and repeat over its copies, which is only not applied. |
+| `block-aperture-invalid` | Gerber | Error | A block aperture (`AB`) is closed without being opened, is opened with a number below 10, or is never closed; also a draw with a block aperture. |
+| `block-aperture-cycle` | Gerber | Error | A block aperture draws itself, directly or through another, or is nested deeper than the limit; reported when the drawing is put in place (`image::resolve`) and the flash is left out. |
+| `decimal-comma` | Gerber | Warning | A number of an aperture or a coordinate uses a comma as the decimal point (a file written by a computer set to a language that writes it so); it is read as a point. |
+| `attribute-malformed` | Gerber | Warning | An attribute (`TF`, `TA`, `TO`) has no name. |
+| `layer-transform-invalid` | Gerber | Error | The value of `LM` (not `N`, `X`, `Y` or `XY`), `LR` (not a number) or `LS` (not a number above zero) cannot be read. |
+| `image-parameter-invalid` | Gerber | Error | A deprecated parameter of the whole image (`IP`, `OF`, `SF`, `MI`, `IR`, `AS`) has a value that cannot be read. |
+| `image-too-large` | Gerber | Error | The drawing put in place has more objects than the limit (`ResolveLimits::max_items`); the rest is left out. |
 | `header-missing` | Excellon | Warning | The file has no `M48` header. |
 | `format-comment-invalid` | Excellon | Warning | A `FILE_FORMAT=` comment is not understood. |
 | `defaults-invalid` | Excellon | Warning | The default format given to `parse_with_format` is out of range (1 to 8 integer digits, 0 to 8 decimal digits) and was ignored. |

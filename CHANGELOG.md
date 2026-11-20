@@ -4,6 +4,24 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The Gerber reader follows block apertures, step and repeat and the transforms of loaded apertures:** `%ABDnn*%` ... `%AB*%` is read as an aperture that holds its commands (nested to a limit), `%LM`, `%LR` and `%LS` are operations instead of an error, and the new `eh3d_parser_gerber::image::resolve` walks the file and returns the drawing in place: every copy of a step and repeat, every flash of a block with its content (as a group composed first), the transform of each flash, the arcs with their centre and the regions with their contours. A block that draws itself, or another that draws it, is left out with `block-aperture-cycle`. Tested in `tests/blocks_and_transforms.rs`.
+
+- **The deprecated parameters of the whole image are read, not refused:** `IPNEG`, `OF`, `SF`, `MI`, `IR`, `AS` and `IN` are kept in `GerberFile::image` and applied by `image::resolve` (axes, mirror, scale, rotation, offset, in that order); a value that cannot be read is `image-parameter-invalid`. Incremental coordinates (`G91`, `FS... I`) are followed with a deprecation warning instead of an error, and `G90` goes back to absolute.
+
+- **The aperture macros are evaluated in full:** `eh3d_parser_gerber::macros::evaluate` reads the primitives 1, 2, 4, 5, 6 (moire), 7 (thermal), 20, 21 and 22, the comments, the variables (`$3=$1x2`) and the arithmetic, gives them as data with their exposure, and lists what it could not read with its line; its limits are the ones of the reader (64 levels, 1024 characters, 4096 lines and primitives, outlines of 4096 corners).
+
+- **The attributes of X2 and X3 are typed:** `eh3d_parser_gerber::attributes` gives `FileFunction`, `FilePolarity`, `Part`, the generation software, `AperFunction` (including the X3 component functions) and the object attributes (`.N`, `.P`, `.C`, `.CRot`, `.CMnt` and the like) as enumerations, keeping the unknown ones as `Other`; the attributes that KiCad writes as `G04 #@!` comments are read as attributes.
+
+- **The program that wrote a file is recognised:** `eh3d_parser_gerber::dialect::detect` tells Altium, Allegro, EAGLE and KiCad from the header (`GerberFile::dialect`), and `layer_from_filename` gives the layer from the extension or the name by the conventions of those four programs (`.GTL`, `.cmp`/`.sol`, `-F_Cu.gbr`, `-NPTH.drl`, `silkscreen_top.art`).
+
+- **The geometry of an arc is worked out in one place:** `eh3d_parser_gerber::arc::arc_geometry` gives the centre, radius and signed sweep in multi quadrant and in single quadrant mode (the centre chosen among the four signs), a full circle when start and end are the same point, and `flatten` gives its points within a tolerance; tested far from the origin, where precision used to be lost.
+
+- **The reading has limits that stop it cleanly:** `ParseLimits` bounds the commands, apertures, macros, attributes, the nesting of block apertures and the copies of a step and repeat; past a limit the reading stops with `limit-exceeded` and returns what it has. A number written with a decimal comma (a file written by a computer set to a language that writes it so) is read as a point with the warning `decimal-comma`.
+
+- **A normalised text of a reading for snapshot tests:** `eh3d_parser_gerber::snapshot::normalize` writes the dialect, units, format, apertures, macros, command counts, the drawing in place with its box and every diagnostic as plain text with every length as a whole number of millionths, so it is the same on every machine.
+
+- **The Gerber writer writes block apertures and the layer transforms:** `%ABD..%` blocks are written after the apertures they use, `%LM`, `%LR` and `%LS` are written, and a file with a negative image or deprecated image parameters is refused with a named error instead of being written without them.
+
 - **The notices of the readers in the eight languages:** `eh3d_parser_common::i18n` gives the headline of every diagnostic code in English, Spanish, German, French, Italian, Japanese, Chinese and Portuguese of Portugal, `localize` writes one notice as a line in a language and `Language::from_tag` takes `pt-PT`, `zh_CN` and the like; a test fails when a code has no headline in one of the eight languages, so a new code cannot be added without them.
 
 ## [0.1.1] - Quiet failures of the readers closed, repeats in Excellon refused and macros that can no longer overflow the stack

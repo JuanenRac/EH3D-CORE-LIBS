@@ -381,6 +381,7 @@ pub fn from_gerber_with(file: &GerberFile, options: &SceneOptions) -> Scene {
                         }
                         None => scene.note("a macro aperture is not drawn"),
                     },
+                    Some(Aperture::Block { .. }) => scene.note("a block aperture is not drawn"),
                     None => scene.note("a flash with no aperture selected is not drawn"),
                 }
             }
@@ -449,7 +450,20 @@ pub fn from_gerber_with(file: &GerberFile, options: &SceneOptions) -> Scene {
                     scene.note("an arc with no round pen is not drawn");
                 }
             }
-            Operation::Polarity(_) | Operation::StepRepeat(None) => {}
+            Operation::LoadMirror(m) if *m != eh3d_parser_gerber::Mirror::None => {
+                scene.note("a mirror of the apertures is not drawn")
+            }
+            Operation::LoadRotation(r) if *r != 0.0 => {
+                scene.note("a rotation of the apertures is not drawn")
+            }
+            Operation::LoadScale(s) if *s != 1.0 => {
+                scene.note("a scale of the apertures is not drawn")
+            }
+            Operation::Polarity(_)
+            | Operation::StepRepeat(None)
+            | Operation::LoadMirror(_)
+            | Operation::LoadRotation(_)
+            | Operation::LoadScale(_) => {}
         }
     }
     scene

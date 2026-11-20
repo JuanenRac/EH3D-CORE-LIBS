@@ -86,7 +86,7 @@ fn a_file_with_units_has_no_units_warning() {
 fn diagnostics_carry_stable_codes() {
     let file = parse("%FSLAX24Y24*%\n%MOMM*%\nG91*\nG99*\nX9999999999Y0D01*\n");
     let found: Vec<&str> = file.diagnostics.iter().map(|d| d.code).collect();
-    assert!(found.contains(&codes::INCREMENTAL_UNSUPPORTED), "{found:?}");
+    assert!(found.contains(&codes::DEPRECATED_COMMAND), "{found:?}");
     assert!(found.contains(&codes::UNKNOWN_G_CODE), "{found:?}");
     assert!(found.contains(&codes::NUMBER_TOO_LARGE), "{found:?}");
     assert!(found.contains(&codes::END_MISSING), "{found:?}");

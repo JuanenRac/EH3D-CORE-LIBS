@@ -23,8 +23,8 @@
 use std::fmt::Write as _;
 
 use eh3d_parser_gerber::{
-    Aperture, CoordinateFormat, GerberFile, Operation, Point, Polarity, QuadrantMode, Units,
-    ZeroOmission,
+    Aperture, CoordinateFormat, GerberFile, Mirror, Operation, Point, Polarity, QuadrantMode,
+    Units, ZeroOmission,
 };
 
 /// The coordinate format used when neither the options nor the file give one: 4 digits before and 6
@@ -59,6 +59,12 @@ pub enum WriteError {
     ForbiddenCharacter,
     /// A polygon aperture with a number of vertices outside 3 to 12.
     BadPolygon,
+    /// The file is a negative image or carries deprecated image parameters (`OF`, `SF`, `MI`, `IR`, `AS`):
+    /// X2 files do not have them, and leaving them out would move the drawing.
+    DeprecatedImageParameters,
+    /// A block aperture uses an aperture that is not defined before it, or two block apertures need each
+    /// other.
+    BlockOrder(u32),
 }
 
 impl std::fmt::Display for WriteError {
@@ -78,6 +84,12 @@ impl std::fmt::Display for WriteError {
             WriteError::MissingMacro(name) => format!("the macro '{name}' is not defined"),
             WriteError::ForbiddenCharacter => "a text holds '*' or '%'".to_owned(),
             WriteError::BadPolygon => "a polygon aperture needs 3 to 12 vertices".to_owned(),
+            WriteError::DeprecatedImageParameters => {
+                "a negative image or the deprecated image parameters cannot be written".to_owned()
+            }
+            WriteError::BlockOrder(n) => format!(
+                "the block aperture {n} uses an aperture that is not defined before it, or its blocks need each other"
+            ),
         };
         f.write_str(&text)
     }
@@ -194,6 +206,7 @@ fn aperture_text(n: u32, aperture: &Aperture, file: &GerberFile) -> Result<Strin
                 *hole,
             )?
         }
+        Aperture::Block { .. } => return Err(WriteError::BadAperture(n)),
         Aperture::Macro { name, params } => {
             check_text(name)?;
             if !file.macros.contains_key(name) {
@@ -310,6 +323,18 @@ impl Body<'_> {
                 ));
             }
             Operation::StepRepeat(None) => self.out.push_str("%SR*%\n"),
+            Operation::LoadMirror(m) => self.out.push_str(match m {
+                Mirror::None => "%LMN*%\n",
+                Mirror::X => "%LMX*%\n",
+                Mirror::Y => "%LMY*%\n",
+                Mirror::Xy => "%LMXY*%\n",
+            }),
+            Operation::LoadRotation(r) => {
+                self.out.push_str(&format!("%LR{}*%\n", number(*r)?));
+            }
+            Operation::LoadScale(s) => {
+                self.out.push_str(&format!("%LS{}*%\n", number(*s)?));
+            }
         }
         Ok(())
     }
@@ -365,11 +390,47 @@ pub fn write(file: &GerberFile, options: &GerberOptions) -> Result<GerberOutput,
         }
         text.push_str("%\n");
     }
+    if !file.image.is_identity() || file.image.negative {
+        return Err(WriteError::DeprecatedImageParameters);
+    }
+    let mut written: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+    let mut blocks: Vec<(u32, &Vec<eh3d_parser_gerber::Command>)> = Vec::new();
     for (n, aperture) in &file.apertures {
         if *n < 10 {
             return Err(WriteError::BadAperture(*n));
         }
+        if let Aperture::Block { commands } = aperture {
+            blocks.push((*n, commands));
+            continue;
+        }
         text.push_str(&aperture_text(*n, aperture, file)?);
+        written.insert(*n);
+    }
+    // a block is written after the apertures it uses, which may be other blocks
+    while !blocks.is_empty() {
+        let ready = blocks.iter().position(|(_, commands)| {
+            commands.iter().all(|c| match &c.op {
+                Operation::SelectAperture(a) => written.contains(a),
+                _ => true,
+            })
+        });
+        let Some(index) = ready else {
+            return Err(WriteError::BlockOrder(blocks[0].0));
+        };
+        let (n, commands) = blocks.remove(index);
+        let mut inner = Body {
+            out: String::new(),
+            format,
+            file,
+            at: None,
+            interpolation: None,
+            quadrant: None,
+        };
+        for command in commands {
+            inner.operation(&command.op)?;
+        }
+        text.push_str(&format!("%ABD{n}*%\n{}%AB*%\n", inner.out));
+        written.insert(n);
     }
 
     let mut body = Body {
