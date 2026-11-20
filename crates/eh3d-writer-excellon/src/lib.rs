@@ -16,8 +16,9 @@
 //! be read correctly. The fixed style writes integers of a stated format with leading or trailing
 //! zeros suppressed. A value that does not fit is an error, never a wrong file.
 //!
-//! Not done: incremental coordinates, arcs in routes and the tool-change codes of drilling machines
-//! beyond `T`.
+//! Arcs of a route are written as `G02`/`G03` with the radius `A` or the offsets `I` and `J` of the model.
+//!
+//! Not done: incremental coordinates and the tool-change codes of drilling machines beyond `T`.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -304,8 +305,22 @@ pub fn write(file: &ExcellonFile, options: &ExcellonOptions) -> Result<String, W
                 return Err(WriteError::BadRoute);
             }
             out.push_str(&format!("G00{}\nM15\n", w.xy(*first)?));
-            for point in rest {
-                out.push_str(&format!("G01{}\n", w.xy(*point)?));
+            for (i, point) in rest.iter().enumerate() {
+                match route.arcs.iter().find(|a| a.to_index == i + 1) {
+                    Some(arc) => {
+                        let code = if arc.clockwise { "G02" } else { "G03" };
+                        out.push_str(&format!("{code}{}", w.xy(*point)?));
+                        if let Some((ci, cj)) = arc.center_offset {
+                            out.push_str(&format!("I{}J{}", w.value(ci)?, w.value(cj)?));
+                        } else if let Some(r) = arc.radius {
+                            out.push_str(&format!("A{}", w.value(r)?));
+                        } else {
+                            return Err(WriteError::BadRoute);
+                        }
+                        out.push('\n');
+                    }
+                    None => out.push_str(&format!("G01{}\n", w.xy(*point)?)),
+                }
             }
             out.push_str("M16\n");
         }
@@ -593,6 +608,7 @@ mod tests {
             line: 1,
             tool: Some(3),
             points: vec![Point { x: 1.0, y: 1.0 }],
+            arcs: Vec::new(),
         });
         assert_eq!(
             write(&file, &ExcellonOptions::default()),
@@ -604,6 +620,7 @@ mod tests {
             line: 1,
             tool: None,
             points: vec![Point { x: 1.0, y: 1.0 }, Point { x: 2.0, y: 2.0 }],
+            arcs: Vec::new(),
         });
         assert_eq!(
             write(&file, &ExcellonOptions::default()),

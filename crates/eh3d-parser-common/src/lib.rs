@@ -56,6 +56,9 @@ impl Diagnostic {
 /// The size limits of the text, kept in a configuration file.
 pub mod limits;
 
+/// The CAD program that seems to have written a file.
+pub mod dialect;
+
 /// The headlines of the notices in the eight languages of the suite.
 pub mod i18n;
 

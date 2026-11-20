@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The Excellon reader reads arcs in routes:** `G02` and `G03` with the radius `A` or the offsets `I` and `J` are kept in `Route::arcs` (the piece that ends at `points[to_index]`), the mode lasts until the next `G` code or the end of the route, an arc with no geometry is `arc-centre-missing` and an arc outside a route is `arc-unsupported`; the Excellon writer writes them back.
+
+- **The Excellon reader follows incremental coordinates and the repeat:** `G91`, `G90` and `ICI,ON`/`OFF` add or replace the position for holes, slots and route points, and `R<n>X<step>Y<step>` makes the n holes of the repeat (with a limit of 100000) instead of an error; the pattern offset `M02X..` stays an error so no hole is invented.
+
+- **The Excellon reader reads the attributes of X2 and the notes of the CAD programs:** `; #@! TF.FileFunction,Plated,1,4,PTH` and the like are kept as attributes, the `Holesize` comments of Allegro give the plating, quantity and tolerance of each tool, `TYPE=PLATED` of Altium is read, `ExcellonFile::plating()` answers from them, and `ExcellonFile::dialect` says Altium, Allegro, EAGLE or KiCad (the detection now lives in `eh3d-parser-common` and the Gerber reader uses the same).
+
+- **The Excellon reader has limits and reads a decimal comma:** `ExcellonLimits` bounds the holes, slots and route points, the tools, the attributes and the length of a repeat, and past one the reading stops with `limit-exceeded`; a tool diameter or coordinate written with a decimal comma is read as a point with `decimal-comma`.
+
 - **The Gerber reader follows block apertures, step and repeat and the transforms of loaded apertures:** `%ABDnn*%` ... `%AB*%` is read as an aperture that holds its commands (nested to a limit), `%LM`, `%LR` and `%LS` are operations instead of an error, and the new `eh3d_parser_gerber::image::resolve` walks the file and returns the drawing in place: every copy of a step and repeat, every flash of a block with its content (as a group composed first), the transform of each flash, the arcs with their centre and the regions with their contours. A block that draws itself, or another that draws it, is left out with `block-aperture-cycle`. Tested in `tests/blocks_and_transforms.rs`.
 
 - **The deprecated parameters of the whole image are read, not refused:** `IPNEG`, `OF`, `SF`, `MI`, `IR`, `AS` and `IN` are kept in `GerberFile::image` and applied by `image::resolve` (axes, mirror, scale, rotation, offset, in that order); a value that cannot be read is `image-parameter-invalid`. Incremental coordinates (`G91`, `FS... I`) are followed with a deprecation warning instead of an error, and `G90` goes back to absolute.

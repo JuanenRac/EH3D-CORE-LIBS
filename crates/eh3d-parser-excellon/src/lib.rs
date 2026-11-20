@@ -11,7 +11,12 @@
 //! zeros are present and trailing zeros are suppressed ([`ZeroSuppression::Trailing`]).
 //! Coordinates with a decimal point are always read as they are.
 //!
-//! Not done: incremental coordinates, arcs in routes (`G02`/`G03`) and any drawing of geometry.
+//! Also read: arcs in routes (`G02`/`G03` with a radius `A` or the offsets `I`/`J`), incremental coordinates
+//! (`G91`, `ICI,ON`), the repeat `R<n>X<step>Y<step>`, the attributes of X2 written as `; #@! TF...` comments,
+//! the `Holesize` comments of Allegro (plating, quantity, tolerance of each tool), a decimal comma and the program
+//! that wrote the file. A limit that is reached ([`ExcellonLimits`]) stops the reading cleanly.
+//!
+//! Not done: the pattern offset `M02X..` and any drawing of geometry.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -19,6 +24,7 @@
 
 use std::collections::BTreeMap;
 
+pub use eh3d_parser_common::dialect::Dialect;
 pub use eh3d_parser_common::{
     codes, decode_coordinate, Diagnostic, Severity, Units, ZeroSuppression,
 };
@@ -74,6 +80,20 @@ pub struct Slot {
     pub to: Point,
 }
 
+/// An arc of a route (`G02` clockwise, `G03` counterclockwise): the piece of the path that ends at
+/// `points[to_index]` is this arc instead of a straight line.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RouteArc {
+    /// The index in [`Route::points`] of the end of the arc (its start is the point before).
+    pub to_index: usize,
+    /// True for `G02`.
+    pub clockwise: bool,
+    /// The radius (`A`), when the file gives it.
+    pub radius: Option<f64>,
+    /// The offsets `(I, J)` from the start to the centre, when the file gives them.
+    pub center_offset: Option<(f64, f64)>,
+}
+
 /// A routed path: tool down at the first point, straight segments to the others.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Route {
@@ -83,6 +103,66 @@ pub struct Route {
     pub tool: Option<u32>,
     /// The points of the path.
     pub points: Vec<Point>,
+    /// The pieces of the path that are arcs; all the others are straight.
+    pub arcs: Vec<RouteArc>,
+}
+
+/// An attribute of X2 written as a comment (`; #@! TF.FileFunction,Plated,1,4,PTH`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Attribute {
+    /// `TF`, `TA`, `TO` or `TD`.
+    pub kind: String,
+    /// The name, for example `.FileFunction`.
+    pub name: String,
+    /// The values.
+    pub values: Vec<String>,
+}
+
+/// What a `Holesize` comment of Allegro (and the programs that write alike) says of a tool.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ToolNote {
+    /// True for plated holes, false for holes that are not, when the comment says it.
+    pub plated: Option<bool>,
+    /// How many holes the tool makes, when the comment says it.
+    pub quantity: Option<u32>,
+    /// The tolerance towards a bigger hole.
+    pub tolerance_plus: Option<f64>,
+    /// The tolerance towards a smaller hole, as a positive number.
+    pub tolerance_minus: Option<f64>,
+}
+
+/// Whether the holes of a file are plated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Plating {
+    /// Plated through holes.
+    Plated,
+    /// Holes that are not plated.
+    NonPlated,
+}
+
+/// The limits of one reading: past a limit the reading stops with a `limit-exceeded` error and returns what it
+/// has read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExcellonLimits {
+    /// The most holes, slots and route points together.
+    pub max_items: usize,
+    /// The most tools.
+    pub max_tools: usize,
+    /// The most holes one repeat (`R<n>`) may make.
+    pub max_repeat: u32,
+    /// The most attributes.
+    pub max_attributes: usize,
+}
+
+impl Default for ExcellonLimits {
+    fn default() -> Self {
+        ExcellonLimits {
+            max_items: 20_000_000,
+            max_tools: 100_000,
+            max_repeat: 100_000,
+            max_attributes: 100_000,
+        }
+    }
 }
 
 /// Everything read from an Excellon file.
@@ -100,6 +180,14 @@ pub struct ExcellonFile {
     pub slots: Vec<Slot>,
     /// The routed paths in order.
     pub routes: Vec<Route>,
+    /// The attributes of X2 written as comments.
+    pub attributes: Vec<Attribute>,
+    /// What the `Holesize` comments say of each tool.
+    pub notes: BTreeMap<u32, ToolNote>,
+    /// What a comment `TYPE=PLATED` or `TYPE=NON_PLATED` (Altium and others) says of the whole file.
+    pub declared_plating: Option<Plating>,
+    /// The program that seems to have written the file.
+    pub dialect: Dialect,
     /// Whether the file ends with `M30`.
     pub ended: bool,
     /// What the reader noticed.
@@ -119,6 +207,32 @@ impl ExcellonFile {
             .iter()
             .all(|d| d.severity < Severity::Error)
     }
+
+    /// Whether the holes are plated, from the attribute `.FileFunction` (`Plated`, `NonPlated`) or, when there is
+    /// none, from the `Holesize` comments if they all say the same. `None` when the file does not say it.
+    pub fn plating(&self) -> Option<Plating> {
+        for a in self
+            .attributes
+            .iter()
+            .filter(|a| a.kind == "TF" && a.name == ".FileFunction")
+        {
+            match a.values.first().map(String::as_str) {
+                Some("Plated") => return Some(Plating::Plated),
+                Some("NonPlated") => return Some(Plating::NonPlated),
+                _ => {}
+            }
+        }
+        if self.declared_plating.is_some() {
+            return self.declared_plating;
+        }
+        let mut seen = self.notes.values().filter_map(|n| n.plated);
+        let first = seen.next()?;
+        seen.all(|p| p == first).then_some(if first {
+            Plating::Plated
+        } else {
+            Plating::NonPlated
+        })
+    }
 }
 
 struct State {
@@ -131,6 +245,20 @@ struct State {
     routing: bool,
     route_down: bool,
     current_route: Option<Route>,
+    /// The motion of a route: straight, `G02` or `G03`.
+    mode: RouteMode,
+    /// Coordinates are increments of the last position (`G91`, `ICI,ON`).
+    incremental: bool,
+    limits: ExcellonLimits,
+    items: usize,
+    stopped: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RouteMode {
+    Linear,
+    Clockwise,
+    CounterClockwise,
 }
 
 impl State {
@@ -144,6 +272,28 @@ impl State {
         self.file
             .diagnostics
             .push(Diagnostic::new(line, severity, code, message));
+    }
+
+    /// Counts one more hole, slot or route point; false (and the reading stops) when the limit is reached.
+    fn count_item(&mut self, line: usize) -> bool {
+        if self.items >= self.limits.max_items {
+            self.limit_hit(line, "more holes, slots and route points than the limit");
+            return false;
+        }
+        self.items += 1;
+        true
+    }
+
+    fn limit_hit(&mut self, line: usize, what: &str) {
+        if !self.stopped {
+            self.stopped = true;
+            self.diag(
+                line,
+                Severity::Error,
+                codes::LIMIT_EXCEEDED,
+                format!("{what}: the reading stops here"),
+            );
+        }
     }
 
     fn finish_route(&mut self) {
@@ -223,7 +373,12 @@ impl ExcellonDefaults {
 /// A format of the defaults that is out of range is ignored and told in a `defaults-invalid`
 /// warning at line 1.
 pub fn parse_with_format(text: &str, defaults: &ExcellonDefaults) -> ExcellonFile {
-    parse_inner(text, defaults)
+    parse_inner(text, defaults, &ExcellonLimits::default())
+}
+
+/// Like [`parse`] with the limits given: past a limit the reading stops with a `limit-exceeded` error.
+pub fn parse_with_limits(text: &str, limits: &ExcellonLimits) -> ExcellonFile {
+    parse_inner(text, &ExcellonDefaults::default(), limits)
 }
 
 /// Like [`parse_bytes`] with the assumptions of [`parse_with_format`].
@@ -232,17 +387,21 @@ pub fn parse_bytes_with_format(
     defaults: &ExcellonDefaults,
 ) -> Result<ExcellonFile, InputError> {
     let input = decode_input(bytes, &InputLimits::default())?;
-    let mut file = parse_inner(&input.text, defaults);
+    let mut file = parse_inner(&input.text, defaults, &ExcellonLimits::default());
     file.diagnostics.splice(0..0, input.diagnostics);
     Ok(file)
 }
 
 /// Reads an Excellon file. Never fails: problems are in [`ExcellonFile::diagnostics`].
 pub fn parse(text: &str) -> ExcellonFile {
-    parse_inner(text, &ExcellonDefaults::default())
+    parse_inner(
+        text,
+        &ExcellonDefaults::default(),
+        &ExcellonLimits::default(),
+    )
 }
 
-fn parse_inner(text: &str, defaults: &ExcellonDefaults) -> ExcellonFile {
+fn parse_inner(text: &str, defaults: &ExcellonDefaults, limits: &ExcellonLimits) -> ExcellonFile {
     let format = if defaults.is_valid() {
         defaults
             .default_format
@@ -258,10 +417,19 @@ fn parse_inner(text: &str, defaults: &ExcellonDefaults) -> ExcellonFile {
             drills: Vec::new(),
             slots: Vec::new(),
             routes: Vec::new(),
+            attributes: Vec::new(),
+            notes: BTreeMap::new(),
+            declared_plating: None,
+            dialect: eh3d_parser_common::dialect::detect(text),
             ended: false,
             diagnostics: Vec::new(),
         },
         format,
+        mode: RouteMode::Linear,
+        incremental: false,
+        limits: limits.clone(),
+        items: 0,
+        stopped: false,
         header: false,
         tool: None,
         x: 0.0,
@@ -280,6 +448,9 @@ fn parse_inner(text: &str, defaults: &ExcellonDefaults) -> ExcellonFile {
     }
     let mut started = false;
     for (index, raw) in text.lines().enumerate() {
+        if st.stopped {
+            break;
+        }
         let line = index + 1;
         let trimmed = raw.trim().trim_start_matches('\u{feff}');
         if trimmed.is_empty() {
@@ -352,7 +523,88 @@ fn parse_inner(text: &str, defaults: &ExcellonDefaults) -> ExcellonFile {
     st.file
 }
 
+/// `Holesize 1 = 0.600000 Tolerance = +0.100000/-0.100000 PLATED MM Quantity = 12` (Allegro).
+fn holesize_note(st: &mut State, comment: &str) {
+    let lower = comment.trim().to_ascii_lowercase();
+    let Some(rest) = lower.strip_prefix("holesize") else {
+        return;
+    };
+    let number: String = rest
+        .trim_start()
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    let Ok(tool) = number.parse::<u32>() else {
+        return;
+    };
+    let mut note = ToolNote::default();
+    let words: Vec<&str> = rest.split_whitespace().collect();
+    for (i, w) in words.iter().enumerate() {
+        match *w {
+            "plated" => note.plated = Some(true),
+            "non_plated" | "non-plated" | "nonplated" | "unplated" => note.plated = Some(false),
+            "quantity" => {
+                note.quantity = words
+                    .get(i + 1)
+                    .map(|v| v.trim_start_matches('='))
+                    .filter(|v| !v.is_empty())
+                    .or_else(|| words.get(i + 2).copied())
+                    .and_then(|v| v.parse().ok());
+            }
+            "tolerance" => {
+                // up to the word that holds the slash: `= +0.1/-0.1`, `=+0.1/-0.1` or `+0.1/-0.1`
+                let mut tail = String::new();
+                for word in words.iter().skip(i + 1).take(3) {
+                    tail.push_str(word);
+                    if word.contains('/') {
+                        break;
+                    }
+                }
+                if let Some((plus, minus)) = tail.trim_start_matches('=').split_once('/') {
+                    note.tolerance_plus = parse_f64(plus.trim_start_matches('+'));
+                    note.tolerance_minus = parse_f64(minus.trim_start_matches('-'));
+                }
+            }
+            _ => {}
+        }
+    }
+    if note != ToolNote::default() && st.file.notes.len() < st.limits.max_tools {
+        st.file.notes.insert(tool, note);
+    }
+}
+
 fn comment_line(st: &mut State, comment: &str, line: usize) {
+    holesize_note(st, comment);
+    let type_word = comment.trim().to_ascii_uppercase().replace(' ', "");
+    if let Some(kind) = type_word.strip_prefix("TYPE=") {
+        match kind {
+            "PLATED" => st.file.declared_plating = Some(Plating::Plated),
+            "NON_PLATED" | "NON-PLATED" | "NONPLATED" | "UNPLATED" => {
+                st.file.declared_plating = Some(Plating::NonPlated)
+            }
+            _ => {}
+        }
+    }
+    // X2 attributes written as comments: `; #@! TF.FileFunction,Plated,1,4,PTH`
+    if let Some(rest) = comment.trim().strip_prefix("#@!") {
+        let rest: String = rest.chars().filter(|c| !c.is_whitespace()).collect();
+        if let Some((kind, rest)) = ["TF", "TA", "TO", "TD"]
+            .iter()
+            .find_map(|k| rest.strip_prefix(k).map(|r| (*k, r.to_owned())))
+        {
+            if st.file.attributes.len() >= st.limits.max_attributes {
+                st.limit_hit(line, "more attributes than the limit");
+                return;
+            }
+            let mut parts = rest.split(',');
+            let name = parts.next().unwrap_or("").to_owned();
+            st.file.attributes.push(Attribute {
+                kind: kind.to_owned(),
+                name,
+                values: parts.map(str::to_owned).collect(),
+            });
+        }
+    }
     // KiCad and others state the integer format in a comment: FILE_FORMAT=4:3
     let compact: String = comment.chars().filter(|c| !c.is_whitespace()).collect();
     if let Some(rest) = compact.to_ascii_uppercase().strip_prefix("FILE_FORMAT=") {
@@ -416,16 +668,24 @@ fn header_line(st: &mut State, upper: &str, line: usize) {
                 }
             }
         }
-        "FMAT" | "VER" | "DETECT" | "ATC" | "ICI" if word == "ICI" => {
-            if rest != "OFF" {
+        "FMAT" | "VER" | "DETECT" | "ATC" | "ICI" if word == "ICI" => match rest {
+            "OFF" => st.incremental = false,
+            "ON" => {
+                st.incremental = true;
                 st.diag(
                     line,
-                    Severity::Error,
-                    codes::INCREMENTAL_UNSUPPORTED,
-                    "incremental coordinates (ICI) are not supported",
+                    Severity::Warning,
+                    codes::DEPRECATED_COMMAND,
+                    "ICI,ON: incremental coordinates are added to the last position",
                 );
             }
-        }
+            _ => st.diag(
+                line,
+                Severity::Error,
+                codes::INCREMENTAL_UNSUPPORTED,
+                "ICI has a value that is not ON or OFF",
+            ),
+        },
         "FMAT" | "VER" | "DETECT" | "ATC" => st.diag(
             line,
             Severity::Info,
@@ -446,6 +706,19 @@ fn header_line(st: &mut State, upper: &str, line: usize) {
 }
 
 fn tool_definition(st: &mut State, upper: &str, line: usize) {
+    let replaced;
+    let mut upper = upper;
+    if upper.contains(',') {
+        // a computer set to a language that writes the decimal point as a comma wrote some files that way
+        replaced = upper.replace(',', ".");
+        st.diag(
+            line,
+            Severity::Warning,
+            codes::DECIMAL_COMMA,
+            "a tool definition uses a comma as the decimal point; it was read as a point",
+        );
+        upper = &replaced;
+    }
     let after_t = upper.strip_prefix('T').unwrap_or(upper);
     let digits: String = after_t.chars().take_while(char::is_ascii_digit).collect();
     let Ok(number) = digits.parse::<u32>() else {
@@ -508,6 +781,10 @@ fn tool_definition(st: &mut State, upper: &str, line: usize) {
         );
         return;
     }
+    if st.file.tools.len() >= st.limits.max_tools && !st.file.tools.contains_key(&number) {
+        st.limit_hit(line, "more tools than the limit");
+        return;
+    }
     if st.file.tools.insert(number, tool).is_some() {
         st.diag(
             line,
@@ -545,8 +822,10 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
         return;
     }
     let (mut x, mut y) = (None, None);
+    let (mut radius, mut arc_i, mut arc_j) = (None, None, None);
     let mut g: Option<u32> = None;
     let (int_digits, dec_digits) = current_format(st);
+    let mut comma_told = false;
     for (letter, digits) in &words {
         match *letter {
             'T' => match digits.parse::<u32>() {
@@ -573,24 +852,32 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                 Ok(n @ (0 | 1)) => {
                     g = Some(n);
                     st.routing = true;
+                    st.mode = RouteMode::Linear;
                 }
-                Ok(2 | 3) => st.diag(
-                    line,
-                    Severity::Error,
-                    codes::ARC_UNSUPPORTED,
-                    "arcs in routes (G02/G03) are not supported",
-                ),
+                Ok(n @ (2 | 3)) => {
+                    g = Some(n);
+                    st.routing = true;
+                    st.mode = if n == 2 {
+                        RouteMode::Clockwise
+                    } else {
+                        RouteMode::CounterClockwise
+                    };
+                }
                 Ok(5) => {
                     st.routing = false;
+                    st.mode = RouteMode::Linear;
                     st.finish_route();
                 }
-                Ok(90) => {}
-                Ok(91) => st.diag(
-                    line,
-                    Severity::Error,
-                    codes::INCREMENTAL_UNSUPPORTED,
-                    "G91 (incremental coordinates) is not supported",
-                ),
+                Ok(90) => st.incremental = false,
+                Ok(91) => {
+                    st.incremental = true;
+                    st.diag(
+                        line,
+                        Severity::Warning,
+                        codes::DEPRECATED_COMMAND,
+                        "G91 (incremental coordinates) is deprecated; each X and Y is added to the last position",
+                    );
+                }
                 Ok(93) => st.diag(
                     line,
                     Severity::Info,
@@ -612,6 +899,7 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                         line,
                         tool: st.tool,
                         points: vec![Point { x: st.x, y: st.y }],
+                        arcs: Vec::new(),
                     });
                 }
                 Ok(16) => {
@@ -628,19 +916,40 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                     format!("unknown M{digits}"),
                 ),
             },
-            'X' | 'Y' => match coordinate(st, digits) {
-                Some(v) if *letter == 'X' => x = Some(v),
-                Some(v) => y = Some(v),
-                None => {
-                    st.diag(
-                        line,
-                        Severity::Error,
-                        coordinate_error_code(digits, int_digits, dec_digits),
-                        format!("'{letter}{digits}' is not a valid coordinate"),
-                    );
-                    return;
+            'X' | 'Y' | 'A' | 'I' | 'J' => {
+                let normalised = if digits.contains(',') && !digits.contains('.') {
+                    if !comma_told {
+                        comma_told = true;
+                        st.diag(
+                            line,
+                            Severity::Warning,
+                            codes::DECIMAL_COMMA,
+                            "a coordinate uses a comma as the decimal point; it was read as a point",
+                        );
+                    }
+                    digits.replace(',', ".")
+                } else {
+                    digits.clone()
+                };
+                match coordinate(st, &normalised) {
+                    Some(v) => match *letter {
+                        'X' => x = Some(v),
+                        'Y' => y = Some(v),
+                        'A' => radius = Some(v),
+                        'I' => arc_i = Some(v),
+                        _ => arc_j = Some(v),
+                    },
+                    None => {
+                        st.diag(
+                            line,
+                            Severity::Error,
+                            coordinate_error_code(digits, int_digits, dec_digits),
+                            format!("'{letter}{digits}' is not a valid coordinate"),
+                        );
+                        return;
+                    }
                 }
-            },
+            }
             'F' | 'S' | 'N' | 'R' => {}
             other => st.diag(
                 line,
@@ -650,33 +959,79 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
             ),
         }
     }
-    // `R<n>X<step>` repeats the last hole and `M02X<offset>` moves a repeated pattern: neither is read, and the step must not become a hole of its own.
-    let repeats = words.iter().any(|(l, _)| *l == 'R');
+    // `M02X<offset>` moves a repeated pattern: it is not read, and the offset must not become a hole of its own.
     let pattern_offset = (x.is_some() || y.is_some())
         && words
             .iter()
             .any(|(l, d)| *l == 'M' && d.parse::<u32>() == Ok(2));
-    if repeats || pattern_offset {
+    if pattern_offset {
         st.diag(
             line,
             Severity::Error,
             codes::GEOMETRY_COMMAND_UNSUPPORTED,
-            "a repeat or a pattern offset (R, M02 with a coordinate) is not supported: the holes it makes are missing",
+            "a pattern offset (M02 with a coordinate) is not supported: the holes it makes are missing",
         );
+        return;
+    }
+    // `R<n>X<step>Y<step>` repeats the last hole n times, each one a step farther: X and Y are steps, not positions.
+    if let Some((_, count)) = words.iter().find(|(l, _)| *l == 'R') {
+        repeat_hole(st, count, x, y, line);
         return;
     }
     if x.is_none() && y.is_none() {
         return;
     }
-    st.x = x.unwrap_or(st.x);
-    st.y = y.unwrap_or(st.y);
+    st.x = match x {
+        Some(v) if st.incremental => st.x + v,
+        Some(v) => v,
+        None => st.x,
+    };
+    st.y = match y {
+        Some(v) if st.incremental => st.y + v,
+        Some(v) => v,
+        None => st.y,
+    };
     let at = Point { x: st.x, y: st.y };
     if st.routing && g.is_some() || st.routing && st.route_down {
         if st.route_down {
+            let arc = st.mode != RouteMode::Linear;
+            if arc && radius.is_none() && arc_i.is_none() && arc_j.is_none() {
+                st.diag(
+                    line,
+                    Severity::Error,
+                    codes::ARC_CENTRE_MISSING,
+                    "an arc of a route (G02/G03) has neither a radius (A) nor offsets (I, J)",
+                );
+            }
+            if !st.count_item(line) {
+                return;
+            }
             if let Some(route) = st.current_route.as_mut() {
                 route.points.push(at);
+                if arc {
+                    route.arcs.push(RouteArc {
+                        to_index: route.points.len() - 1,
+                        clockwise: st.mode == RouteMode::Clockwise,
+                        radius,
+                        center_offset: if arc_i.is_some() || arc_j.is_some() {
+                            Some((arc_i.unwrap_or(0.0), arc_j.unwrap_or(0.0)))
+                        } else {
+                            None
+                        },
+                    });
+                }
             }
+        } else if st.mode != RouteMode::Linear {
+            st.diag(
+                line,
+                Severity::Error,
+                codes::ARC_UNSUPPORTED,
+                "an arc (G02/G03) outside a route (the tool is not down, M15) is not drawn",
+            );
         }
+        return;
+    }
+    if !st.count_item(line) {
         return;
     }
     match st.tool {
@@ -727,10 +1082,70 @@ fn split_xy(st: &mut State, text: &str, line: usize) -> Option<Point> {
             buffer.push(c);
         }
     }
+    let inc = st.incremental;
     Some(Point {
-        x: x.unwrap_or(st.x),
-        y: y.unwrap_or(st.y),
+        x: match x {
+            Some(v) if inc => st.x + v,
+            Some(v) => v,
+            None => st.x,
+        },
+        y: match y {
+            Some(v) if inc => st.y + v,
+            Some(v) => v,
+            None => st.y,
+        },
     })
+}
+
+fn repeat_hole(st: &mut State, count: &str, x: Option<f64>, y: Option<f64>, line: usize) {
+    let Ok(n) = count.parse::<u32>() else {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::GEOMETRY_COMMAND_UNSUPPORTED,
+            "a repeat (R) has no count",
+        );
+        return;
+    };
+    if n > st.limits.max_repeat {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::LIMIT_EXCEEDED,
+            format!(
+                "a repeat of {n} holes is more than the limit of {}: no hole was made",
+                st.limits.max_repeat
+            ),
+        );
+        return;
+    }
+    let Some(last) = st.file.drills.last().copied() else {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::GEOMETRY_COMMAND_UNSUPPORTED,
+            "a repeat (R) comes before any hole to repeat",
+        );
+        return;
+    };
+    let (dx, dy) = (x.unwrap_or(0.0), y.unwrap_or(0.0));
+    for k in 1..=n {
+        if !st.count_item(line) {
+            return;
+        }
+        st.file.drills.push(Hit {
+            line,
+            tool: last.tool,
+            at: Point {
+                x: last.at.x + dx * f64::from(k),
+                y: last.at.y + dy * f64::from(k),
+            },
+        });
+    }
+    if let Some(end) = st.file.drills.last() {
+        st.x = end.at.x;
+        st.y = end.at.y;
+    }
 }
 
 fn slot(st: &mut State, before: &str, after: &str, line: usize) {

@@ -175,7 +175,7 @@ fn a_number_mask_in_the_header_has_the_limits_of_the_format_comment() {
 }
 
 #[test]
-fn a_repeat_is_an_error_and_never_a_false_hole() {
+fn a_repeat_makes_its_holes_and_a_pattern_offset_is_an_error_and_never_a_false_hole() {
     let text = [
         "M48",
         "METRIC",
@@ -190,12 +190,16 @@ fn a_repeat_is_an_error_and_never_a_false_hole() {
     ]
     .join("\n");
     let f = parse(&text);
-    assert_eq!(f.drills.len(), 1);
+    // the hole and its fifty repeats, each 0.004 farther
+    assert_eq!(f.drills.len(), 51);
+    assert!((f.drills[50].at.x - 1.2).abs() < 1e-9);
+    assert_eq!(f.drills[50].at.y, 1.0);
+    assert!(f.drills.iter().all(|h| h.tool == 1));
     let errors: Vec<_> = f
         .diagnostics
         .iter()
         .filter(|d| d.code == codes::GEOMETRY_COMMAND_UNSUPPORTED)
         .collect();
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 1, "only the pattern offset");
     assert!(f.diagnostics.iter().all(|d| d.code != codes::UNKNOWN_WORD));
 }

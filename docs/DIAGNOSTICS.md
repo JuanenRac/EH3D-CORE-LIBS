@@ -17,8 +17,8 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `unknown-word` | all | Warning | A letter and number the reader does not know; ignored. |
 | `end-missing` | Gerber, Excellon | Warning | The file does not end with `M02` / `M30`. |
 | `text-after-end` | Excellon, G-code | Warning | Text or blocks after the end of the program. |
-| `incremental-unsupported` | Excellon, G-code | Error | Incremental coordinates (`G91`, `ICI`) that the reader cannot follow. The Gerber reader follows them (`G91`, `FS ... I`) with a `deprecated-command` warning. |
-| `deprecated-command` | Gerber | Info or Warning | A deprecated command that was ignored or read as its replacement. |
+| `incremental-unsupported` | G-code, Excellon | Error | Incremental coordinates that the reader cannot follow (G-code `G91`; in Excellon, an `ICI` that is neither `ON` nor `OFF`). The Gerber and Excellon readers follow `G91`, `FS ... I` and `ICI,ON` with a `deprecated-command` warning. |
+| `deprecated-command` | Gerber, Excellon | Info or Warning | A deprecated command that was ignored or read as its replacement (in Gerber also the image parameters `IP`, `OF`, `SF`, `MI`, `IR`, `AS` and incremental coordinates; in Excellon `G91` and `ICI,ON`). |
 | `command-ignored` | Gerber, Excellon | Info | A known command with no effect on the result was ignored. |
 | `too-many-diagnostics` | Gerber | Error | The file has more diagnostics than the reader keeps (100000); the rest are dropped. |
 | `command-unsupported` | Gerber | Warning | A known command with no effect on the geometry that was ignored. |
@@ -57,10 +57,10 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `operation-missing` | Gerber | Error | Coordinates without an operation and none to repeat. |
 | `coordinate-missing` | Gerber | Error | An operation uses a coordinate that was never given. |
 | `start-point-missing` | Gerber | Error | A draw starts before any move gave a start point. |
-| `limit-exceeded` | Gerber | Error | A limit of the reading was reached (`ParseLimits`: commands, apertures, macros, attributes, nesting of block apertures, copies of a step and repeat); the reading stops there and returns what it has, except for a step and repeat over its copies, which is only not applied. |
+| `limit-exceeded` | Gerber, Excellon | Error | A limit of the reading was reached (`ParseLimits`: commands, apertures, macros, attributes, nesting of block apertures, copies of a step and repeat); the reading stops there and returns what it has, except for a step and repeat over its copies, which is only not applied. |
 | `block-aperture-invalid` | Gerber | Error | A block aperture (`AB`) is closed without being opened, is opened with a number below 10, or is never closed; also a draw with a block aperture. |
 | `block-aperture-cycle` | Gerber | Error | A block aperture draws itself, directly or through another, or is nested deeper than the limit; reported when the drawing is put in place (`image::resolve`) and the flash is left out. |
-| `decimal-comma` | Gerber | Warning | A number of an aperture or a coordinate uses a comma as the decimal point (a file written by a computer set to a language that writes it so); it is read as a point. |
+| `decimal-comma` | Gerber, Excellon | Warning | A number of an aperture or a coordinate uses a comma as the decimal point (a file written by a computer set to a language that writes it so); it is read as a point. |
 | `attribute-malformed` | Gerber | Warning | An attribute (`TF`, `TA`, `TO`) has no name. |
 | `layer-transform-invalid` | Gerber | Error | The value of `LM` (not `N`, `X`, `Y` or `XY`), `LR` (not a number) or `LS` (not a number above zero) cannot be read. |
 | `image-parameter-invalid` | Gerber | Error | A deprecated parameter of the whole image (`IP`, `OF`, `SF`, `MI`, `IR`, `AS`) has a value that cannot be read. |
@@ -78,7 +78,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `tool-undefined` | Excellon | Error | A tool, hole or slot uses a tool that was never defined. |
 | `tool-selection-invalid` | Excellon | Error | A tool selection has no number. |
 | `tool-not-selected` | Excellon | Error | A hole or a slot comes before any tool is selected. |
-| `arc-unsupported` | Excellon | Error | Arcs in routes (`G02`/`G03`) are not supported. |
+| `arc-unsupported` | Excellon | Error | An arc (`G02`/`G03`) outside a route (the tool is not down, no `M15`): it is not drawn. Arcs inside a route are read (see `Route::arcs`). |
 | `line-too-long` | G-code | Warning | The line is longer than the limit and was cut. |
 | `block-delete-read` | G-code | Info | A block-delete line was read as if the switch were off. |
 | `system-command-ignored` | G-code | Info | A GRBL `$` system command was ignored. |
@@ -100,7 +100,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `program-too-long` | G-code | Error | The program has more blocks than the reader keeps (5000000 by default); the rest were not read. |
 | `units-suspect` | Excellon | Warning | The file declares no units and the holes span less than 5 units: it may be in inches. |
 | `units-forced` | Excellon | Warning | The caller gave units (`parse_with_units`) and the file declares other ones: the ones given are used. |
-| `arc-centre-missing` | G-code | Error | An arc without centre and radius was drawn as a line. |
+| `arc-centre-missing` | G-code, Gerber, Excellon | Error | An arc without centre and radius was drawn as a line (G-code), an arc of a route that has neither `A` nor `I`/`J` (Excellon) or an arc with no centre to speak of that was left out of the drawing (Gerber `image::resolve`). |
 | `feed-missing` | G-code | Warning | A cutting move was made with no feed rate set. |
 | `reference-position-unset` | G-code | Warning | `G28` or `G30` was read by `interpret_coordinates` and no reference position is configured for it: the block moves nothing and the position is not tracked. |
 | `g53-motion-unsupported` | G-code | Error | `G53` was read with a motion other than `G0` or `G1`: the block moves nothing. |

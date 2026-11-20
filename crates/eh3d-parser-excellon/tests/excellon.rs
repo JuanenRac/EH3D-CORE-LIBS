@@ -114,7 +114,7 @@ fn a_file_without_m30_or_header_warns_but_is_clean() {
 
 #[test]
 fn unsupported_features_are_reported_not_guessed() {
-    let f = parse("M48\nMETRIC\nT1C1\n%\nT1\nG91\nG02X1Y1\nM30\n");
+    let f = parse("M48\nMETRIC\nT1C1\n%\nT1\nG02X1Y1\nR3X1\nM02X1Y0\nM30\n");
     assert!(
         f.diagnostics
             .iter()

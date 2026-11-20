@@ -88,7 +88,7 @@ fn diagnostics_carry_stable_codes() {
     let found: Vec<&str> = file.diagnostics.iter().map(|d| d.code).collect();
     assert!(found.contains(&codes::HEADER_MISSING), "{found:?}");
     assert!(found.contains(&codes::NUMBER_TOO_LARGE), "{found:?}");
-    assert!(found.contains(&codes::INCREMENTAL_UNSUPPORTED), "{found:?}");
+    assert!(found.contains(&codes::DEPRECATED_COMMAND), "{found:?}");
     assert!(found.contains(&codes::TOOL_UNDEFINED), "{found:?}");
     assert!(found.contains(&codes::END_MISSING), "{found:?}");
 }
