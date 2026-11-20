@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.2] - A Gerber and Excellon reader that covers block apertures, layer transforms, incremental coordinates and the dialects of the common design tools, own 2D geometry and a corpus of test boards
+
 - **Two pages to build on and to move to:** `docs/API.md` lists what a program can rely on (the two steps, read and put in place; the public items of each part; the promises about panics, bounded work, determinism, units, codes and changes), and `docs/MIGRATION.md` is the plan to move the other Gerber readers of the suite to this one step by step, with the corpus and its snapshots as the safety net and the tests that must pass before an old reader is replaced; `docs/READERS.md` and `docs/UNIFICATION.md` say what the readers read now and point to both.
 
 - **The documentation and the counts are up to date:** the eight READMEs give the 510 tests of the workspace by crate, say that the 2D geometry is built and that only the HP-GL and Bungard readers are planned, describe the second corpus and the new pages in the eight languages, and carry the tree of the repository with the new pages.
