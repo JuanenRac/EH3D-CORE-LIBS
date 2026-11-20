@@ -56,6 +56,10 @@ impl Diagnostic {
 /// The size limits of the text, kept in a configuration file.
 pub mod limits;
 
+/// The headlines of the notices in the eight languages of the suite.
+pub mod i18n;
+
+pub use i18n::{localize, Language};
 pub use limits::{SizeVerdict, TextLimitError, TextLimits};
 
 /// The stable codes of the diagnostics. Each one is documented in `docs/DIAGNOSTICS.md`.

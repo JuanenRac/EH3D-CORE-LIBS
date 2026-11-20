@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The notices of the readers in the eight languages:** `eh3d_parser_common::i18n` gives the headline of every diagnostic code in English, Spanish, German, French, Italian, Japanese, Chinese and Portuguese of Portugal, `localize` writes one notice as a line in a language and `Language::from_tag` takes `pt-PT`, `zh_CN` and the like; a test fails when a code has no headline in one of the eight languages, so a new code cannot be added without them.
+
 ## [0.1.1] - Quiet failures of the readers closed, repeats in Excellon refused and macros that can no longer overflow the stack
 
 - **The README says the maturity of the manifest:** the badge and the Maturity row of the eight READMEs read functional, as the manifest does, and the check of the status lights now fails when they differ.
