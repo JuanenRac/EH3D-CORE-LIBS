@@ -145,7 +145,7 @@ fn changing_one_bit_of_the_data_changes_the_hash_at_every_place() {
     let data = [0x5au8; 130];
     let base = sha256_hex(&data);
     for at in [0usize, 55, 56, 63, 64, 65, 119, 120, 129] {
-        let mut copy = data.clone();
+        let mut copy = data;
         copy[at] ^= 1;
         assert_ne!(sha256_hex(&copy), base, "{at}");
     }
