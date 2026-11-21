@@ -74,5 +74,10 @@ pub fn parse_length(text: &str, bare: Unit) -> Result<f64, String> {
     if !v.is_finite() {
         return Err(format!("'{text}' is not a number"));
     }
-    Ok(unit.to_mm(v))
+    let mm = unit.to_mm(v);
+    // 1e308 inches is a finite number of inches and more millimetres than a double holds
+    if !mm.is_finite() {
+        return Err(format!("'{text}' is too large"));
+    }
+    Ok(mm)
 }
