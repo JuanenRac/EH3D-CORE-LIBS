@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute tatsächlich läuft:** drei Rust-Bibliotheken ohne Abhängigkeiten, die Gerber-Ebenen (RS-274X), Excellon-Bohrdateien und G-Code lesen (ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC). 510 Tests laufen auf einem Computer, einschließlich beschädigter und feindlicher Eingaben. Zwei weitere Bibliotheken schreiben Gerber-X2- und Excellon-Dateien ohne Datum und Version, sodass gleicher Inhalt immer dieselben Bytes ergibt; sie werden durch Schreiben und Zurücklesen mit den Lesern getestet, und noch kein Betrachter und keine Maschine hat ihre Dateien geöffnet. Die Leser stürzen nie ab und melden, was sie nicht verstehen konnten, als Diagnosen mit Zeilennummern. Sie zeichnen nichts, berechnen keinen Werkzeugweg und wurden nicht mit einer Sammlung echter Produktionsdateien erprobt; vier Programme der Suite nutzen sie (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM), und nichts davon lief auf einer Maschine.
+**Ehrlichkeitscheck - was heute tatsächlich läuft:** drei Rust-Bibliotheken ohne Abhängigkeiten, die Gerber-Ebenen (RS-274X), Excellon-Bohrdateien und G-Code lesen (ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC). 519 Tests laufen auf einem Computer, einschließlich beschädigter und feindlicher Eingaben. Zwei weitere Bibliotheken schreiben Gerber-X2- und Excellon-Dateien ohne Datum und Version, sodass gleicher Inhalt immer dieselben Bytes ergibt; sie werden durch Schreiben und Zurücklesen mit den Lesern getestet, und noch kein Betrachter und keine Maschine hat ihre Dateien geöffnet. Die Leser stürzen nie ab und melden, was sie nicht verstehen konnten, als Diagnosen mit Zeilennummern. Sie zeichnen nichts, berechnen keinen Werkzeugweg und wurden nicht mit einer Sammlung echter Produktionsdateien erprobt; vier Programme der Suite nutzen sie (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM), und nichts davon lief auf einer Maschine.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.2` |
 | Reifegrad | Funktionsfähig |
-| Tests | 510 |
+| Tests | 519 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht zutreffend: Dateileser, nichts hier spricht mit einer Maschine |
 
@@ -47,7 +47,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Gerber-Leser | 🟡 | RS-274X: Einheiten, Koordinatenformat, Blenden, Makros, Regionen und Zeichenbefehle werden gelesen; bisher nur Testdateien, keine Sammlung echter Produktionsdateien. |
 | Excellon-Leser | 🟡 | Werkzeuge, Bohrungen, Langlöcher und einfache Fräswege in metrisch oder Zoll werden gelesen; bisher nur Testdateien. |
 | G-Code-Leser | 🟡 | Ein modaler Interpreter für die Dialekte GRBL, Marlin und PlanetCNC liefert absolute Millimeter, Bögen eingeschlossen; Fräserradiuskorrektur und Bearbeitungszyklen werden als nicht unterstützt gemeldet. |
-| Tests | 🟡 | 510 Tests bestehen (`cargo test`): 101 für Gerber, 60 für Excellon, 85 für G-Code und 30 für das gemeinsame Crate, 17 für die Raster-Geometrie, 69 für die Formen und die 2D-Geometrie, 109 für die reine CAM, 17 für den Gerber-Schreiber und 22 für den Excellon-Schreiber, mit beschädigten und feindlichen Eingaben und einem Korpus synthetischer Dateien. |
+| Tests | 🟡 | 519 Tests bestehen (`cargo test`): 101 für Gerber, 60 für Excellon, 85 für G-Code und 39 für das gemeinsame Crate, 17 für die Raster-Geometrie, 69 für die Formen und die 2D-Geometrie, 109 für die reine CAM, 17 für den Gerber-Schreiber und 22 für den Excellon-Schreiber, mit beschädigten und feindlichen Eingaben und einem Korpus synthetischer Dateien. |
 | Sicherheit | 🟡 | Gebaut für Dateien, die andere Personen schicken: nichts stürzt ab, kein Wert wird geraten, und Probleme kommen als Diagnosen mit Zeilennummern zurück; keine unabhängige Prüfung, und nichts hier beurteilt, ob ein G-Code sicher ausführbar ist. |
 | Geometrie und HP-GL | 🟡 | Die 2D-Geometrie (Boolesche Operationen auf Regionen mit Löchern, Offsets, dicke Linien, Vereinfachung, Bogenerkennung) ist gebaut und mit Zufallsformen fester Saat getestet; die Leser für HP-GL und Bungard sind geplant und nicht gebaut. |
 | Nutzung durch andere Programme | 🟡 | Vier Programme der Suite hängen von den Lesern ab (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); keines lief auf einer Maschine. |
@@ -161,7 +161,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Tests
 
-Die Suite hat 510 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt): 101 für Gerber, 60 für Excellon, 85 für G-Code und 30 für das gemeinsame Crate, 17 für die Raster-Geometrie, 69 für die Formen und die 2D-Geometrie, 109 für die reine CAM, 17 für den Gerber-Schreiber und 22 für den Excellon-Schreiber. Ein Korpus aus 21 kleinen synthetischen Dateien (`tests/golden/`: Gerber in Zoll und Millimetern, Excellon mit `LZ`/`TZ`, Langlöchern und Fräsbahnen, G-Code für GRBL, Marlin und LinuxCNC, mit CRLF, Latin-1 und beschädigten Dateien) wird von den Lesern gelesen und mit einer neben jeder Datei gespeicherten Zusammenfassung verglichen; `EH3D_REGENERATE=1 cargo test` schreibt die Zusammenfassungen neu, damit die Änderung im Diff sichtbar ist, und dieselben Dateien werden vom Mutationstest auf tausendfache Weise beschädigt. Sie prüfen, dass eine typische Kupferebene und eine typische metrische Datei vollständig gelesen werden, ausgelassene Koordinaten, beide Nullunterdrückungen, Langlöcher, Fräswege, Zoll zu Millimeter, dass jeder Befehl seine Zeile kennt, Bögen nach Mittelpunkt und nach Radius, Vollkreise, modalen Vorschub und modale Bewegung, Marlin-Prüfsummen, nicht unterstützte Funktionen, die gemeldet statt geraten werden, und beschädigte Eingaben: Müll, abgeschnittene Präfixe und sehr lange Zeilen führen nie zum Absturz. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus. Ein zweiter Korpus aus 14 Platinen (27 Dateien, `tests/corpus/`) wird von einem Test in den Dialekten von Altium, Allegro, EAGLE und KiCad und für jede Funktion des Standards geschrieben, mit einem Manifest (Herkunft, Lizenz, SHA-256) und der normalisierten Lesung jeder Datei als Snapshot; er ist das Sicherheitsnetz für die Umstellung der anderen Gerber-Leser der Suite auf diese Leser. Die 2D-Geometrie wird gegen Orakel geprüft, die ihren Code nicht verwenden (die Fläche einer Vereinigung von Rechtecken, Zelle für Zelle gezählt, die Identitäten zwischen den vier Operationen, die Formel für den Radius eines Bogens), und `tests/field_errors.rs` der drei Leser deckt Fehler ab, die andere CAM-Programme im Einsatz hatten.
+Die Suite hat 519 Tests (`cargo test`, in der CI unter Windows und Linux ausgeführt): 101 für Gerber, 60 für Excellon, 85 für G-Code und 39 für das gemeinsame Crate, 17 für die Raster-Geometrie, 69 für die Formen und die 2D-Geometrie, 109 für die reine CAM, 17 für den Gerber-Schreiber und 22 für den Excellon-Schreiber. Ein Korpus aus 21 kleinen synthetischen Dateien (`tests/golden/`: Gerber in Zoll und Millimetern, Excellon mit `LZ`/`TZ`, Langlöchern und Fräsbahnen, G-Code für GRBL, Marlin und LinuxCNC, mit CRLF, Latin-1 und beschädigten Dateien) wird von den Lesern gelesen und mit einer neben jeder Datei gespeicherten Zusammenfassung verglichen; `EH3D_REGENERATE=1 cargo test` schreibt die Zusammenfassungen neu, damit die Änderung im Diff sichtbar ist, und dieselben Dateien werden vom Mutationstest auf tausendfache Weise beschädigt. Sie prüfen, dass eine typische Kupferebene und eine typische metrische Datei vollständig gelesen werden, ausgelassene Koordinaten, beide Nullunterdrückungen, Langlöcher, Fräswege, Zoll zu Millimeter, dass jeder Befehl seine Zeile kennt, Bögen nach Mittelpunkt und nach Radius, Vollkreise, modalen Vorschub und modale Bewegung, Marlin-Prüfsummen, nicht unterstützte Funktionen, die gemeldet statt geraten werden, und beschädigte Eingaben: Müll, abgeschnittene Präfixe und sehr lange Zeilen führen nie zum Absturz. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus. Ein zweiter Korpus aus 14 Platinen (27 Dateien, `tests/corpus/`) wird von einem Test in den Dialekten von Altium, Allegro, EAGLE und KiCad und für jede Funktion des Standards geschrieben, mit einem Manifest (Herkunft, Lizenz, SHA-256) und der normalisierten Lesung jeder Datei als Snapshot; er ist das Sicherheitsnetz für die Umstellung der anderen Gerber-Leser der Suite auf diese Leser. Die 2D-Geometrie wird gegen Orakel geprüft, die ihren Code nicht verwenden (die Fläche einer Vereinigung von Rechtecken, Zelle für Zelle gezählt, die Identitäten zwischen den vier Operationen, die Formel für den Radius eines Bogens), und `tests/field_errors.rs` der drei Leser deckt Fehler ab, die andere CAM-Programme im Einsatz hatten.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -197,6 +197,7 @@ EH3D-CORE-LIBS/
 ├── Cargo.toml Cargo.lock                        der Workspace und seine festgelegten Abhängigkeiten
 ├── rust-toolchain.toml                          die festgelegte Rust-Toolchain
 ├── CHANGELOG.md                                 was sich in jeder Version geändert hat
+├── AGENTS.md                                    die Regeln für alle, die das Repository ändern
 ├── SECURITY.md SUPPORT.md                       Schwachstellen melden und Fragen stellen
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   Mitwirken, Verhaltenskodex und Lizenz
 ```
@@ -236,6 +237,11 @@ README und Texte gibt es auf Englisch, Spanisch, Französisch, Italienisch, Deut
 * [Die anderen Gerber-Leser auf diesen umstellen](docs/MIGRATION.md): der Plan Schritt für Schritt, mit den Snapshot-Tests, die vorher bestehen müssen.
 * [Ein Leser für Gerber und einer für Excellon](docs/UNIFICATION.md): der Plan, die Leser dieses Repositorys und die von EH3D-COMMON zu einem zu machen, nicht umgesetzt: beide bleiben, durch Differenztests geprüft.
 * [Änderungsprotokoll](CHANGELOG.md)
+* [Umfang](docs/SCOPE.md): wofür das Programm da ist, was es nicht tut und was es nie entscheidet.
+* [Anforderungen](docs/REQUIREMENTS.md): das Register der Fähigkeiten, der Stand jeder einzelnen und der Test, der sie zeigt.
+* [Stand](docs/STATUS.md): was es gibt, was fehlt und was noch offen ist.
+* [Noch nicht](docs/NOT_YET.md): gute Ideen, die in dieser Version fehlen.
+* [Regeln für Änderungen am Repository](AGENTS.md): die Regeln für alle, die das Repository ändern.
 
 ## 🤝 Mitwirken und Community
 

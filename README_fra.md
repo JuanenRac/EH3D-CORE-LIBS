@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui tourne aujourd'hui :** trois bibliothèques Rust sans dépendances qui lisent des couches Gerber (RS-274X), des fichiers de perçage Excellon et du G-code (un interpréteur modal des dialectes GRBL, Marlin et PlanetCNC). 510 tests tournent sur un ordinateur, y compris avec des entrées endommagées et hostiles. Deux autres bibliothèques écrivent des fichiers Gerber X2 et Excellon sans dates ni versions, si bien que le même contenu donne toujours les mêmes octets ; elles sont testées en écrivant puis en relisant avec les lecteurs, et aucun visualiseur ni aucune machine n'a encore ouvert leurs fichiers. Les lecteurs ne paniquent jamais et signalent ce qu'ils n'ont pas pu comprendre sous forme de diagnostics avec numéro de ligne. Ils ne dessinent rien, ne calculent aucun parcours d'outil et n'ont pas été essayés sur une collection de vrais fichiers de production ; quatre programmes de la suite les utilisent (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) et rien ici n'a tourné sur une machine.
+**Vérification d'honnêteté - ce qui tourne aujourd'hui :** trois bibliothèques Rust sans dépendances qui lisent des couches Gerber (RS-274X), des fichiers de perçage Excellon et du G-code (un interpréteur modal des dialectes GRBL, Marlin et PlanetCNC). 519 tests tournent sur un ordinateur, y compris avec des entrées endommagées et hostiles. Deux autres bibliothèques écrivent des fichiers Gerber X2 et Excellon sans dates ni versions, si bien que le même contenu donne toujours les mêmes octets ; elles sont testées en écrivant puis en relisant avec les lecteurs, et aucun visualiseur ni aucune machine n'a encore ouvert leurs fichiers. Les lecteurs ne paniquent jamais et signalent ce qu'ils n'ont pas pu comprendre sous forme de diagnostics avec numéro de ligne. Ils ne dessinent rien, ne calculent aucun parcours d'outil et n'ont pas été essayés sur une collection de vrais fichiers de production ; quatre programmes de la suite les utilisent (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) et rien ici n'a tourné sur une machine.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.2` |
 | Maturité | Fonctionnel |
-| Tests | 510 |
+| Tests | 519 |
 | Pile technique | Rust |
 | Sur du matériel réel | Sans objet : des lecteurs de fichiers, rien ici ne parle à une machine |
 
@@ -47,7 +47,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Lecteur Gerber | 🟡 | RS-274X : unités, format des coordonnées, outils d'ouverture, macros, régions et commandes de dessin sont lus ; seulement des fichiers de test pour l'instant, pas une collection de vrais fichiers de production. |
 | Lecteur Excellon | 🟡 | Outils, trous, rainures et parcours simples en métrique ou en pouces sont lus ; seulement des fichiers de test pour l'instant. |
 | Lecteur G-code | 🟡 | Un interpréteur modal des dialectes GRBL, Marlin et PlanetCNC donne des millimètres absolus, arcs compris ; la compensation de rayon et les cycles fixes sont signalés comme non pris en charge. |
-| Tests | 🟡 | 510 tests réussissent (`cargo test`) : 101 pour Gerber, 60 pour Excellon, 85 pour G-code et 30 pour le crate partagé, 17 pour la géométrie raster, 69 pour les formes et la géométrie 2D, 109 pour la FAO pure, 17 pour l'écrivain Gerber et 22 pour l'écrivain Excellon, avec des entrées endommagées et hostiles et un corpus de fichiers synthétiques. |
+| Tests | 🟡 | 519 tests réussissent (`cargo test`) : 101 pour Gerber, 60 pour Excellon, 85 pour G-code et 39 pour le crate partagé, 17 pour la géométrie raster, 69 pour les formes et la géométrie 2D, 109 pour la FAO pure, 17 pour l'écrivain Gerber et 22 pour l'écrivain Excellon, avec des entrées endommagées et hostiles et un corpus de fichiers synthétiques. |
 | Sécurité | 🟡 | Conçus pour des fichiers envoyés par d'autres personnes : rien ne panique, aucune valeur n'est devinée et les problèmes reviennent sous forme de diagnostics avec numéro de ligne ; pas de revue indépendante, et rien ici ne juge si un G-code peut être exécuté sans danger. |
 | Géométrie et HP-GL | 🟡 | La géométrie 2D (booléennes de régions à trous, décalages, traits épais, simplification, récupération d'arcs) est construite et testée avec des formes aléatoires à graine fixe ; les lecteurs HP-GL et Bungard sont prévus et non construits. |
 | Utilisation par d'autres programmes | 🟡 | Quatre programmes de la suite dépendent des lecteurs (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) ; aucun n'a tourné sur une machine. |
@@ -161,7 +161,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Tests
 
-La suite compte 510 tests (`cargo test`, exécutés sous Windows et Linux dans la CI) : 101 pour Gerber, 60 pour Excellon, 85 pour G-code et 30 pour le crate qu'ils partagent, 17 pour la géométrie raster, 69 pour les formes et la géométrie 2D, 109 pour la FAO pure, 17 pour l'écrivain Gerber et 22 pour l'écrivain Excellon. Un corpus de 21 petits fichiers synthétiques (`tests/golden/` : Gerber en pouces et en millimètres, Excellon avec `LZ`/`TZ`, rainures et parcours, G-code pour GRBL, Marlin et LinuxCNC, avec CRLF, Latin-1 et fichiers endommagés) est lu par les lecteurs et comparé à un résumé conservé à côté de chaque fichier ; `EH3D_REGENERATE=1 cargo test` réécrit les résumés pour que le changement se voie dans le diff, et les mêmes fichiers sont endommagés de milliers de façons par le test de mutation. Ils vérifient qu'une couche de cuivre typique et un fichier métrique typique sont lus en entier, les coordonnées omises, les deux suppressions de zéros, les rainures, les parcours, les pouces en millimètres, chaque commande connaissant sa ligne, les arcs par centre et par rayon, les cercles complets, l'avance et le mouvement modaux, les sommes de contrôle Marlin, les fonctions non prises en charge signalées au lieu d'être devinées, et les entrées endommagées : charabia, préfixes coupés et lignes très longues ne provoquent jamais de panique. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`. Un second corpus de 14 cartes (27 fichiers, `tests/corpus/`) est écrit par un test dans les dialectes d'Altium, Allegro, EAGLE et KiCad et pour chaque fonction de la norme, avec un manifeste (origine, licence, SHA-256) et la lecture normalisée de chaque fichier comme instantané ; c'est le filet de sécurité pour faire passer les autres lecteurs Gerber de la suite à ceux-ci. La géométrie 2D est vérifiée contre des oracles qui n'utilisent pas son code (l'aire d'une union de rectangles comptée cellule par cellule, les identités entre les quatre opérations, la formule du rayon d'un arc), et `tests/field_errors.rs` des trois lecteurs couvre des défauts que d'autres programmes de FAO ont eus sur le terrain.
+La suite compte 519 tests (`cargo test`, exécutés sous Windows et Linux dans la CI) : 101 pour Gerber, 60 pour Excellon, 85 pour G-code et 39 pour le crate qu'ils partagent, 17 pour la géométrie raster, 69 pour les formes et la géométrie 2D, 109 pour la FAO pure, 17 pour l'écrivain Gerber et 22 pour l'écrivain Excellon. Un corpus de 21 petits fichiers synthétiques (`tests/golden/` : Gerber en pouces et en millimètres, Excellon avec `LZ`/`TZ`, rainures et parcours, G-code pour GRBL, Marlin et LinuxCNC, avec CRLF, Latin-1 et fichiers endommagés) est lu par les lecteurs et comparé à un résumé conservé à côté de chaque fichier ; `EH3D_REGENERATE=1 cargo test` réécrit les résumés pour que le changement se voie dans le diff, et les mêmes fichiers sont endommagés de milliers de façons par le test de mutation. Ils vérifient qu'une couche de cuivre typique et un fichier métrique typique sont lus en entier, les coordonnées omises, les deux suppressions de zéros, les rainures, les parcours, les pouces en millimètres, chaque commande connaissant sa ligne, les arcs par centre et par rayon, les cercles complets, l'avance et le mouvement modaux, les sommes de contrôle Marlin, les fonctions non prises en charge signalées au lieu d'être devinées, et les entrées endommagées : charabia, préfixes coupés et lignes très longues ne provoquent jamais de panique. La CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements en erreurs et `python -I tools/ci_validate.py`. Un second corpus de 14 cartes (27 fichiers, `tests/corpus/`) est écrit par un test dans les dialectes d'Altium, Allegro, EAGLE et KiCad et pour chaque fonction de la norme, avec un manifeste (origine, licence, SHA-256) et la lecture normalisée de chaque fichier comme instantané ; c'est le filet de sécurité pour faire passer les autres lecteurs Gerber de la suite à ceux-ci. La géométrie 2D est vérifiée contre des oracles qui n'utilisent pas son code (l'aire d'une union de rectangles comptée cellule par cellule, les identités entre les quatre opérations, la formule du rayon d'un arc), et `tests/field_errors.rs` des trois lecteurs couvre des défauts que d'autres programmes de FAO ont eus sur le terrain.
 
 ## 🏗️ Compilation et publication
 
@@ -197,6 +197,7 @@ EH3D-CORE-LIBS/
 ├── Cargo.toml Cargo.lock                        le workspace et ses dépendances verrouillées
 ├── rust-toolchain.toml                          la toolchain Rust épinglée
 ├── CHANGELOG.md                                 ce qui a changé dans chaque version
+├── AGENTS.md                                    les règles pour qui modifie le dépôt
 ├── SECURITY.md SUPPORT.md                       signaler une vulnérabilité et poser des questions
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   contribuer, code de conduite et licence
 ```
@@ -236,6 +237,11 @@ Le README et les textes existent en anglais, espagnol, français, italien, allem
 * [Faire passer les autres lecteurs Gerber à celui-ci](docs/MIGRATION.md) : le plan pas à pas, avec les tests d'instantanés à passer d'abord.
 * [Un lecteur pour Gerber et un pour Excellon](docs/UNIFICATION.md) : le plan pour que les lecteurs de ce dépôt et ceux d'EH3D-COMMON n'en fassent plus qu'un, non appliqué : les deux restent, vérifiés par des tests différentiels.
 * [Journal des modifications](CHANGELOG.md)
+* [Périmètre](docs/SCOPE.md): à quoi sert le programme, ce qu'il ne fera pas et ce qu'il ne décide jamais.
+* [Exigences](docs/REQUIREMENTS.md): le registre des capacités, l'état de chacune et le test qui la montre.
+* [État](docs/STATUS.md): ce qui existe, ce qui manque et ce qui reste ouvert.
+* [Pas encore](docs/NOT_YET.md): de bonnes idées laissées de côté dans cette version.
+* [Règles pour modifier le dépôt](AGENTS.md): les règles pour qui modifie le dépôt.
 
 ## 🤝 Contribuer et communauté
 

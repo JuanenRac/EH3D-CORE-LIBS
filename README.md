@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** three Rust libraries with no dependencies that read Gerber (RS-274X) layers, Excellon drill files and G-code (a modal interpreter for the GRBL, Marlin and PlanetCNC dialects). 510 tests run on a computer, including damaged and hostile input. Two more libraries write Gerber X2 and Excellon files without dates or versions, so the same content always gives the same bytes; they are tested by writing and reading back with the readers, and no viewer or machine has opened their files yet. The readers never panic and report what they could not understand as diagnostics with line numbers. They draw nothing, compute no toolpath and have not been tried on a collection of real production files; four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) and nothing here has run on a machine.
+**Honesty check - what actually runs today:** three Rust libraries with no dependencies that read Gerber (RS-274X) layers, Excellon drill files and G-code (a modal interpreter for the GRBL, Marlin and PlanetCNC dialects). 519 tests run on a computer, including damaged and hostile input. Two more libraries write Gerber X2 and Excellon files without dates or versions, so the same content always gives the same bytes; they are tested by writing and reading back with the readers, and no viewer or machine has opened their files yet. The readers never panic and report what they could not understand as diagnostics with line numbers. They draw nothing, compute no toolpath and have not been tried on a collection of real production files; four programs of the suite use them (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM) and nothing here has run on a machine.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.2` |
 | Maturity | Functional |
-| Tests | 510 |
+| Tests | 519 |
 | Stack | Rust |
 | On real hardware | Not applicable: file readers, nothing here talks to a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 | Gerber reader | 🟡 | RS-274X: units, coordinate format, apertures, macros, regions and drawing commands are read; only test files so far, not a collection of real production files. |
 | Excellon reader | 🟡 | Tools, drill hits, slots and simple routes in metric or inches are read; only test files so far. |
 | G-code reader | 🟡 | A modal interpreter for the GRBL, Marlin and PlanetCNC dialects gives absolute millimetres, arcs included; cutter compensation and canned cycles are reported as unsupported. |
-| Tests | 🟡 | 510 tests pass (`cargo test`): 101 on Gerber, 60 on Excellon, 85 on G-code and 30 on the shared crate, 17 on the raster geometry, 69 on the shapes and the 2D geometry, 109 on the pure CAM, 17 on the Gerber writer and 22 on the Excellon writer, with damaged and hostile input and a corpus of synthetic files. |
+| Tests | 🟡 | 519 tests pass (`cargo test`): 101 on Gerber, 60 on Excellon, 85 on G-code and 39 on the shared crate, 17 on the raster geometry, 69 on the shapes and the 2D geometry, 109 on the pure CAM, 17 on the Gerber writer and 22 on the Excellon writer, with damaged and hostile input and a corpus of synthetic files. |
 | Security | 🟡 | Built for files that other people send: nothing panics, no value is guessed and problems come back as diagnostics with line numbers; no independent review, and nothing here judges whether a G-code is safe to run. |
 | Geometry and HP-GL | 🟡 | The 2D geometry (booleans of regions with holes, offsets, thick lines, simplification, arc recovery) is built and tested with seeded random shapes; the HP-GL and Bungard readers are planned and not built. |
 | Use by other programs | 🟡 | Four programs of the suite depend on the readers (EH3D-CAM-DEBUGGER, EH3D-STENCILCAM, EH3D-GERBERVIEWER, EH3D-ISOCAM); none of them has run on a machine. |
@@ -161,7 +161,7 @@ python -I tools/ci_validate.py
 
 ## 🧪 Testing
 
-The suite has 510 tests (`cargo test`, run on Windows and Linux in the CI): 101 on Gerber, 60 on Excellon, 85 on G-code and 30 on the crate they share, 17 on the raster geometry, 69 on the shapes and the 2D geometry, 109 on the pure CAM, 17 on the Gerber writer and 22 on the Excellon writer. A corpus of 21 small synthetic files (`tests/golden/`: Gerber in inches and millimetres, Excellon with `LZ`/`TZ`, slots and routes, G-code for GRBL, Marlin and LinuxCNC, with CRLF, Latin-1 and damaged files) is read by the readers and compared with a summary kept next to each file; `EH3D_REGENERATE=1 cargo test` rewrites the summaries so the change shows in the diff, and the same files are damaged in thousands of ways by the mutation test. They check a typical copper layer and a typical metric file read completely, omitted coordinates, both zero suppressions, slots, routes, inches to millimetres, every command knowing its line, arcs by centre and by radius, full circles, modal feed and motion, Marlin checksums, unsupported features reported instead of guessed, and damaged input: garbage, cut prefixes and very long lines never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`. A second corpus of 14 boards (27 files, `tests/corpus/`) is written by a test in the dialects of Altium, Allegro, EAGLE and KiCad and for each feature of the standard, with a manifest (origin, licence, SHA-256) and the normalised reading of each file as a snapshot; it is the safety net for moving the other Gerber readers of the suite to these readers. The 2D geometry is checked against oracles that do not use its code (the area of a union of rectangles counted cell by cell, the identities between the four operations, the formula of the radius of an arc), and `tests/field_errors.rs` of the three readers covers faults other CAM programs had in the field.
+The suite has 519 tests (`cargo test`, run on Windows and Linux in the CI): 101 on Gerber, 60 on Excellon, 85 on G-code and 39 on the crate they share, 17 on the raster geometry, 69 on the shapes and the 2D geometry, 109 on the pure CAM, 17 on the Gerber writer and 22 on the Excellon writer. A corpus of 21 small synthetic files (`tests/golden/`: Gerber in inches and millimetres, Excellon with `LZ`/`TZ`, slots and routes, G-code for GRBL, Marlin and LinuxCNC, with CRLF, Latin-1 and damaged files) is read by the readers and compared with a summary kept next to each file; `EH3D_REGENERATE=1 cargo test` rewrites the summaries so the change shows in the diff, and the same files are damaged in thousands of ways by the mutation test. They check a typical copper layer and a typical metric file read completely, omitted coordinates, both zero suppressions, slots, routes, inches to millimetres, every command knowing its line, arcs by centre and by radius, full circles, modal feed and motion, Marlin checksums, unsupported features reported instead of guessed, and damaged input: garbage, cut prefixes and very long lines never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`. A second corpus of 14 boards (27 files, `tests/corpus/`) is written by a test in the dialects of Altium, Allegro, EAGLE and KiCad and for each feature of the standard, with a manifest (origin, licence, SHA-256) and the normalised reading of each file as a snapshot; it is the safety net for moving the other Gerber readers of the suite to these readers. The 2D geometry is checked against oracles that do not use its code (the area of a union of rectangles counted cell by cell, the identities between the four operations, the formula of the radius of an arc), and `tests/field_errors.rs` of the three readers covers faults other CAM programs had in the field.
 
 ## 🏗️ Build & Release
 
@@ -197,6 +197,7 @@ EH3D-CORE-LIBS/
 ├── Cargo.toml Cargo.lock                        the workspace and its locked dependencies
 ├── rust-toolchain.toml                          the pinned Rust toolchain
 ├── CHANGELOG.md                                 what changed in each version
+├── AGENTS.md                                    the rules for anyone who changes the repository
 ├── SECURITY.md SUPPORT.md                       how to report a vulnerability and where to ask
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   how to contribute, the code of conduct and the licence
 ```
@@ -236,6 +237,11 @@ README and texts exist in English, Spanish, French, Italian, German, Chinese, Ja
 * [Moving the other Gerber readers to this one](docs/MIGRATION.md): the plan, step by step, with the snapshot tests that must pass first.
 * [One reader for Gerber and one for Excellon](docs/UNIFICATION.md): the plan to make the readers of this repository and those of EH3D-COMMON one, not carried out: both stay, checked by differential tests.
 * [Changelog](CHANGELOG.md)
+* [Scope](docs/SCOPE.md): what the program is for, what it will not do and what it never decides.
+* [Requirements](docs/REQUIREMENTS.md): the register of capabilities, the state of each and the test that shows it.
+* [Status](docs/STATUS.md): what exists, what is missing and what is still open.
+* [Not yet](docs/NOT_YET.md): good ideas that are left out of this version.
+* [Rules for changing the repository](AGENTS.md): the rules for anyone who changes the repository.
 
 ## 🤝 Contributing & Community
 

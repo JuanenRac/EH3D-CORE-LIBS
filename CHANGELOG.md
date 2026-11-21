@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Requirements with identifiers and tests that name them:** `docs/REQUIREMENTS.md` is the register of what the program must do, one row for each capability with an identifier (`CLIB-001` on), its state (planned, prototype, implemented or validated), how far it is (done, partial, pending or blocked), its evidence and the test that shows it; a capability that is not written names the test that will show it. `crates/eh3d-parser-common/tests/reqs.rs` reads the table and fails when a test does not exist, when a state does not agree with the progress or the evidence, when `docs/STATUS.md` does not say the same numbers, when a README does not link the documents or when a document holds a date or a private reference. The five documents of the family (`docs/SCOPE.md`, `docs/REQUIREMENTS.md`, `docs/STATUS.md`, `docs/NOT_YET.md` and `AGENTS.md`) are in the repository and are linked from the eight READMEs.
+
 ## [0.1.2] - A Gerber and Excellon reader that covers block apertures, layer transforms, incremental coordinates and the dialects of the common design tools, own 2D geometry and a corpus of test boards
 
 - **Two pages to build on and to move to:** `docs/API.md` lists what a program can rely on (the two steps, read and put in place; the public items of each part; the promises about panics, bounded work, determinism, units, codes and changes), and `docs/MIGRATION.md` is the plan to move the other Gerber readers of the suite to this one step by step, with the corpus and its snapshots as the safety net and the tests that must pass before an old reader is replaced; `docs/READERS.md` and `docs/UNIFICATION.md` say what the readers read now and point to both.
