@@ -241,6 +241,9 @@ pub enum ZeroSuppression {
 /// The largest magnitude of a number the readers accept; anything above is refused.
 pub const MAX_NUMBER_MAGNITUDE: f64 = 1e15;
 
+/// The most digits (integer and decimal together) a coordinate format may have; a format with more is refused by [`decode_coordinate`] instead of padding or scaling by an absurd number.
+pub const MAX_FORMAT_DIGITS: u32 = 64;
+
 /// Why a number was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NumberError {
@@ -250,12 +253,19 @@ pub enum NumberError {
     TooLarge,
 }
 
-/// Reads a decimal number, telling an invalid text from one that is too large.
+/// Reads a decimal number, telling an invalid text from one that is too large. The words `inf`, `infinity` and `nan` are not numbers: they are invalid, not too large.
 pub fn parse_number(text: &str) -> Result<f64, NumberError> {
     let value: f64 = text.trim().parse().map_err(|_| NumberError::Invalid)?;
     if value.is_nan() {
         Err(NumberError::Invalid)
-    } else if value.is_infinite() || value.abs() > MAX_NUMBER_MAGNITUDE {
+    } else if value.is_infinite() {
+        // "1e999" overflows a double and is too large; "inf" has no digit at all and is not a number
+        if text.bytes().any(|b| b.is_ascii_digit()) {
+            Err(NumberError::TooLarge)
+        } else {
+            Err(NumberError::Invalid)
+        }
+    } else if value.abs() > MAX_NUMBER_MAGNITUDE {
         Err(NumberError::TooLarge)
     } else {
         Ok(value)
@@ -292,7 +302,11 @@ pub fn decode_coordinate(
         if !digits.chars().all(|c| c.is_ascii_digit()) {
             return None;
         }
-        let width = (integer_digits + decimal_digits) as usize;
+        let total = integer_digits.saturating_add(decimal_digits);
+        if total > MAX_FORMAT_DIGITS {
+            return None;
+        }
+        let width = total as usize;
         if digits.len() > width {
             return None;
         }
@@ -315,7 +329,7 @@ pub fn decode_coordinate(
 /// for the format is [`codes::NUMBER_TOO_LARGE`], anything else [`codes::COORDINATE_INVALID`].
 pub fn coordinate_error_code(text: &str, integer_digits: u32, decimal_digits: u32) -> &'static str {
     let digits = text.strip_prefix(['-', '+']).unwrap_or(text);
-    let width = (integer_digits + decimal_digits) as usize;
+    let width = integer_digits.saturating_add(decimal_digits) as usize;
     let all_digits = !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit());
     if (all_digits && digits.len() > width) || parse_number(digits) == Err(NumberError::TooLarge) {
         codes::NUMBER_TOO_LARGE

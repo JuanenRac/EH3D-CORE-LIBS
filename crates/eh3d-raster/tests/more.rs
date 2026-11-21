@@ -262,3 +262,189 @@ fn every_unit_comes_back_to_the_same_number() {
     }
     assert!(Unit::parse("").is_err());
 }
+
+// Bug hunt (round 4): lengths with a unit at their edges and the distance transform on odd shapes.
+mod hunt_round4 {
+    use super::pattern;
+    use eh3d_raster::edt::{distance_mm, squared_distance};
+    use eh3d_raster::units::{parse_length, Unit};
+
+    fn mm(text: &str) -> f64 {
+        parse_length(text, Unit::Mm).unwrap()
+    }
+
+    #[test]
+    fn a_length_too_large_once_it_is_in_millimetres_is_refused() {
+        for text in [
+            "1e308in",
+            "1e308inch",
+            "-1e308in",
+            "1e308 inches",
+            "1.8e307in",
+        ] {
+            assert!(parse_length(text, Unit::Mm).is_err(), "{text}");
+        }
+        assert!(parse_length("1e308", Unit::Inch).is_err());
+        assert_eq!(mm("1e308mm"), 1e308);
+        assert!(mm("1e308mil").is_finite());
+    }
+
+    #[test]
+    fn a_length_is_read_with_each_name_of_its_unit_in_any_case() {
+        for (text, want) in [
+            ("8mil", 0.2032),
+            ("8 mils", 0.2032),
+            ("8 MIL", 0.2032),
+            ("5thou", 0.127),
+            ("1.5 millimetres", 1.5),
+            ("1.5 millimeters", 1.5),
+            ("2\"", 50.8),
+            ("10 IN", 254.0),
+            ("1 inches", 25.4),
+            ("3 MM", 3.0),
+            ("+5mm", 5.0),
+            ("-5mm", -5.0),
+            ("0in", 0.0),
+            (" 7 mm ", 7.0),
+            ("1e1mm", 10.0),
+        ] {
+            assert!((mm(text) - want).abs() < 1e-9, "{text} -> {}", mm(text));
+        }
+    }
+
+    #[test]
+    fn a_length_with_no_number_or_two_numbers_or_a_wrong_word_is_refused() {
+        for text in [
+            "mm",
+            "in",
+            "\"",
+            "mil",
+            "5 mmm",
+            "5 m",
+            "1 2 mm",
+            "nan mm",
+            "infmm",
+            "inf",
+            "-inf",
+            "  ",
+            "5mm5",
+            "0x10mm",
+            "1,5mm",
+            "5 furlong",
+            "5mm mm",
+            "--5mm",
+            "5..0mm",
+        ] {
+            assert!(parse_length(text, Unit::Mm).is_err(), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn the_bare_number_takes_the_unit_asked_for() {
+        assert!((parse_length("10", Unit::Inch).unwrap() - 254.0).abs() < 1e-9);
+        assert!((parse_length("10", Unit::Mil).unwrap() - 0.254).abs() < 1e-9);
+        assert_eq!(parse_length("10", Unit::Mm).unwrap(), 10.0);
+    }
+
+    #[test]
+    fn each_unit_reads_back_its_own_name_and_converts_both_ways() {
+        for u in [Unit::Mm, Unit::Mil, Unit::Inch] {
+            assert_eq!(Unit::parse(u.name()).unwrap(), u);
+            for v in [0.0, 1.0, -3.5, 123.456, 1e-6] {
+                assert!(
+                    (u.from_mm(u.to_mm(v)) - v).abs() <= 1e-12 * v.abs().max(1.0),
+                    "{u:?} {v}"
+                );
+            }
+        }
+        assert_eq!(Unit::Mm.mm(), 1.0);
+        assert_eq!(Unit::Mil.mm(), 0.0254);
+        assert_eq!(Unit::Inch.mm(), 25.4);
+    }
+
+    #[test]
+    fn a_unit_word_with_extra_characters_is_not_a_unit() {
+        for word in [
+            "mm2", "m m", "mi", "inchs", "in.", "milli", "\"\"", "MM\u{0}",
+        ] {
+            assert!(Unit::parse(word).is_err(), "{word:?}");
+        }
+    }
+
+    #[test]
+    fn a_grid_with_no_cell_has_no_distance() {
+        assert!(squared_distance(&[], 0, 0).is_empty());
+        assert!(distance_mm(&[], 0, 0, 1.0).is_empty());
+        assert!(squared_distance(&[], 5, 0).is_empty());
+        assert!(squared_distance(&[], 0, 5).is_empty());
+    }
+
+    #[test]
+    fn a_grid_with_no_copper_is_far_everywhere_and_one_of_copper_is_zero_everywhere() {
+        let none = distance_mm(&[false; 12], 4, 3, 1.0);
+        assert!(none.iter().all(|d| *d == f32::MAX));
+        let all = distance_mm(&[true; 12], 4, 3, 1.0);
+        assert!(all.iter().all(|d| *d == 0.0));
+        assert_eq!(distance_mm(&[true], 1, 1, 0.5), vec![0.0]);
+        assert_eq!(distance_mm(&[false], 1, 1, 0.5), vec![f32::MAX]);
+    }
+
+    #[test]
+    fn the_distance_along_a_row_is_the_number_of_cells_times_the_resolution() {
+        let mut on = vec![false; 8];
+        on[0] = true;
+        let d = distance_mm(&on, 8, 1, 0.25);
+        for (x, v) in d.iter().enumerate() {
+            assert_eq!(*v, x as f32 * 0.25, "{x}");
+        }
+        let column = distance_mm(&on, 1, 8, 0.25);
+        assert_eq!(column, d);
+    }
+
+    #[test]
+    fn a_resolution_of_zero_gives_zero_distances_wherever_there_is_copper_somewhere() {
+        let mut on = vec![false; 6];
+        on[2] = true;
+        assert!(distance_mm(&on, 3, 2, 0.0).iter().all(|d| *d == 0.0));
+    }
+
+    #[test]
+    fn the_distance_of_a_grid_and_of_its_transpose_are_the_same_numbers() {
+        for (w, h, seed, density) in [
+            (7, 5, 1, 10),
+            (13, 3, 2, 30),
+            (1, 9, 3, 50),
+            (9, 1, 4, 50),
+            (16, 16, 5, 5),
+        ] {
+            let p = pattern(w, h, seed, density);
+            let mut q = vec![false; w * h];
+            for y in 0..h {
+                for x in 0..w {
+                    q[x * h + y] = p[y * w + x];
+                }
+            }
+            let dp = squared_distance(&p, w, h);
+            let dq = squared_distance(&q, h, w);
+            for y in 0..h {
+                for x in 0..w {
+                    assert_eq!(dp[y * w + x], dq[x * h + y], "{w}x{h} at {x},{y}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn adding_copper_never_makes_a_cell_farther() {
+        let (w, h) = (12, 9);
+        let mut on = pattern(w, h, 7, 4);
+        let before = squared_distance(&on, w, h);
+        for k in [5usize, 40, 77, 100] {
+            on[k % (w * h)] = true;
+        }
+        let after = squared_distance(&on, w, h);
+        for (i, (a, b)) in after.iter().zip(&before).enumerate() {
+            assert!(a <= b, "{i}");
+        }
+    }
+}
