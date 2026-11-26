@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The writers never give a file that says something else:** the Excellon writer refuses a tool whose diameter is smaller than the last decimal it writes (it wrote a diameter of zero, which the reader refuses), and the Gerber writer refuses a comma in the name or a value of a file attribute (it split one value into two). 4 more tests, two of them over thousands of damaged copies of the synthetic files, with fixed seeds.
+
 ## [0.1.3] - Stricter reading of coordinate formats and numbers
 
 - **The readers refuse a coordinate format with absurd digits, a word is not a number too large, and a length cannot overflow in millimetres:** `decode_coordinate` added the digits of the format in 32 bits (it panicked on the largest) and cast the decimals to a signed number, so a format of 4 294 967 295 decimals scaled the value by a wrapped power and gave a wrong number; a format of more than 64 digits is refused now; `inf` and `infinity` were reported as numbers that are too large and are invalid; `parse_length` took `1e308in` as infinity millimetres and now refuses it. 38 new tests cover the numbers, the formats, the bytes of a file, the text of a number, the hash across the boundaries of its blocks and the distance transform.
