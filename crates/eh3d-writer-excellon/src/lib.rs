@@ -264,7 +264,12 @@ pub fn write(file: &ExcellonFile, options: &ExcellonOptions) -> Result<String, W
         if !(1..=99).contains(number) || !(tool.diameter.is_finite() && tool.diameter > 0.0) {
             return Err(WriteError::BadTool(*number));
         }
-        out.push_str(&format!("T{number:02}C{}", plain(tool.diameter)?));
+        let diameter = plain(tool.diameter)?;
+        // smaller than the last decimal written: the reader would refuse a diameter of zero
+        if diameter == "0" {
+            return Err(WriteError::BadTool(*number));
+        }
+        out.push_str(&format!("T{number:02}C{diameter}"));
         if let Some(feed) = tool.feed {
             out.push_str(&format!("F{}", plain(feed)?));
         }

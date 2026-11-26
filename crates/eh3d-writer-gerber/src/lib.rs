@@ -55,7 +55,8 @@ pub enum WriteError {
     BadAperture(u32),
     /// An aperture uses a macro that is not defined.
     MissingMacro(String),
-    /// A text (a comment, a macro line, an attribute) holds a `*` or `%`, which would end it.
+    /// A text (a comment, a macro line, an attribute) holds a `*`, `%` or line break, which would end it, or the name or a
+    /// value of an attribute holds a comma, which would split it.
     ForbiddenCharacter,
     /// A polygon aperture with a number of vertices outside 3 to 12.
     BadPolygon,
@@ -82,7 +83,9 @@ impl std::fmt::Display for WriteError {
                 format!("aperture {n} is not defined or its number is below 10")
             }
             WriteError::MissingMacro(name) => format!("the macro '{name}' is not defined"),
-            WriteError::ForbiddenCharacter => "a text holds '*' or '%'".to_owned(),
+            WriteError::ForbiddenCharacter => {
+                "a text holds '*', '%', a line break or, in an attribute, a comma".to_owned()
+            }
             WriteError::BadPolygon => "a polygon aperture needs 3 to 12 vertices".to_owned(),
             WriteError::DeprecatedImageParameters => {
                 "a negative image or the deprecated image parameters cannot be written".to_owned()
@@ -167,6 +170,14 @@ fn check_text(text: &str) -> Result<(), WriteError> {
     } else {
         Ok(())
     }
+}
+
+/// [`check_text`] for the name or a value of an attribute, which the commas separate.
+fn check_field(text: &str) -> Result<(), WriteError> {
+    if text.contains(',') {
+        return Err(WriteError::ForbiddenCharacter);
+    }
+    check_text(text)
 }
 
 fn with_hole(mut base: String, hole: Option<f64>) -> Result<String, WriteError> {
@@ -362,10 +373,10 @@ pub fn write(file: &GerberFile, options: &GerberOptions) -> Result<GerberOutput,
             dropped += 1;
             continue;
         }
-        check_text(&attribute.name)?;
+        check_field(&attribute.name)?;
         let mut line = format!("%TF{}", attribute.name);
         for value in &attribute.values {
-            check_text(value)?;
+            check_field(value)?;
             line.push(',');
             line.push_str(value);
         }
