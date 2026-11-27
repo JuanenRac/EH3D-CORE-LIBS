@@ -90,6 +90,33 @@ fn a_character_grbl_obeys_at_once_inside_a_comment_is_told() {
 }
 
 #[test]
+fn accents_and_other_letters_outside_ascii_are_taken_in_a_comment_and_refused_outside_it() {
+    for line in [
+        "G0 X1 (dise\u{f1}o a mano)",
+        "G0 X1 ; fabricaci\u{f3}n \u{c4}\u{d6} \u{65e5}\u{672c}\u{8a9e}",
+        "(a\u{f1}o \u{fffd}) G0 X1",
+    ] {
+        let p = parse(&format!("{line}\n"), Dialect::Grbl);
+        assert!(p.diagnostics.is_empty(), "{line:?}: {:?}", p.diagnostics);
+    }
+    for line in ["G0 X1 \u{f1}", "G0 X1 \u{c4} (ok)"] {
+        let p = parse(&format!("{line}\n"), Dialect::Grbl);
+        assert!(!p.is_clean(), "{line:?}: {:?}", p.diagnostics);
+    }
+    // a control character of a comment is still told, also one outside ASCII
+    for line in ["G0 X1 (a\u{18}b)", "G0 X1 ; a\u{85}b"] {
+        let p = parse(&format!("{line}\n"), Dialect::Grbl);
+        assert!(
+            p.diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Warning),
+            "{line:?}: {:?}",
+            p.diagnostics
+        );
+    }
+}
+
+#[test]
 fn a_carriage_return_inside_a_line_ends_it_as_for_the_controller() {
     // the move after the return is not part of the comment: the controller runs it
     let t = run("G0 X1 ; note\rG0 X999\n");

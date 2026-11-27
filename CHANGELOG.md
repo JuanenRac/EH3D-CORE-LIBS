@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Accents in a comment no longer count as a command of the controller:** with the GRBL dialect only `!`, `~`, `?` and the control characters of a comment give `realtime-character`; accented letters and the other characters outside ASCII are taken inside a comment and are still refused outside it. A program that sends lines to a controller has to drop or clean the comments. 1 new test. Host-tested only.
+
 ## [0.1.4] - Readers that say what they assumed or would drop, and refuse what a controller would not read the same way
 
 - **A drill file whose scale is supposed says so:** the Excellon reader read integer coordinates of a file with no format and no zero suppression as 2.4 inches or 3.3 millimetres with the leading zeros left out and gave no notice. The values are the same and two new warnings tell the supposition once (`format-assumed`, `zeros-assumed`); `ExcellonFile::assumptions` lists them and `ExcellonFile::refuse_assumptions` turns them into errors. `parse_with_units` now supposes the format of the units given for a file that declares none (in inches it read 3.3 digits and called them inches). Host-tested only.
