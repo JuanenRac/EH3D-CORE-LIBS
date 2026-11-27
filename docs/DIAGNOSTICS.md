@@ -12,11 +12,11 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `number-too-large` | all | Error | A number is above the largest the readers accept (1e15), or a coordinate has more digits than its format. |
 | `coordinate-invalid` | Gerber, Excellon | Error | The digits are not a coordinate. |
 | `coordinate-before-format` | Gerber | Error | A coordinate comes before the `FS` command. |
-| `unknown-g-code` | all | Warning | A `G` code the reader does not know; ignored. |
-| `unknown-m-code` | all | Warning | An `M` code the reader does not know; ignored. |
-| `unknown-word` | all | Warning | A letter and number the reader does not know; ignored. |
+| `unknown-g-code` | all | Warning / Error | A `G` code the reader does not know; ignored. In G-code it is an error when the line has axis words (they are not read as a move) or the number is not a code at all. |
+| `unknown-m-code` | all | Warning / Error | An `M` code the reader does not know; ignored. In G-code a number that is not a whole one is an error. |
+| `unknown-word` | all | Warning / Error | A letter and number the reader does not know; ignored. In G-code it is an error where the controller refuses the line: a word `E` for GRBL, or axis words after `G80` with no new motion code. |
 | `end-missing` | Gerber, Excellon | Warning | The file does not end with `M02` / `M30`. |
-| `text-after-end` | Excellon, G-code | Warning | Text or blocks after the end of the program. |
+| `text-after-end` | Excellon, G-code | Warning / Error | Text or blocks after the end of the program. An error in G-code: a controller runs what it is sent and it was not looked at. |
 | `incremental-unsupported` | G-code, Excellon | Error | Incremental coordinates that the reader cannot follow (G-code `G91`; in Excellon, an `ICI` that is neither `ON` nor `OFF`). The Gerber and Excellon readers follow `G91`, `FS ... I` and `ICI,ON` with a `deprecated-command` warning. |
 | `deprecated-command` | Gerber, Excellon | Info or Warning | A deprecated command that was ignored or read as its replacement (in Gerber also the image parameters `IP`, `OF`, `SF`, `MI`, `IR`, `AS` and incremental coordinates; in Excellon `G91` and `ICI,ON`). |
 | `command-ignored` | Gerber, Excellon | Info | A known command with no effect on the result was ignored. |
@@ -79,14 +79,14 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `tool-selection-invalid` | Excellon | Error | A tool selection has no number. |
 | `tool-not-selected` | Excellon | Error | A hole or a slot comes before any tool is selected. |
 | `arc-unsupported` | Excellon | Error | An arc (`G02`/`G03`) outside a route (the tool is not down, no `M15`): it is not drawn. Arcs inside a route are read (see `Route::arcs`). |
-| `line-too-long` | G-code | Warning | The line is longer than the limit and was cut. |
+| `line-too-long` | G-code | Warning / Error | The line is longer than the limit and was cut. An error when code stood past the limit (it was not looked at); a warning when only a comment did. |
 | `block-delete-read` | G-code | Info | A block-delete line was read as if the switch were off. |
-| `system-command-ignored` | G-code | Info | A GRBL `$` system command was ignored. |
+| `system-command-ignored` | G-code | Info / Error | A GRBL `$` command was left out. The ones that only ask (`$`, `$$`, `$#`, `$G`, `$I`, `$N`) are a note; every other one can move the machine or change its settings and is an error. |
 | `checksum-mismatch` | G-code | Error | The Marlin checksum of the line does not match. |
-| `checksum-invalid` | G-code | Warning | The Marlin checksum is not a number. |
+| `checksum-invalid` | G-code | Error | The Marlin checksum is not a number. |
 | `comment-unclosed` | G-code | Warning | A comment in parentheses is not closed. |
 | `word-number-invalid` | G-code | Error | A word has no valid number. |
-| `character-ignored` | G-code | Warning | A character that is not part of the language was ignored (a line with only `%`, the start and end of a program, is not reported). |
+| `character-ignored` | G-code | Error | A character that is not part of the language was left out, so the line was not read as written (a line with only `%`, the start and end of a program, is not reported). |
 | `plane-unsupported` | G-code | Error | Only the XY plane is supported for arcs: after `G18` or `G19` an arc is drawn as a line. |
 | `cutter-compensation-unsupported` | G-code | Error | `G41` / `G42` are not supported. |
 | `canned-cycle-unsupported` | G-code | Error | Canned cycles are not supported. |
@@ -106,6 +106,9 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `g53-motion-unsupported` | G-code | Error | `G53` was read with a motion other than `G0` or `G1`: the block moves nothing. |
 | `g92-axes-missing` | G-code | Warning | `G92` was read with no axis word: the offset is unchanged. |
 | `offset-out-of-range` | G-code | Error | A `G92` offset would be larger than the configured limit (`max_offset_mm`): the offset of that axis was not changed. |
+| `realtime-character` | G-code | Warning | A comment holds a character that GRBL takes out of the stream and obeys at once (`!`, `~`, `?`, a control character or one outside ASCII). In the code the same character is `character-ignored`. |
+| `feed-mode-unsupported` | G-code | Error | `G93` (inverse time) or `G95` (per revolution) changes what `F` means, so the speeds cannot be told. |
+| `word-repeated` | G-code | Error | A word written twice on a line, or two codes of the same group (`G0 G1`, `G20 G21`, `G90 G91`, `M3 M5`): the controller refuses the line. |
 
 ## When the file does not declare its units
 

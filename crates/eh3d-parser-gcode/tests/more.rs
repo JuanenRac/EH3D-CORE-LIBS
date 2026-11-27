@@ -18,12 +18,12 @@ fn a_star_inside_a_comment_is_not_a_checksum() {
 }
 
 #[test]
-fn a_checksum_that_is_not_a_number_is_a_warning_and_the_words_are_still_read() {
+fn a_checksum_that_is_not_a_number_is_an_error_and_the_words_are_still_read() {
     let p = parse("G1 X5 F100*abc\n", Dialect::Marlin);
     assert!(p
         .diagnostics
         .iter()
-        .any(|d| d.code == codes::CHECKSUM_INVALID && d.severity == Severity::Warning));
+        .any(|d| d.code == codes::CHECKSUM_INVALID && d.severity == Severity::Error));
     assert_eq!(p.blocks[0].get('X'), Some(5.0));
 }
 
