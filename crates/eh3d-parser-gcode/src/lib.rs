@@ -230,9 +230,11 @@ fn code_past(line: &str, from: usize) -> bool {
     false
 }
 
-/// The characters GRBL takes out of the stream and obeys at once, wherever they stand (also inside a comment).
+/// The characters of a comment that GRBL obeys at once if the comment reaches the controller: `!`, `~`, `?` and the control characters. Accented
+/// letters and the other characters outside ASCII are taken in a comment: a sender has to drop or clean the comments, because GRBL takes some of
+/// their bytes as commands too. Outside a comment every one of them is refused as a character left out of the code.
 fn is_realtime(c: char) -> bool {
-    matches!(c, '!' | '~' | '?') || !c.is_ascii() || (c.is_ascii_control() && c != '\t')
+    matches!(c, '!' | '~' | '?') || (c.is_control() && c != '\t')
 }
 
 /// The `$` commands of GRBL that only ask. Every other one moves the machine or changes how it behaves.
@@ -365,7 +367,7 @@ fn parse_line(
             line,
             severity: Severity::Warning,
             code: codes::REALTIME_CHARACTER,
-            message: "a comment holds a character that GRBL obeys at once if it reaches the controller (!, ~, ?, a control character or one outside ASCII)".to_string(),
+            message: "a comment holds a character that GRBL obeys at once if it reaches the controller (!, ~, ? or a control character)".to_string(),
         });
     }
     let comment = split.comment;
