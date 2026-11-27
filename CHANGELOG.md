@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.5] - Accents in a comment no longer count as a command of the controller
+
 - **Accents in a comment no longer count as a command of the controller:** with the GRBL dialect only `!`, `~`, `?` and the control characters of a comment give `realtime-character`; accented letters and the other characters outside ASCII are taken inside a comment and are still refused outside it. A program that sends lines to a controller has to drop or clean the comments. 1 new test. Host-tested only.
 
 ## [0.1.4] - Readers that say what they assumed or would drop, and refuse what a controller would not read the same way
