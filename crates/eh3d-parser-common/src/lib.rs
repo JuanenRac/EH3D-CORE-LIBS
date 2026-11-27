@@ -183,6 +183,11 @@ pub mod codes {
         REALTIME_CHARACTER = "realtime-character",
         FEED_MODE_UNSUPPORTED = "feed-mode-unsupported",
         WORD_REPEATED = "word-repeated",
+        // what the file leaves to be supposed, or says twice
+        FORMAT_ASSUMED = "format-assumed",
+        ZEROS_ASSUMED = "zeros-assumed",
+        UNITS_CONFLICT = "units-conflict",
+        FORMAT_REDEFINED = "format-redefined",
     }
 }
 

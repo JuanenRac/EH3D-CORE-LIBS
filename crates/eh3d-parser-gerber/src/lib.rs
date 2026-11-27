@@ -394,6 +394,8 @@ struct State {
     incremental: bool,
     /// The block apertures that are open, the innermost last.
     blocks: Vec<BlockBuild>,
+    /// Whether the text after `M02` was told.
+    after_end_told: bool,
 }
 
 /// A block aperture while it is read.
@@ -452,6 +454,31 @@ impl State {
                 Severity::Error,
                 codes::LIMIT_EXCEEDED,
                 format!("{what}: the reading stops here"),
+            );
+        }
+    }
+
+    fn declare_units(&mut self, units: Units, line: usize) {
+        if self.file.units.is_some_and(|before| before != units) {
+            self.diag(
+                line,
+                Severity::Error,
+                codes::UNITS_CONFLICT,
+                "the file declares other units than before: the last ones are used for the whole file",
+            );
+        }
+        self.file.units = Some(units);
+    }
+
+    /// Tells, once, that something that is not a comment follows `M02`; it is still read.
+    fn note_after_end(&mut self, line: usize) {
+        if self.file.ended && !self.after_end_told {
+            self.after_end_told = true;
+            self.diag(
+                line,
+                Severity::Warning,
+                codes::TEXT_AFTER_END,
+                "there are commands after M02: they were read too (two files in one, or a damaged file)",
             );
         }
     }
@@ -525,6 +552,7 @@ pub fn parse_with_limits(text: &str, limits: &ParseLimits) -> GerberFile {
         total_commands: 0,
         incremental: false,
         blocks: Vec::new(),
+        after_end_told: false,
         x: None,
         y: None,
         mode: Mode::Linear,
@@ -575,6 +603,7 @@ pub fn parse_with_limits(text: &str, limits: &ParseLimits) -> GerberFile {
                     "an extended command starts with % and is never closed",
                 );
             }
+            st.note_after_end(start_line);
             extended(&mut st, body, start_line);
             pos = end + 1;
         } else {
@@ -601,6 +630,13 @@ pub fn parse_with_limits(text: &str, limits: &ParseLimits) -> GerberFile {
                 );
             }
             if !block.is_empty() {
+                // (the padding of an old file, such as a Ctrl-Z or NUL bytes, is not a command)
+                if !block.starts_with("G04")
+                    && block != "M02"
+                    && block.contains(|c: char| c.is_ascii_alphanumeric())
+                {
+                    st.note_after_end(start_line);
+                }
                 function_block(&mut st, &block, start_line);
             }
             pos = if end < bytes.len() && bytes[end] == b'*' {
@@ -682,8 +718,8 @@ fn extended_one(st: &mut State, cmd: &str, line: usize) {
         format_spec(st, rest, line);
     } else if let Some(rest) = cmd.strip_prefix("MO") {
         match rest {
-            "MM" => st.file.units = Some(Units::Millimetres),
-            "IN" => st.file.units = Some(Units::Inches),
+            "MM" => st.declare_units(Units::Millimetres, line),
+            "IN" => st.declare_units(Units::Inches, line),
             _ => st.diag(
                 line,
                 Severity::Error,
@@ -1039,11 +1075,20 @@ fn format_spec(st: &mut State, rest: &str, line: usize) {
                     "FS: X and Y use different formats; the X format is used for both",
                 );
             }
-            st.file.format = Some(CoordinateFormat {
+            let format = CoordinateFormat {
                 zero_omission: zero,
                 integer_digits: x.0,
                 decimal_digits: x.1,
-            });
+            };
+            if st.file.format.is_some_and(|before| before != format) {
+                st.diag(
+                    line,
+                    Severity::Error,
+                    codes::FORMAT_REDEFINED,
+                    "FS: the format is declared again and differently; the new one is used from here on",
+                );
+            }
+            st.file.format = Some(format);
         }
         _ => st.diag(
             line,
@@ -1326,6 +1371,14 @@ fn function_block(st: &mut State, block: &str, line: usize) {
         );
         return;
     }
+    if !block.starts_with(|c: char| c.is_ascii_alphabetic()) {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::CHARACTER_IGNORED,
+            "what stands before the first letter of a block was left out",
+        );
+    }
     let (mut x, mut y, mut i, mut j) = (None, None, None, None);
     let mut d: Option<u32> = None;
     for (letter, digits) in &words {
@@ -1347,16 +1400,25 @@ fn function_block(st: &mut State, block: &str, line: usize) {
                 ),
             },
             'X' | 'Y' | 'I' | 'J' => match coordinate(st, digits, line) {
-                Some(v) => match *letter {
-                    'X' => x = Some(v),
-                    'Y' => y = Some(v),
-                    'I' => i = Some(v),
-                    _ => j = Some(v),
-                },
+                Some(v) => {
+                    let slot = match *letter {
+                        'X' => &mut x,
+                        'Y' => &mut y,
+                        'I' => &mut i,
+                        _ => &mut j,
+                    };
+                    if slot.replace(v).is_some() {
+                        word_repeated(st, *letter, line);
+                    }
+                }
                 None => return,
             },
             'D' => match digits.parse::<u32>() {
-                Ok(n) => d = Some(n),
+                Ok(n) => {
+                    if d.replace(n).is_some() {
+                        word_repeated(st, 'D', line);
+                    }
+                }
                 Err(_) => {
                     st.diag(
                         line,
@@ -1504,6 +1566,15 @@ fn function_block(st: &mut State, block: &str, line: usize) {
     }
 }
 
+fn word_repeated(st: &mut State, letter: char, line: usize) {
+    st.diag(
+        line,
+        Severity::Error,
+        codes::WORD_REPEATED,
+        format!("{letter} is written twice in a block: only the last one is used"),
+    );
+}
+
 /// The point a draw starts from: the point before this block's coordinates were applied.
 fn current_point(st: &mut State, line: usize, _words: &[(char, String)]) -> Option<Point> {
     // The previous operation that carried a coordinate left its end point in `last_point`.
@@ -1559,7 +1630,7 @@ fn g_code(st: &mut State, digits: &str, line: usize) {
         }
         Ok(75) => st.quadrant = QuadrantMode::Multi,
         Ok(70) => {
-            st.file.units = Some(Units::Inches);
+            st.declare_units(Units::Inches, line);
             st.diag(
                 line,
                 Severity::Warning,
@@ -1568,7 +1639,7 @@ fn g_code(st: &mut State, digits: &str, line: usize) {
             );
         }
         Ok(71) => {
-            st.file.units = Some(Units::Millimetres);
+            st.declare_units(Units::Millimetres, line);
             st.diag(
                 line,
                 Severity::Warning,

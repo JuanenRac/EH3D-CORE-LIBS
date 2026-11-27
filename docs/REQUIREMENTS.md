@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md` and the README files cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because these are libraries that read and write files: they have been tried with test files, damaged files and generated cases on a computer, not on a collection of real production files, and nothing here talks to a machine.
 
-The register has 56 requirements: 49 implemented, 1 prototype, 6 planned and 0 validated. By progress: 49 done, 1 partial, 4 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 57 requirements: 50 implemented, 1 prototype, 6 planned and 0 validated. By progress: 50 done, 1 partial, 4 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
@@ -110,3 +110,4 @@ The check is `crates/eh3d-parser-common/tests/reqs.rs`: it reads this table, fin
 | CLIB-054 | A viewer or a machine program opens the files that the writers make. | planned | blocked | none | `planned:crates/eh3d-writer-gerber/tests/viewer::a_viewer_opens_the_files_of_the_writer` | Needs another program to open them. |
 | CLIB-055 | The crates use the types of EH3D-COMMON. | planned | pending | none | `planned:crates/eh3d-parser-common/tests/common_types::the_diagnostics_use_the_types_of_the_common_library` | Not written; the crates stand on their own today. |
 | CLIB-056 | What a controller would run differently from what was read is an error: split numbers, commands of the controller, what is left out of a line, blocks after the end. | implemented | done | host-test | `crates/eh3d-parser-gcode/tests/refusal::spaces_and_comments_inside_a_number_count_for_nothing_as_for_grbl` | Read by the rules of the protocol; not compared with a controller. |
+| CLIB-057 | What the Excellon reader supposes about format, zeros and units is told once and can be refused as an error. | implemented | done | host-test | `crates/eh3d-parser-excellon/tests/assumptions::a_program_that_must_not_guess_refuses_the_suppositions` | The supposed format is a convention; only the person or the file knows the real one. |

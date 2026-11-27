@@ -16,13 +16,13 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `unknown-m-code` | all | Warning / Error | An `M` code the reader does not know; ignored. In G-code a number that is not a whole one is an error. |
 | `unknown-word` | all | Warning / Error | A letter and number the reader does not know; ignored. In G-code it is an error where the controller refuses the line: a word `E` for GRBL, or axis words after `G80` with no new motion code. |
 | `end-missing` | Gerber, Excellon | Warning | The file does not end with `M02` / `M30`. |
-| `text-after-end` | Excellon, G-code | Warning / Error | Text or blocks after the end of the program. An error in G-code: a controller runs what it is sent and it was not looked at. |
+| `text-after-end` | Excellon, G-code, Gerber | Warning / Error | Text or blocks after the end of the program. An error in G-code: a controller runs what it is sent and it was not looked at. In Gerber the commands after `M02` are still read. |
 | `incremental-unsupported` | G-code, Excellon | Error | Incremental coordinates that the reader cannot follow (G-code `G91`; in Excellon, an `ICI` that is neither `ON` nor `OFF`). The Gerber and Excellon readers follow `G91`, `FS ... I` and `ICI,ON` with a `deprecated-command` warning. |
 | `deprecated-command` | Gerber, Excellon | Info or Warning | A deprecated command that was ignored or read as its replacement (in Gerber also the image parameters `IP`, `OF`, `SF`, `MI`, `IR`, `AS` and incremental coordinates; in Excellon `G91` and `ICI,ON`). |
-| `command-ignored` | Gerber, Excellon | Info | A known command with no effect on the result was ignored. |
-| `too-many-diagnostics` | Gerber | Error | The file has more diagnostics than the reader keeps (100000); the rest are dropped. |
+| `command-ignored` | Gerber, Excellon | Info or Warning | A known command with no effect on the result was ignored. In Excellon also a zero set (`G92`, `G93`) at zero, and the position written on the end line (`M00`, `M30` with X or Y), which is not a hole (Warning). |
+| `too-many-diagnostics` | Gerber, Excellon | Error | The file has more diagnostics than the reader keeps (100000); the rest are dropped. The notices `format-assumed`, `zeros-assumed` and the limit that stopped the reading are kept anyway. |
 | `command-unsupported` | Gerber | Warning | A known command with no effect on the geometry that was ignored. |
-| `geometry-command-unsupported` | Gerber, Excellon | Error | A command that changes the geometry and is not supported (in Excellon, a repeat `R<n>` or a pattern offset `M02` with a coordinate): in Gerber, the deprecated knock-out (`KO`) and plot film (`PF`) commands. |
+| `geometry-command-unsupported` | Gerber, Excellon | Error | A command that changes the geometry and is not supported (in Excellon, a repeat `R<n>`, a pattern offset `M02` with a coordinate, or a zero set `G92`/`G93` away from zero): in Gerber, the deprecated knock-out (`KO`) and plot film (`PF`) commands. |
 | `unknown-command` | Gerber | Warning | An extended command the reader does not know. |
 | `input-not-utf8` | all (`parse_bytes`) | Warning | The bytes are not UTF-8 and were read as Latin-1. |
 | `extended-unclosed` | Gerber | Error | An extended command starting with `%` is never closed. |
@@ -55,7 +55,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `d-code-invalid` | Gerber | Error or Warning | A `D` code is not an operation or an aperture. |
 | `implied-operation` | Gerber | Warning | Coordinates without `D01`/`D02`/`D03`; the last operation was used. |
 | `operation-missing` | Gerber | Error | Coordinates without an operation and none to repeat. |
-| `coordinate-missing` | Gerber | Error | An operation uses a coordinate that was never given. |
+| `coordinate-missing` | Gerber, Excellon | Error | An operation uses a coordinate that was never given; in Excellon, a slot (`G85`) without its end. |
 | `start-point-missing` | Gerber | Error | A draw starts before any move gave a start point. |
 | `limit-exceeded` | Gerber, Excellon | Error | A limit of the reading was reached (`ParseLimits`: commands, apertures, macros, attributes, nesting of block apertures, copies of a step and repeat); the reading stops there and returns what it has, except for a step and repeat over its copies, which is only not applied. |
 | `block-aperture-invalid` | Gerber | Error | A block aperture (`AB`) is closed without being opened, is opened with a number below 10, or is never closed; also a draw with a block aperture. |
@@ -69,7 +69,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `format-comment-invalid` | Excellon | Warning | A `FILE_FORMAT=` comment is not understood. |
 | `defaults-invalid` | Excellon | Warning | The default format given to `parse_with_format` is out of range (1 to 8 integer digits, 0 to 8 decimal digits) and was ignored. |
 | `option-unknown` | Excellon | Warning | An unknown option after `METRIC` / `INCH`. |
-| `unknown-header-line` | Excellon | Warning | A header line the reader does not know. |
+| `unknown-header-line` | Excellon | Warning / Error | A header line the reader does not know. An error when it is a coordinate: the header was not closed and the hole is not drilled. |
 | `tool-number-missing` | Excellon | Error | A tool definition has no number. |
 | `tool-diameter-invalid` | Excellon | Error | A tool diameter is not a positive number. |
 | `tool-diameter-missing` | Excellon | Error | A tool is defined without a diameter. |
@@ -86,7 +86,7 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `checksum-invalid` | G-code | Error | The Marlin checksum is not a number. |
 | `comment-unclosed` | G-code | Warning | A comment in parentheses is not closed. |
 | `word-number-invalid` | G-code | Error | A word has no valid number. |
-| `character-ignored` | G-code | Error | A character that is not part of the language was left out, so the line was not read as written (a line with only `%`, the start and end of a program, is not reported). |
+| `character-ignored` | G-code, Gerber, Excellon | Error or Warning | A character that is not part of the language was left out, so the line was not read as written (in G-code, a line with only `%`, the start and end of a program, is not reported). In Gerber and Excellon, what stands before the first letter of a block or line (a warning in Excellon when it holds no digit). |
 | `plane-unsupported` | G-code | Error | Only the XY plane is supported for arcs: after `G18` or `G19` an arc is drawn as a line. |
 | `cutter-compensation-unsupported` | G-code | Error | `G41` / `G42` are not supported. |
 | `canned-cycle-unsupported` | G-code | Error | Canned cycles are not supported. |
@@ -108,7 +108,11 @@ The codes are the constants of `eh3d_parser_common::codes` (re-exported by the t
 | `offset-out-of-range` | G-code | Error | A `G92` offset would be larger than the configured limit (`max_offset_mm`): the offset of that axis was not changed. |
 | `realtime-character` | G-code | Warning | A comment holds a character that GRBL takes out of the stream and obeys at once (`!`, `~`, `?`, a control character or one outside ASCII). In the code the same character is `character-ignored`. |
 | `feed-mode-unsupported` | G-code | Error | `G93` (inverse time) or `G95` (per revolution) changes what `F` means, so the speeds cannot be told. |
-| `word-repeated` | G-code | Error | A word written twice on a line, or two codes of the same group (`G0 G1`, `G20 G21`, `G90 G91`, `M3 M5`): the controller refuses the line. |
+| `word-repeated` | G-code, Gerber, Excellon | Error | A word written twice on a line, or two codes of the same group (`G0 G1`, `G20 G21`, `G90 G91`, `M3 M5`): the controller refuses the line. In Gerber (X, Y, I, J, D) and Excellon (X, Y, A, I, J) the last one is used. |
+| `format-assumed` | Excellon | Warning | A coordinate without a point of a file that declares no format (`FILE_FORMAT` comment or number mask) was read with the format supposed: 2.4 in inches, 3.3 in millimetres. The holes may be at another scale. Given once, at the first such coordinate that is not zero. An error after `refuse_assumptions`. |
+| `zeros-assumed` | Excellon | Warning | A coordinate with fewer digits than its format, in a file that declares no zero suppression (`TZ`, `LZ`), was read with the leading zeros left out. Given once. An error after `refuse_assumptions`. |
+| `units-conflict` | Gerber, Excellon | Error | The file declares two different units; the last ones are used. |
+| `format-redefined` | Gerber | Error | A second `FS` declares another format; the new one is used from there on. |
 
 ## When the file does not declare its units
 
@@ -122,6 +126,14 @@ One rule, `eh3d_parser_common::resolve_units`, used by the Gerber and the Excell
 Both readers did the same thing before (leave `units: None`, no notice); the only change is the notice and `effective_units()`.
 
 **Open decision.** Real Excellon files from old tools that omit the unit were drawn in inches by some programs (the Excellon convention of the 1980s) and in millimetres by others. Options: (a) keep millimetres (today); (b) assume inches for Excellon only; (c) make the assumed unit a setting of the caller. Nothing changes until this is decided.
+
+## When an Excellon file does not declare its format
+
+Many drill files write integers (`X15000Y5000`) and say neither how many digits stand on each side of the point nor which zeros are left out. The reader still reads them, as before (2.4 in inches, 3.3 in millimetres, leading zeros left out), and says so with `format-assumed` and `zeros-assumed`. Both are warnings, so `is_clean()` does not change. A coordinate with a point, and a zero, mean the same under any format and give no notice; so does a coordinate with all the digits of its format as far as the zeros go. What the caller gives in `ExcellonDefaults` (`default_format`, `default_zeros`) is the choice of the caller and is not told.
+
+A program that moves a machine with what it reads calls `ExcellonFile::refuse_assumptions()`: the two notices, and `units-missing` when there is something to place, become errors. `ExcellonFile::assumptions()` lists them to show them to a person. A caller that knows the format passes it to `parse_with_format`.
+
+`parse_with_units` supposes the format of the units given for a file that declares none (2.4 for inches).
 
 ## Reading bytes
 

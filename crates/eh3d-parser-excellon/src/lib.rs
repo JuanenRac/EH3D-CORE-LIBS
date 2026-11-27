@@ -11,6 +11,11 @@
 //! zeros are present and trailing zeros are suppressed ([`ZeroSuppression::Trailing`]).
 //! Coordinates with a decimal point are always read as they are.
 //!
+//! A coordinate without a point of a file that declares no format (`FILE_FORMAT`, a number mask) or no zeros is
+//! still read, as 2.4 inches or 3.3 millimetres with the leading zeros left out, and the supposition is told once
+//! (`format-assumed`, `zeros-assumed`). A program that must not guess a position calls
+//! [`ExcellonFile::refuse_assumptions`].
+//!
 //! Also read: arcs in routes (`G02`/`G03` with a radius `A` or the offsets `I`/`J`), incremental coordinates
 //! (`G91`, `ICI,ON`), the repeat `R<n>X<step>Y<step>`, the attributes of X2 written as `; #@! TF...` comments,
 //! the `Holesize` comments of Allegro (plating, quantity, tolerance of each tool), a decimal comma and the program
@@ -35,6 +40,10 @@ pub use eh3d_parser_common::{read_file_limited, InputError, InputLimits, ReadErr
 
 /// A file with no units whose holes span less than this many units may be in inches (no board is 5 mm wide).
 const SUSPECT_SPAN: f64 = 5.0;
+
+/// The most diagnostics kept for one file: a damaged file of millions of bad lines does not fill the memory with
+/// messages. The notices of what was supposed and the limit that stopped the reading are kept past it.
+pub const MAX_DIAGNOSTICS: usize = 100_000;
 
 /// A point in the units of the file.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -210,6 +219,35 @@ impl ExcellonFile {
             .all(|d| d.severity < Severity::Error)
     }
 
+    /// The notices of what the reader had to suppose to place the holes: the coordinate format
+    /// (`format-assumed`), the zero suppression (`zeros-assumed`) and, when the file has holes, slots or routes,
+    /// the units (`units-missing`). Empty when every position follows from what the file or the caller says.
+    pub fn assumptions(&self) -> impl Iterator<Item = &Diagnostic> {
+        let drawn = self.has_positions();
+        self.diagnostics
+            .iter()
+            .filter(move |d| is_assumption(d.code, drawn))
+    }
+
+    /// Turns every notice of [`ExcellonFile::assumptions`] into an error, so that [`ExcellonFile::is_clean`]
+    /// is false for a file whose positions rest on a supposition. For a program that moves a machine with what it
+    /// reads. Returns true when there was at least one. The holes are not changed.
+    pub fn refuse_assumptions(&mut self) -> bool {
+        let drawn = self.has_positions();
+        let mut found = false;
+        for d in &mut self.diagnostics {
+            if is_assumption(d.code, drawn) {
+                d.severity = Severity::Error;
+                found = true;
+            }
+        }
+        found
+    }
+
+    fn has_positions(&self) -> bool {
+        !(self.drills.is_empty() && self.slots.is_empty() && self.routes.is_empty())
+    }
+
     /// Whether the holes are plated, from the attribute `.FileFunction` (`Plated`, `NonPlated`) or, when there is
     /// none, from the `Holesize` comments if they all say the same. `None` when the file does not say it.
     pub fn plating(&self) -> Option<Plating> {
@@ -237,9 +275,20 @@ impl ExcellonFile {
     }
 }
 
+fn is_assumption(code: &str, drawn: bool) -> bool {
+    code == codes::FORMAT_ASSUMED
+        || code == codes::ZEROS_ASSUMED
+        || (drawn && code == codes::UNITS_MISSING)
+}
+
 struct State {
     file: ExcellonFile,
     format: Option<(u32, u32)>,
+    /// The units the file itself has declared (not those the caller supposes).
+    declared: Option<Units>,
+    format_told: bool,
+    zeros_told: bool,
+    diagnostics_cut: bool,
     header: bool,
     tool: Option<u32>,
     x: f64,
@@ -271,9 +320,45 @@ impl State {
         code: &'static str,
         message: impl Into<String>,
     ) {
+        if self.file.diagnostics.len() >= MAX_DIAGNOSTICS {
+            if !self.diagnostics_cut {
+                self.diagnostics_cut = true;
+                self.keep(
+                    line,
+                    Severity::Error,
+                    codes::TOO_MANY_DIAGNOSTICS,
+                    format!("more than {MAX_DIAGNOSTICS} diagnostics: the rest are not kept"),
+                );
+            }
+            return;
+        }
+        self.keep(line, severity, code, message);
+    }
+
+    /// A diagnostic that is kept whatever the number there are already (each one is given once).
+    fn keep(
+        &mut self,
+        line: usize,
+        severity: Severity,
+        code: &'static str,
+        message: impl Into<String>,
+    ) {
         self.file
             .diagnostics
             .push(Diagnostic::new(line, severity, code, message));
+    }
+
+    fn declare_units(&mut self, units: Units, line: usize) {
+        if self.declared.is_some_and(|before| before != units) {
+            self.diag(
+                line,
+                Severity::Error,
+                codes::UNITS_CONFLICT,
+                "the file declares other units than before: the last ones are used",
+            );
+        }
+        self.declared = Some(units);
+        self.file.units = Some(units);
     }
 
     /// Counts one more hole, slot or route point; false (and the reading stops) when the limit is reached.
@@ -289,7 +374,7 @@ impl State {
     fn limit_hit(&mut self, line: usize, what: &str) {
         if !self.stopped {
             self.stopped = true;
-            self.diag(
+            self.keep(
                 line,
                 Severity::Error,
                 codes::LIMIT_EXCEEDED,
@@ -323,6 +408,16 @@ pub fn parse_bytes_with(bytes: &[u8], limits: &InputLimits) -> Result<ExcellonFi
 /// The notices about missing or suspect units are dropped, and a file that declares other units gets a warning `units-forced`.
 pub fn parse_with_units(text: &str, units: Units) -> ExcellonFile {
     let mut file = parse(text);
+    if file.units.is_none() {
+        // the format that is supposed for a file without one follows the units: 2.4 in inches, 3.3 in millimetres
+        file = parse_with_format(
+            text,
+            &ExcellonDefaults {
+                default_units: Some(units),
+                ..ExcellonDefaults::default()
+            },
+        );
+    }
     if let Some(declared) = file.units {
         if declared != units {
             file.diagnostics.push(Diagnostic::new(
@@ -427,6 +522,10 @@ fn parse_inner(text: &str, defaults: &ExcellonDefaults, limits: &ExcellonLimits)
             diagnostics: Vec::new(),
         },
         format,
+        declared: None,
+        format_told: false,
+        zeros_told: false,
+        diagnostics_cut: false,
         mode: RouteMode::Linear,
         incremental: false,
         limits: limits.clone(),
@@ -610,55 +709,60 @@ fn comment_line(st: &mut State, comment: &str, line: usize) {
     // KiCad and others state the integer format in a comment: FILE_FORMAT=4:3
     let compact: String = comment.chars().filter(|c| !c.is_whitespace()).collect();
     if let Some(rest) = compact.to_ascii_uppercase().strip_prefix("FILE_FORMAT=") {
-        if let Some((i, d)) = rest.split_once(':') {
-            match (i.parse::<u32>(), d.parse::<u32>()) {
-                (Ok(i), Ok(d)) if (1..=8).contains(&i) && d <= 8 => st.format = Some((i, d)),
-                _ => st.diag(
-                    line,
-                    Severity::Warning,
-                    codes::FORMAT_COMMENT_INVALID,
-                    "FILE_FORMAT comment is not understood",
-                ),
-            }
+        let digits = rest
+            .split_once(':')
+            .and_then(|(i, d)| Some((i.parse::<u32>().ok()?, d.parse::<u32>().ok()?)));
+        match digits {
+            Some((i, d)) if (1..=8).contains(&i) && d <= 8 => st.format = Some((i, d)),
+            _ => st.diag(
+                line,
+                Severity::Warning,
+                codes::FORMAT_COMMENT_INVALID,
+                "FILE_FORMAT comment is not understood",
+            ),
         }
     }
 }
 
 fn header_line(st: &mut State, upper: &str, line: usize) {
     let (word, rest) = upper.split_once(',').unwrap_or((upper, ""));
+    let (word, rest) = (word.trim(), rest.trim());
     match word {
         // the old way of saying the units: M71 millimetres, M72 inches
-        "M71" | "M72" => {
-            st.file.units = Some(if word == "M71" {
+        "M71" | "M72" => st.declare_units(
+            if word == "M71" {
                 Units::Millimetres
             } else {
                 Units::Inches
-            });
-        }
+            },
+            line,
+        ),
         "METRIC" | "INCH" => {
-            st.file.units = Some(if word == "METRIC" {
-                Units::Millimetres
-            } else {
-                Units::Inches
-            });
-            for part in rest.split(',').filter(|p| !p.is_empty()) {
+            st.declare_units(
+                if word == "METRIC" {
+                    Units::Millimetres
+                } else {
+                    Units::Inches
+                },
+                line,
+            );
+            for part in rest.split(',').map(str::trim).filter(|p| !p.is_empty()) {
                 match part {
                     "TZ" => st.file.zeros = Some(ZeroSuppression::Leading),
                     "LZ" => st.file.zeros = Some(ZeroSuppression::Trailing),
                     other if other.chars().all(|c| c.is_ascii_digit() || c == '.') => {
                         // 000.000 or 00.0000: the number of digits before and after the point
-                        if let Some((i, d)) = other.split_once('.') {
-                            // the same limits as the format comment: a mask of hundreds of digits would make every coordinate zero
-                            if (1..=8).contains(&i.len()) && d.len() <= 8 {
+                        // the same limits as the format comment: a mask of hundreds of digits would make every coordinate zero
+                        match other.split_once('.') {
+                            Some((i, d)) if (1..=8).contains(&i.len()) && d.len() <= 8 => {
                                 st.format = Some((i.len() as u32, d.len() as u32));
-                            } else {
-                                st.diag(
-                                    line,
-                                    Severity::Warning,
-                                    codes::FORMAT_COMMENT_INVALID,
-                                    "the number format of the header is not understood",
-                                );
                             }
+                            _ => st.diag(
+                                line,
+                                Severity::Warning,
+                                codes::FORMAT_COMMENT_INVALID,
+                                "the number format of the header is not understood",
+                            ),
                         }
                     }
                     other => st.diag(
@@ -695,6 +799,12 @@ fn header_line(st: &mut State, upper: &str, line: usize) {
             format!("{word} was ignored"),
         ),
         _ if upper.starts_with('T') => tool_definition(st, upper, line),
+        _ if starts_with_a_position(upper) => st.diag(
+            line,
+            Severity::Error,
+            codes::UNKNOWN_HEADER_LINE,
+            "a coordinate inside the header is not drilled: the header is not closed by % or M95",
+        ),
         _ => st.diag(
             line,
             Severity::Warning,
@@ -705,6 +815,15 @@ fn header_line(st: &mut State, upper: &str, line: usize) {
             ),
         ),
     }
+}
+
+/// True for a line that starts like a coordinate: `X` or `Y` and then a digit, a sign or a point.
+fn starts_with_a_position(upper: &str) -> bool {
+    let mut chars = upper.chars();
+    matches!(chars.next(), Some('X' | 'Y'))
+        && chars
+            .next()
+            .is_some_and(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | '.'))
 }
 
 fn tool_definition(st: &mut State, upper: &str, line: usize) {
@@ -823,6 +942,28 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
         );
         return;
     }
+    // what stands before the first letter belongs to no word: a line that lost its X would drill somewhere else
+    let lead: String = upper
+        .chars()
+        .take_while(|c| !c.is_ascii_alphabetic())
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    if !lead.is_empty() {
+        let severity = if lead.chars().any(|c| c.is_ascii_digit()) {
+            Severity::Error
+        } else {
+            Severity::Warning
+        };
+        st.diag(
+            line,
+            severity,
+            codes::CHARACTER_IGNORED,
+            format!(
+                "'{}' before the first letter of the line was left out",
+                lead.chars().take(20).collect::<String>()
+            ),
+        );
+    }
     let (mut x, mut y) = (None, None);
     let (mut radius, mut arc_i, mut arc_j) = (None, None, None);
     let mut g: Option<u32> = None;
@@ -880,12 +1021,8 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                         "G91 (incremental coordinates) is deprecated; each X and Y is added to the last position",
                     );
                 }
-                Ok(93) => st.diag(
-                    line,
-                    Severity::Info,
-                    codes::COMMAND_IGNORED,
-                    "G93 (zero set) was ignored",
-                ),
+                // a zero set: judged after the words of the line are read
+                Ok(92 | 93) => {}
                 _ => st.diag(
                     line,
                     Severity::Warning,
@@ -909,8 +1046,8 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                     st.finish_route();
                 }
                 Ok(0 | 1) => {}
-                Ok(71) => st.file.units = Some(Units::Millimetres),
-                Ok(72) => st.file.units = Some(Units::Inches),
+                Ok(71) => st.declare_units(Units::Millimetres, line),
+                Ok(72) => st.declare_units(Units::Inches, line),
                 _ => st.diag(
                     line,
                     Severity::Warning,
@@ -933,14 +1070,26 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                 } else {
                     digits.clone()
                 };
-                match coordinate(st, &normalised) {
-                    Some(v) => match *letter {
-                        'X' => x = Some(v),
-                        'Y' => y = Some(v),
-                        'A' => radius = Some(v),
-                        'I' => arc_i = Some(v),
-                        _ => arc_j = Some(v),
-                    },
+                match coordinate(st, &normalised, line) {
+                    Some(v) => {
+                        let slot = match *letter {
+                            'X' => &mut x,
+                            'Y' => &mut y,
+                            'A' => &mut radius,
+                            'I' => &mut arc_i,
+                            _ => &mut arc_j,
+                        };
+                        if slot.replace(v).is_some() {
+                            st.diag(
+                                line,
+                                Severity::Error,
+                                codes::WORD_REPEATED,
+                                format!(
+                                    "{letter} is written twice on a line: the last one is used"
+                                ),
+                            );
+                        }
+                    }
                     None => {
                         st.diag(
                             line,
@@ -960,6 +1109,40 @@ fn body_line(st: &mut State, upper: &str, line: usize) {
                 format!("unknown word '{other}{digits}' was ignored"),
             ),
         }
+    }
+    let has = |letter: char, numbers: [u32; 2]| {
+        words
+            .iter()
+            .any(|(l, d)| *l == letter && d.parse::<u32>().is_ok_and(|n| numbers.contains(&n)))
+    };
+    // `G92` / `G93` set the zero of the program: their coordinates are not a hole
+    if has('G', [92, 93]) {
+        if x.unwrap_or(0.0) == 0.0 && y.unwrap_or(0.0) == 0.0 {
+            st.diag(
+                line,
+                Severity::Info,
+                codes::COMMAND_IGNORED,
+                "a zero set (G92, G93) at zero was ignored",
+            );
+        } else {
+            st.diag(
+                line,
+                Severity::Error,
+                codes::GEOMETRY_COMMAND_UNSUPPORTED,
+                "a zero set (G92, G93) away from zero is not supported: the positions are not shifted",
+            );
+        }
+        return;
+    }
+    // `M30X..Y..` and `M00X..Y..` say where the head stops at the end: not a hole
+    if (x.is_some() || y.is_some()) && has('M', [0, 30]) {
+        st.diag(
+            line,
+            Severity::Warning,
+            codes::COMMAND_IGNORED,
+            "the position on the end line (M00, M30) is where the head stops, not a hole",
+        );
+        return;
     }
     // `M02X<offset>` moves a repeated pattern: it is not read, and the offset must not become a hole of its own.
     let pattern_offset = (x.is_some() || y.is_some())
@@ -1065,9 +1248,20 @@ fn split_xy(st: &mut State, text: &str, line: usize) -> Option<Point> {
     for c in text.chars().chain(std::iter::once('\0')) {
         if matches!(c, 'X' | 'Y' | '\0') {
             if letter != ' ' {
-                match (coordinate(st, &std::mem::take(&mut buffer)), letter) {
-                    (Some(v), 'X') => x = Some(v),
-                    (Some(v), _) => y = Some(v),
+                match (coordinate(st, &std::mem::take(&mut buffer), line), letter) {
+                    (Some(v), _) => {
+                        let slot = if letter == 'X' { &mut x } else { &mut y };
+                        if slot.replace(v).is_some() {
+                            st.diag(
+                                line,
+                                Severity::Error,
+                                codes::WORD_REPEATED,
+                                format!(
+                                    "{letter} is written twice in a slot: the last one is used"
+                                ),
+                            );
+                        }
+                    }
                     (None, _) => {
                         st.diag(
                             line,
@@ -1156,6 +1350,15 @@ fn slot(st: &mut State, before: &str, after: &str, line: usize) {
     };
     st.x = from.x;
     st.y = from.y;
+    if !after.contains(['X', 'Y']) {
+        st.diag(
+            line,
+            Severity::Error,
+            codes::COORDINATE_MISSING,
+            "a slot (G85) has no end: the line may be cut",
+        );
+        return;
+    }
     let Some(to) = split_xy(st, after, line) else {
         return;
     };
@@ -1170,6 +1373,9 @@ fn slot(st: &mut State, before: &str, after: &str, line: usize) {
                     codes::TOOL_UNDEFINED,
                     format!("a slot uses the undefined tool T{tool}"),
                 );
+            }
+            if !st.count_item(line) {
+                return;
             }
             st.file.slots.push(Slot {
                 line,
@@ -1194,12 +1400,52 @@ fn current_format(st: &State) -> (u32, u32) {
     })
 }
 
-fn coordinate(st: &mut State, digits: &str) -> Option<f64> {
+fn coordinate(st: &mut State, digits: &str, line: usize) -> Option<f64> {
     let (integer, decimal) = current_format(st);
-    decode_coordinate(
+    let value = decode_coordinate(
         digits,
         integer,
         decimal,
         st.file.zeros.unwrap_or(ZeroSuppression::Leading),
-    )
+    )?;
+    note_assumptions(st, digits, value, line);
+    Some(value)
+}
+
+/// Tells, once each, that a position rests on a supposition. A coordinate with a point, and a zero, mean the same
+/// under any format; the zero suppression changes nothing in a coordinate that has all the digits of its format.
+fn note_assumptions(st: &mut State, digits: &str, value: f64, line: usize) {
+    if value == 0.0 || digits.contains('.') {
+        return;
+    }
+    let (integer, decimal) = current_format(st);
+    if st.format.is_none() && !st.format_told {
+        st.format_told = true;
+        st.keep(
+            line,
+            Severity::Warning,
+            codes::FORMAT_ASSUMED,
+            format!(
+                "no coordinate format is declared: '{digits}' is read with {integer} integer and {decimal} decimal digits"
+            ),
+        );
+    }
+    let written = digits.trim_start_matches(['+', '-']);
+    let width = integer.saturating_add(decimal) as usize;
+    if st.file.zeros.is_none() && !st.zeros_told && written.len() < width {
+        st.zeros_told = true;
+        let hint = if written.starts_with('0') {
+            " (it starts with a zero, so the file may leave out the trailing ones instead)"
+        } else {
+            ""
+        };
+        st.keep(
+            line,
+            Severity::Warning,
+            codes::ZEROS_ASSUMED,
+            format!(
+                "no zero suppression is declared: '{digits}' is read with the leading zeros left out{hint}"
+            ),
+        );
+    }
 }

@@ -50,3 +50,4 @@ An item says its polarity and its group. The items of one group (one flash of a 
 * Draw the apertures: the readers give the aperture of each flash and stroke, not a polygon. `eh3d-geometry::scene` has a simple conversion to shapes; a viewer that needs holes in apertures, clear polarity or the full macros makes its own from `Image` and `macros::evaluate`.
 * Compose the polarity (dark and clear, and the groups).
 * Decide what to do with a file that has errors: `GerberFile::is_clean()` and the diagnostics say what was lost.
+* Decide what to do with a drill file whose scale was supposed: `ExcellonFile::assumptions()` lists the notices and `ExcellonFile::refuse_assumptions()` turns them into errors. A program that drills what it reads should do one of the two.
