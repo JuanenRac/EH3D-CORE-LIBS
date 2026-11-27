@@ -12,4 +12,5 @@ holes: 3
 box: 1500000 2000000 5000000 10000000
 slots: 0
 routes: 0
-diagnostics: 0
+diagnostics: 1
+  line 8 warning format-assumed
