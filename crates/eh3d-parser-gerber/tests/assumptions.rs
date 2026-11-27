@@ -30,6 +30,8 @@ fn a_clean_layer_says_nothing_new() {
     }
     let comment = parse(&format!("{HEAD}M02*\nG04 the end*\nM02*\n"));
     assert!(told(&comment, codes::TEXT_AFTER_END).is_empty());
+    let padded = parse(&format!("{HEAD}M02*\n\u{1a}\0\0"));
+    assert!(told(&padded, codes::TEXT_AFTER_END).is_empty());
 }
 
 #[test]

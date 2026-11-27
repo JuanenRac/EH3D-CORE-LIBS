@@ -630,7 +630,11 @@ pub fn parse_with_limits(text: &str, limits: &ParseLimits) -> GerberFile {
                 );
             }
             if !block.is_empty() {
-                if !block.starts_with("G04") && block != "M02" {
+                // (the padding of an old file, such as a Ctrl-Z or NUL bytes, is not a command)
+                if !block.starts_with("G04")
+                    && block != "M02"
+                    && block.contains(|c: char| c.is_ascii_alphanumeric())
+                {
                     st.note_after_end(start_line);
                 }
                 function_block(&mut st, &block, start_line);
