@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.4] - Readers that say what they assumed or would drop, and refuse what a controller would not read the same way
+
 - **A drill file whose scale is supposed says so:** the Excellon reader read integer coordinates of a file with no format and no zero suppression as 2.4 inches or 3.3 millimetres with the leading zeros left out and gave no notice. The values are the same and two new warnings tell the supposition once (`format-assumed`, `zeros-assumed`); `ExcellonFile::assumptions` lists them and `ExcellonFile::refuse_assumptions` turns them into errors. `parse_with_units` now supposes the format of the units given for a file that declares none (in inches it read 3.3 digits and called them inches). Host-tested only.
 - **The drill reader invents no hole and drops no line in silence:** a zero set (`G92`, `G93`) and the position on the end line (`M00`, `M30`) were drilled and are not holes; blanks in `INCH , LZ` lost the zero suppression; a number mask without a point and a `FILE_FORMAT` without `:` are told; a coordinate inside an unclosed header, a slot without its end, characters before the first letter of a line, a word written twice and two different units are errors; slots count for `max_items`; the diagnostics are bounded at 100000.
 - **The Gerber reader tells what it passed over:** two different units, a second `FS` that differs, characters before the first letter of a block and a word written twice in a block are errors; commands after `M02` are still read and give a warning. Two new codes for both readers or for Gerber: `units-conflict`, `format-redefined`; the four new codes have their headlines in the eight languages.
