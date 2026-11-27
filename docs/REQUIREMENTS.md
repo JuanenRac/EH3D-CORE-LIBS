@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md` and the README files cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because these are libraries that read and write files: they have been tried with test files, damaged files and generated cases on a computer, not on a collection of real production files, and nothing here talks to a machine.
 
-The register has 55 requirements: 48 implemented, 1 prototype, 6 planned and 0 validated. By progress: 48 done, 1 partial, 4 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 56 requirements: 49 implemented, 1 prototype, 6 planned and 0 validated. By progress: 49 done, 1 partial, 4 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
