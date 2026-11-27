@@ -34,7 +34,7 @@ use eh3d_parser_common::{decode_input, parse_number, NumberError};
 /// The flavour of G-code of a program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dialect {
-    /// GRBL: `;` and `( )` comments, laser mode with M3/M4, `$` system commands.
+    /// GRBL: `;` and `( )` comments, laser mode with M3/M4, `$` system commands. Spaces and comments count for nothing, so `X1 000` is `X1000`, as the controller reads it.
     Grbl,
     /// Marlin: `;` comments, an optional line number and checksum (`N12 G1 X1*45`), M104/M109 and friends.
     Marlin,
@@ -148,7 +148,11 @@ pub fn parse_with_limits(text: &str, dialect: Dialect, limits: &ParseLimits) -> 
     let mut blocks = Vec::new();
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
     let mut cut = false;
-    for (index, raw) in text.lines().enumerate() {
+    // a carriage return ends a line for a controller wherever it stands: what follows it is not part of a comment
+    let lines = text
+        .split_terminator('\n')
+        .flat_map(|l| l.strip_suffix('\r').unwrap_or(l).split('\r'));
+    for (index, raw) in lines.enumerate() {
         let line = index + 1;
         let raw = raw.trim_start_matches('\u{feff}');
         let mut raw = raw;
@@ -158,10 +162,16 @@ pub fn parse_with_limits(text: &str, dialect: Dialect, limits: &ParseLimits) -> 
                 .nth(MAX_LINE_CHARS)
                 .map(|(i, _)| i)
                 .unwrap_or(raw.len());
+            // losing the end of a comment changes nothing; losing code means that part of the program was not looked at
+            let severity = if code_past(raw, cut) {
+                Severity::Error
+            } else {
+                Severity::Warning
+            };
             raw = raw.get(..cut).unwrap_or(raw);
             diagnostics.push(Diagnostic {
                 line,
-                severity: Severity::Warning,
+                severity,
                 code: codes::LINE_TOO_LONG,
                 message: format!("the line is longer than {MAX_LINE_CHARS} characters and was cut"),
             });
@@ -204,6 +214,83 @@ pub fn parse_with_limits(text: &str, dialect: Dialect, limits: &ParseLimits) -> 
     }
 }
 
+/// Whether anything outside the comments of `line` stands at or after the byte `from`.
+fn code_past(line: &str, from: usize) -> bool {
+    let mut open = false;
+    for (at, c) in line.char_indices() {
+        match c {
+            ';' if !open => return false,
+            '(' if !open => open = true,
+            ')' if open => open = false,
+            _ if open || c.is_whitespace() => {}
+            _ if at >= from => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
+/// The characters GRBL takes out of the stream and obeys at once, wherever they stand (also inside a comment).
+fn is_realtime(c: char) -> bool {
+    matches!(c, '!' | '~' | '?') || !c.is_ascii() || (c.is_ascii_control() && c != '\t')
+}
+
+/// The `$` commands of GRBL that only ask. Every other one moves the machine or changes how it behaves.
+const GRBL_QUESTIONS: [&str; 6] = ["$", "$$", "$#", "$G", "$I", "$N"];
+
+/// The code of a line without its comments, and the text of the comments.
+struct SplitLine {
+    code: Vec<char>,
+    comment: Option<String>,
+    unclosed: bool,
+    /// A character the controller obeys at once stands inside a comment.
+    realtime_comment: bool,
+}
+
+/// Takes the comments out of a line. With `join` (GRBL) the blanks of the code are taken out too: the controller reads `S1 000` as `S1000`.
+fn split_line(body: &str, join: bool) -> SplitLine {
+    let mut out = SplitLine {
+        code: Vec::new(),
+        comment: None,
+        unclosed: false,
+        realtime_comment: false,
+    };
+    let keep = |comment: &mut Option<String>, text: String| {
+        *comment = Some(match comment.take() {
+            Some(old) => format!("{old} {text}"),
+            None => text,
+        });
+    };
+    let mut chars = body.chars();
+    while let Some(c) = chars.next() {
+        if c == ';' {
+            let text: String = chars.by_ref().collect();
+            out.realtime_comment |= text.chars().any(is_realtime);
+            keep(&mut out.comment, text.trim().to_string());
+        } else if c == '(' {
+            let mut text = String::new();
+            let mut closed = false;
+            for d in chars.by_ref() {
+                if d == ')' {
+                    closed = true;
+                    break;
+                }
+                text.push(d);
+            }
+            out.unclosed |= !closed;
+            out.realtime_comment |= text.chars().any(is_realtime);
+            keep(&mut out.comment, text);
+            // where the blanks count, a comment keeps two words apart
+            if !join {
+                out.code.push(' ');
+            }
+        } else if !(join && (c == ' ' || c == '\t')) {
+            out.code.push(c);
+        }
+    }
+    out
+}
+
 fn parse_line(
     raw: &str,
     line: usize,
@@ -222,15 +309,6 @@ fn parse_line(
     }
     // a line with only % starts or ends the program in Mach3 and PlanetCNC: it is not a character to complain about
     if body == "%" {
-        return None;
-    }
-    if body.starts_with('$') && dialect == Dialect::Grbl {
-        diagnostics.push(Diagnostic {
-            line,
-            severity: Severity::Info,
-            code: codes::SYSTEM_COMMAND_IGNORED,
-            message: "a GRBL system command ($) was ignored".to_string(),
-        });
         return None;
     }
     // Marlin: a checksum after '*' is verified and cut
@@ -259,7 +337,7 @@ fn parse_line(
                 }),
                 Err(_) => diagnostics.push(Diagnostic {
                     line,
-                    severity: Severity::Warning,
+                    severity: Severity::Error,
                     code: codes::CHECKSUM_INVALID,
                     message: "the checksum of the line is not a number".to_string(),
                 }),
@@ -272,39 +350,47 @@ fn parse_line(
             return Some(block);
         }
     }
+    let grbl = dialect == Dialect::Grbl;
+    let split = split_line(body, grbl);
+    if split.unclosed {
+        diagnostics.push(Diagnostic {
+            line,
+            severity: Severity::Warning,
+            code: codes::COMMENT_UNCLOSED,
+            message: "a comment in parentheses is not closed".to_string(),
+        });
+    }
+    if grbl && split.realtime_comment {
+        diagnostics.push(Diagnostic {
+            line,
+            severity: Severity::Warning,
+            code: codes::REALTIME_CHARACTER,
+            message: "a comment holds a character that GRBL obeys at once if it reaches the controller (!, ~, ?, a control character or one outside ASCII)".to_string(),
+        });
+    }
+    let comment = split.comment;
+    let chars = split.code;
+    if grbl && chars.first() == Some(&'$') {
+        let command: String = chars.iter().collect::<String>().to_ascii_uppercase();
+        let asks = GRBL_QUESTIONS.contains(&command.as_str());
+        let (severity, message) = if asks {
+            (Severity::Info, "a GRBL question ($) was left out")
+        } else {
+            (Severity::Error, "a GRBL system command ($) is not part of a program: it can move the machine or change its settings")
+        };
+        diagnostics.push(Diagnostic {
+            line,
+            severity,
+            code: codes::SYSTEM_COMMAND_IGNORED,
+            message: message.to_string(),
+        });
+        return None;
+    }
     let mut words = Vec::new();
-    let mut comment: Option<String> = None;
-    let chars: Vec<char> = body.chars().collect();
     let mut i = 0;
     while i < chars.len() {
         let c = chars[i];
-        if c.is_whitespace() {
-            i += 1;
-        } else if c == ';' {
-            let text = chars[i + 1..].iter().collect::<String>().trim().to_string();
-            comment = Some(match comment {
-                Some(old) => format!("{old} {text}"),
-                None => text,
-            });
-            break;
-        } else if c == '(' {
-            let start = i + 1;
-            while i < chars.len() && chars[i] != ')' {
-                i += 1;
-            }
-            if i >= chars.len() {
-                diagnostics.push(Diagnostic {
-                    line,
-                    severity: Severity::Warning,
-                    code: codes::COMMENT_UNCLOSED,
-                    message: "a comment in parentheses is not closed".to_string(),
-                });
-            }
-            let text: String = chars[start..i.min(chars.len())].iter().collect();
-            comment = Some(match comment {
-                Some(old) => format!("{old} {text}"),
-                None => text,
-            });
+        if c.is_ascii_whitespace() {
             i += 1;
         } else if c.is_ascii_alphabetic() {
             let letter = c.to_ascii_uppercase();
@@ -329,9 +415,12 @@ fn parse_line(
         } else {
             diagnostics.push(Diagnostic {
                 line,
-                severity: Severity::Warning,
+                severity: Severity::Error,
                 code: codes::CHARACTER_IGNORED,
-                message: format!("the character '{c}' was ignored"),
+                message: format!(
+                    "the character '{}' could not be read and was left out",
+                    c.escape_default()
+                ),
             });
             i += 1;
         }
@@ -466,6 +555,8 @@ struct State {
     spindle_on: bool,
     tool: Option<u32>,
     motion: Option<u32>,
+    /// True after `G80` until the next motion code: axis words alone move nothing.
+    cancelled: bool,
     seen_move: bool,
     /// False after G18 or G19: arcs are not interpreted.
     plane_xy: bool,
@@ -596,6 +687,7 @@ fn walk(
         spindle_on: false,
         tool: None,
         motion: None,
+        cancelled: false,
         seen_move: false,
         plane_xy: true,
         s0_is_off: options.s0_is_off,
@@ -611,12 +703,13 @@ fn walk(
     };
     for block in &program.blocks {
         if trace.ended {
-            trace.diagnostics.push(Diagnostic {
-                line: block.line,
-                severity: Severity::Warning,
-                code: codes::TEXT_AFTER_END,
-                message: "the program went on after M2/M30".to_string(),
-            });
+            diag(
+                &mut trace,
+                block.line,
+                Severity::Error,
+                codes::TEXT_AFTER_END,
+                "the program went on after M2/M30: a controller runs what it is sent, and it was not looked at",
+            );
             break;
         }
         run_block(block, &mut state, &mut trace, program.dialect);
@@ -860,12 +953,69 @@ fn diag(
         .push(Diagnostic::new(line, severity, code, message));
 }
 
+/// A G word as ten times its number (`G91.1` is 911); a number with more decimals is no code at all.
+fn g_code(v: f64) -> i64 {
+    let tenths = (v * 10.0).round();
+    if (v * 10.0 - tenths).abs() < 1e-6 && v >= 0.0 {
+        tenths as i64
+    } else {
+        -1
+    }
+}
+
+/// What a controller refuses before it runs anything of the block: a word written twice, and two codes that cannot both hold.
+fn check_words(block: &Block, trace: &mut Trace, dialect: Dialect) {
+    let mut seen = [false; 26];
+    let mut twice = None;
+    for w in &block.words {
+        if matches!(w.letter, 'G' | 'M') || !w.letter.is_ascii_uppercase() {
+            continue;
+        }
+        let at = usize::from(w.letter as u8 - b'A');
+        if std::mem::replace(&mut seen[at], true) {
+            twice = Some(w.letter);
+        }
+    }
+    if let Some(letter) = twice {
+        diag(
+            trace,
+            block.line,
+            Severity::Error,
+            codes::WORD_REPEATED,
+            format!("the word '{letter}' is written twice: the controller refuses the line"),
+        );
+    }
+    let count = |letter: char, group: &[i64]| {
+        block
+            .words
+            .iter()
+            .filter(|w| w.letter == letter && group.contains(&g_code(w.value)))
+            .count()
+    };
+    // Marlin takes one command a line, so its groups are not those of a CNC controller
+    if dialect != Dialect::Marlin
+        && (count('G', &[0, 10, 20, 30, 800]) > 1
+            || count('G', &[200, 210]) > 1
+            || count('G', &[900, 910]) > 1
+            || count('G', &[170, 180, 190]) > 1
+            || count('M', &[30, 40, 50]) > 1)
+    {
+        diag(
+            trace,
+            block.line,
+            Severity::Error,
+            codes::WORD_REPEATED,
+            "two codes of the same group on one line: the controller refuses the line",
+        );
+    }
+}
+
 fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect) {
     let scale = |st: &State, v: f64| if st.inches { v * MM_PER_INCH } else { v };
     // the units of the block come first, wherever G20/G21 are written: the feed of `F10 G20` is in inches (as the controller reads it)
     for word in &block.words {
         if word.letter == 'G' {
-            match (word.value * 10.0).round() as i64 {
+            match g_code(word.value) {
                 200 => st.inches = true,
                 210 => st.inches = false,
                 _ => {}
@@ -878,12 +1028,13 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
     let mut machine = false;
     // G28 (false) or G30 (true) with a reference position
     let mut reference: Option<bool> = None;
+    check_words(block, trace, dialect);
     // 1. the modal words, in the order of the block
     for word in &block.words {
         let v = word.value;
         match word.letter {
             'G' => {
-                let code = (v * 10.0).round() as i64; // G91.1 -> 911
+                let code = g_code(v); // G91.1 -> 911
                 if st.track {
                     match coordinate_word(code, block, st, trace) {
                         CoordWord::Unhandled => {}
@@ -906,6 +1057,31 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                 match code {
                     0 | 10 | 20 | 30 => {
                         st.motion = Some((code / 10) as u32);
+                        st.cancelled = false;
+                    }
+                    800 => {
+                        st.motion = None;
+                        st.cancelled = true;
+                    }
+                    930 | 950 => diag(
+                        trace,
+                        block.line,
+                        Severity::Error,
+                        codes::FEED_MODE_UNSUPPORTED,
+                        format!(
+                            "G{v} changes what F means: the speeds of this program cannot be told"
+                        ),
+                    ),
+                    430 | 431 | 440 => {
+                        // G43.1 takes the axis word as the offset: it is not a move
+                        skip_motion |= code == 431;
+                        diag(
+                            trace,
+                            block.line,
+                            Severity::Warning,
+                            codes::POSITION_UNTRACKED,
+                            format!("the tool length offset of G{v} is not tracked: the heights after it may be wrong"),
+                        );
                     }
                     200 => st.inches = true,
                     210 => st.inches = false,
@@ -924,8 +1100,8 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                             "only the XY plane (G17) is supported for arcs: the arcs after G18/G19 are drawn as lines",
                         );
                     }
-                    40 | 400 | 540 | 550 | 560 | 570 | 580 | 590 | 921 | 922 | 930 | 940 | 500
-                    | 610 | 640 | 490 | 430 | 440 => {}
+                    40 | 400 | 540 | 550 | 560 | 570 | 580 | 590 | 921 | 922 | 940 | 500 | 610
+                    | 640 | 490 => {}
                     // The words of these blocks are not a move of the modal motion: reading them as one would invent a cut.
                     // Their effect on the position is not tracked, so what comes after may be offset.
                     280 | 300 | 920 | 530 | 100 | 380..=395 => {
@@ -961,15 +1137,35 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                             format!("canned cycles (G{v}) are not supported"),
                         );
                     }
-                    _ => diag(
-                        trace,
-                        block.line,
-                        Severity::Warning,
-                        codes::UNKNOWN_G_CODE,
-                        format!("G{v} is not known and was ignored"),
-                    ),
+                    _ => {
+                        // with axis words the unknown code may say what they mean: reading them as the modal move would invent one
+                        let takes_axes = block
+                            .words
+                            .iter()
+                            .any(|w| matches!(w.letter, 'X' | 'Y' | 'Z'));
+                        skip_motion |= takes_axes;
+                        let severity = if takes_axes {
+                            Severity::Error
+                        } else {
+                            Severity::Warning
+                        };
+                        diag(
+                            trace,
+                            block.line,
+                            severity,
+                            codes::UNKNOWN_G_CODE,
+                            format!("G{v} is not known and was ignored"),
+                        );
+                    }
                 }
             }
+            'M' if v.fract() != 0.0 || v < 0.0 => diag(
+                trace,
+                block.line,
+                Severity::Error,
+                codes::UNKNOWN_M_CODE,
+                format!("M{v} is not known and was ignored"),
+            ),
             'M' => match v as i64 {
                 0 | 1 => {}
                 2 | 30 => trace.ended = true,
@@ -1026,6 +1222,13 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
                     );
                 }
             }
+            'E' if dialect == Dialect::Grbl => diag(
+                trace,
+                block.line,
+                Severity::Error,
+                codes::UNKNOWN_WORD,
+                "GRBL has no word 'E': it refuses the line",
+            ),
             'P' | 'L' | 'N' | 'H' | 'D' | 'E' | 'R' | 'X' | 'Y' | 'Z' | 'I' | 'J' | 'K' | 'A'
             | 'B' | 'C' | 'U' | 'V' | 'W' | 'Q' => {}
             other => diag(
@@ -1051,6 +1254,17 @@ fn run_block(block: &Block, st: &mut State, trace: &mut Trace, dialect: Dialect)
     }
     let code = match st.motion {
         Some(code) => code,
+        // G80 took the motion mode away
+        None if st.cancelled => {
+            diag(
+                trace,
+                block.line,
+                Severity::Error,
+                codes::UNKNOWN_WORD,
+                "axis words after G80 with no new G0/G1/G2/G3: the controller refuses the line",
+            );
+            return;
+        }
         None => {
             if !st.seen_move {
                 diag(

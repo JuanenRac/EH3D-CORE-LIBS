@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The G-code reader does not call clean what a controller would run differently:** with the GRBL dialect spaces and comments inside a number count for nothing (`S1 000` was read as `S1`, the controller reads `S1000`); a `$` command that is not a question, a character left out of the code, a cut line with code past the limit, blocks after `M2`/`M30`, `G93`/`G95`, an unknown code with axis words (it was read as the modal move), a word written twice, two codes of one group, a word `E` for GRBL and a Marlin checksum that is not a number are errors; a character GRBL obeys at once inside a comment is a warning; a lone carriage return ends the line; `G80` takes the motion mode away and `G43.1` is not a move. Three new codes: `realtime-character`, `feed-mode-unsupported`, `word-repeated`. Host-tested only.
+
 - **The writers never give a file that says something else:** the Excellon writer refuses a tool whose diameter is smaller than the last decimal it writes (it wrote a diameter of zero, which the reader refuses), and the Gerber writer refuses a comma in the name or a value of a file attribute (it split one value into two). 4 more tests, two of them over thousands of damaged copies of the synthetic files, with fixed seeds.
 
 ## [0.1.3] - Stricter reading of coordinate formats and numbers

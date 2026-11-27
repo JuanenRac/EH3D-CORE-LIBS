@@ -180,6 +180,9 @@ pub mod codes {
         G53_MOTION_UNSUPPORTED = "g53-motion-unsupported",
         G92_AXES_MISSING = "g92-axes-missing",
         OFFSET_OUT_OF_RANGE = "offset-out-of-range",
+        REALTIME_CHARACTER = "realtime-character",
+        FEED_MODE_UNSUPPORTED = "feed-mode-unsupported",
+        WORD_REPEATED = "word-repeated",
     }
 }
 

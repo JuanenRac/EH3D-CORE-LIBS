@@ -89,7 +89,8 @@ fn g92_without_axes_is_told_but_an_extruder_axis_is_not() {
     let t = walk("G92\n");
     assert_eq!(codes_of(&t), vec![codes::G92_AXES_MISSING]);
     assert_eq!(t.trace.diagnostics[0].severity, Severity::Warning);
-    let t = walk("G92 E0\n");
+    // the extruder is a word of Marlin, not of GRBL
+    let t = walk_with("G92 E0\n", Dialect::Marlin, &CoordinateOptions::default());
     assert!(t.trace.diagnostics.is_empty(), "{:?}", t.trace.diagnostics);
     assert!(!t.state.g92_active);
 }

@@ -148,8 +148,8 @@ fn marlin_checksums_are_verified() {
 }
 
 #[test]
-fn grbl_system_commands_are_skipped_with_a_note() {
-    let p = parse("$H\n$$\nG1 X1 F10\n", Dialect::Grbl);
+fn grbl_questions_are_skipped_with_a_note() {
+    let p = parse("$G\n$$\nG1 X1 F10\n", Dialect::Grbl);
     assert_eq!(p.blocks.len(), 1);
     assert_eq!(
         p.diagnostics

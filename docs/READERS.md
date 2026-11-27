@@ -29,6 +29,8 @@ A file that does not declare its format can be read with the assumptions of the 
 
 Dialects: GRBL, Marlin (line numbers and checksums, verified; `M117`, `M118`, `M23` and the like with text are kept as one line) and PlanetCNC. `interpret` walks the program the way a controller does: `G20`/`G21`, `G90`/`G91`, `G90.1`/`G91.1`, `G0`..`G3` (arcs with `I`/`J` or `R`), `F`, `S`, `T`, `M3`/`M4`/`M5`, `M2`/`M30`. Every motion comes out in absolute millimetres, with the feed in millimetres per minute.
 
+What a controller would run differently from what was read is an error, so that a program checked with this reader is not called clean by mistake. With the GRBL dialect spaces and comments count for nothing (`S1 000` is `S1000`) and a `$` line is read as the controller reads it: only the questions (`$`, `$$`, `$#`, `$G`, `$I`, `$N`) are a note. In every dialect a character left out of the code, a line cut with code past the limit, blocks after `M2`/`M30`, `G93`/`G95`, an unknown `G` code with axis words, a word written twice, two codes of one group and a checksum that is not a number are errors. A character that GRBL obeys at once inside a comment (`!`, `~`, `?`, control characters, anything outside ASCII) is a warning. A lone carriage return ends a line.
+
 ## Coordinate offsets (opt in)
 
 `interpret_coordinates(&program, &InterpretOptions, &CoordinateOptions)` walks a program like `interpret_with` and also follows the commands that move the origin. A program that uses none of them gives the same trace as `interpret_with`; `interpret` and `interpret_with` themselves are unchanged. The positions of the trace are machine coordinates in millimetres, and the machine starts at X0 Y0 Z0.

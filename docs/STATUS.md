@@ -6,7 +6,7 @@ EH3D-CORE-LIBS works on a computer: the three readers, the two writers, the rast
 
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 55 requirements: 48 implemented, 1 prototype, 6 planned and 0 validated. By progress: 48 done, 1 partial, 4 pending and 2 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 56 requirements: 49 implemented, 1 prototype, 6 planned and 0 validated. By progress: 49 done, 1 partial, 4 pending and 2 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 
